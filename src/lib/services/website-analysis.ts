@@ -1,4 +1,4 @@
-import { JSDOM } from 'jsdom';
+import * as cheerio from 'cheerio';
 
 export interface WebsiteAnalysisResult {
     stalenessScore: number; // 0-100 (100 = Very Stale)
@@ -45,43 +45,41 @@ export class WebsiteAnalysisService {
             if (homeRes) {
                 const html = await homeRes.text();
                 signals.htmlSizeKb = Math.round(html.length / 1024);
-
-                const dom = new JSDOM(html);
-                const doc = dom.window.document;
-
                 signals.headersLastMod = homeRes.headers.get('last-modified') || undefined;
-                signals.copyrightYear = this.extractCopyrightYear(doc.body.textContent || '');
-                signals.viewport = !!doc.querySelector('meta[name="viewport"]');
-                signals.generator = doc.querySelector('meta[name="generator"]')?.getAttribute('content') || undefined;
+
+                const $ = cheerio.load(html);
+
+                signals.copyrightYear = this.extractCopyrightYear($('body').text() || '');
+                signals.viewport = !!$('meta[name="viewport"]').length;
+                signals.generator = $('meta[name="generator"]').attr('content') || undefined;
 
                 // --- Design & UX Signals ---
 
                 // Legacy libs
-                const scripts = Array.from(doc.querySelectorAll('script'));
-                const links = Array.from(doc.querySelectorAll('link'));
-                const allSources = [...scripts.map(s => s.src), ...links.map(l => l.href)].join(' ').toLowerCase();
+                let allSources = '';
+                $('script').each((_, el) => { allSources += $(el).attr('src') + ' '; });
+                $('link').each((_, el) => { allSources += $(el).attr('href') + ' '; });
+                allSources = allSources.toLowerCase();
 
                 signals.hasJQuery = allSources.includes('jquery');
                 signals.hasBootstrap = allSources.includes('bootstrap');
 
                 // Structure
-                signals.hasModernTags = !!doc.querySelector('main, article, section, header, footer');
-                signals.tableCount = doc.querySelectorAll('table').length;
+                signals.hasModernTags = $('main, article, section, header, footer').length > 0;
+                signals.tableCount = $('table').length;
 
                 // Inline styles
-                signals.inlineStyleCount = doc.querySelectorAll('[style]').length;
+                signals.inlineStyleCount = $('[style]').length;
 
                 // Image Optimization (check first 20 images)
-                const images = Array.from(doc.querySelectorAll('img')).slice(0, 20);
-                if (images.length > 0) {
-                    let badImages = 0;
-                    images.forEach(img => {
-                        if (!img.hasAttribute('srcset') && !img.hasAttribute('loading')) {
-                            badImages++;
-                        }
-                    });
-                    signals.nonSolarImages = badImages;
-                }
+                let badImages = 0;
+                $('img').slice(0, 20).each((_, el) => {
+                    const $img = $(el);
+                    if (!$img.attr('srcset') && !$img.attr('loading')) {
+                        badImages++;
+                    }
+                });
+                signals.nonSolarImages = badImages;
             }
 
             // 2. Check Sitemap (Strong Signal)
@@ -191,12 +189,10 @@ export class WebsiteAnalysisService {
                         }
                     }
                 } else {
-                    const dom = new JSDOM(text);
-                    const doc = dom.window.document;
-
-                    const times = doc.querySelectorAll('time');
-                    times.forEach(t => {
-                        const dt = t.getAttribute('datetime');
+                    const $ = cheerio.load(text);
+                    const times = $('time');
+                    times.each((_, t) => {
+                        const dt = $(t).attr('datetime');
                         if (dt) {
                             const d = new Date(dt);
                             if (!isNaN(d.getTime())) {
@@ -248,7 +244,6 @@ export class WebsiteAnalysisService {
         } else {
             // No blog/news date found
             contentUpdateChannelMissing = true;
-            // Note: We do NOT add the string here yet. We check logical conditions later.
         }
 
         // B) Sitemap
@@ -321,10 +316,6 @@ export class WebsiteAnalysisService {
                 score += 5;
                 reasons.push(`No visible content update channel detected (+5 supporting signal)`);
             } else {
-                // If score is 0, we don't penalize.
-                // We could add a neutral note, or nothing. 
-                // User requirement: "Modern, minimalist sites remain low score"
-                // Let's add a neutral note for clarity only if debugging, but generally sparse is better.
                 reasons.push(`No visible content update channel detected (Neutral)`);
             }
         }
