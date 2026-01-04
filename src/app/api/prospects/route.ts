@@ -1,39 +1,29 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { CompanySearchCriteria, CompanySearchResult, companySearchProvider } from '@/lib/providers';
-import { priorityCalculator } from '@/lib/services/priority-calculator';
-import prisma from '@/lib/prisma';
+import prisma from '@/lib/prisma'; // Prisma is usually robust on lazy connect
 
-// Upsert prospect (for matching or tracking)
-export async function PUT(request: Request) {
-    try {
-        const body = await request.json();
+// Lazy types
+import { CompanySearchCriteria, CompanySearchResult } from '@/lib/providers';
 
-        // Ensure unique constraint on companyNumber
-        const prospect = await prisma.companyProspect.upsert({
-            where: { companyNumber: body.companyNumber },
-            update: {}, // Don't overwrite if exists
-            create: {
-                companyName: body.companyName,
-                companyNumber: body.companyNumber,
-                industry: body.industry,
-                registeredLocation: body.location,
-                source: 'companies_house',
-                status: 'NEW',
-                sicCodes: Array.isArray(body.sicCodes) ? body.sicCodes.join(',') : body.sicCodes,
-                websiteUrl: body.websiteUrl, // If exists from search
-            }
-        });
-
-        return NextResponse.json(prospect);
-    } catch (error) {
-        console.error("Prospect upsert failed:", error);
-        return NextResponse.json({ error: 'Upsert failed' }, { status: 500 });
-    }
+// --- GET Handler (Pure Debug) ---
+export async function GET() {
+    return NextResponse.json({
+        status: 'API Online',
+        timestamp: new Date().toISOString(),
+        env: {
+            NODE_ENV: process.env.NODE_ENV,
+            HAS_KEY: !!process.env.COMPANIES_HOUSE_API_KEY
+        }
+    });
 }
-// Force recompile
+
+// --- POST Handler ---
 export async function POST(request: Request) {
     try {
+        // Dynamic import of providers to catch initialization errors
+        const { companySearchProvider } = await import('@/lib/providers');
+        const { priorityCalculator } = await import('@/lib/services/priority-calculator');
+
         const body = await request.json();
 
         // Parse Age Range
@@ -74,7 +64,7 @@ export async function POST(request: Request) {
                 return NextResponse.json([{
                     companyName: "⚠️ DEBUG: API CONNECTED BUT 0 RESULTS",
                     companyNumber: "111111",
-                    industry: "Try broader filters",
+                    industry: "Check Filters",
                     location: "Companies House",
                     status: "active"
                 }]);
@@ -96,12 +86,10 @@ export async function POST(request: Request) {
         if (results.length > 0) {
             try {
                 const numbers = results.map(r => r.companyNumber).filter(Boolean);
-                console.log(`[API] Querying DB for ${numbers.length} companies`);
 
                 const existing = await prisma.companyProspect.findMany({
                     where: { companyNumber: { in: numbers as string[] } }
                 });
-                console.log(`[API] Found ${existing.length} existing records`);
 
                 const map = new Map(existing.map((e: any) => [e.companyNumber, e]));
 
@@ -114,7 +102,7 @@ export async function POST(request: Request) {
                                 : priorityCalculator.calculate(
                                     db.stalenessScore || 0,
                                     db.financialActivityScore || 0,
-                                    db.websiteConfidence || 'LOW' // Pass confidence!
+                                    db.websiteConfidence || 'LOW'
                                 );
 
                             return {
@@ -149,10 +137,10 @@ export async function POST(request: Request) {
                             };
                         } catch (mapError) {
                             console.error(`[API] Error mapping company ${r.companyNumber}:`, mapError);
-                            return r; // Fallback to raw result
+                            return r;
                         }
                     }
-                    return r; // New/Unsaved
+                    return r;
                 });
 
                 // Apply Financial Filter
@@ -171,7 +159,6 @@ export async function POST(request: Request) {
                 return NextResponse.json(merged);
             } catch (dbError) {
                 console.error('[API] DB Merge failed:', dbError);
-                // Return raw results if DB fails, don't 500
                 return NextResponse.json(results);
             }
         }
@@ -187,8 +174,4 @@ export async function POST(request: Request) {
             status: "active"
         }]);
     }
-}
-
-export async function GET() {
-    return NextResponse.json({ status: 'API Online', timestamp: new Date().toISOString() });
 }
