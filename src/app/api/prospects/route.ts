@@ -83,8 +83,13 @@ export async function POST(request: Request) {
 
         } catch (searchError) {
             console.error('[API] Provider search failed:', searchError);
-            // Fallback to empty to avoid crashing entire route if just provider fails
-            results = [];
+            results = [{
+                companyName: `⚠️ DEBUG: ERROR ${searchError}`,
+                companyNumber: "ERROR",
+                industry: "API Failure",
+                location: "Server Log",
+                status: "active"
+            }];
         }
 
         // Merge with DB Data

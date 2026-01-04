@@ -796,6 +796,20 @@ export default function ProspectSearch() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Row 1: Primary Filters */}
                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="e.g. Tesla"
+                                className="w-full border rounded-md pl-10 pr-3 py-2"
+                                value={filters.query}
+                                onChange={(e) => setFilters({ ...filters, query: e.target.value })}
+                            />
+                            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                        </div>
+                    </div>
+
+                    <div>
                         <IndustrySelect
                             selected={Array.isArray(filters.industry) ? filters.industry : (filters.industry ? [filters.industry] : [])}
                             onChange={(vals) => setFilters({ ...filters, industry: vals })}
