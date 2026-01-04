@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LeadGen Pro",
-  description: "Internal Lead Generation & Outreach Tool",
+  title: "Envelope",
+  description: "Modern Lead Generation & Outreach",
 };
 
 import Sidebar from "@/components/Sidebar";

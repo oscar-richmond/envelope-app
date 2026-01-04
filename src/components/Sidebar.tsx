@@ -29,10 +29,10 @@ const Sidebar = () => {
             {/* Header */}
             <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'px-6'} border-b border-gray-800`}>
                 {isCollapsed ? (
-                    <span className="font-bold text-xl text-blue-400">L</span>
+                    <span className="font-bold text-xl text-blue-400">E</span>
                 ) : (
                     <h1 className="text-xl font-bold tracking-tight whitespace-nowrap overflow-hidden">
-                        LeadGen <span className="text-blue-400">Pro</span>
+                        Envelope
                     </h1>
                 )}
             </div>
