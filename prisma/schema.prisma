@@ -1,0 +1,190 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Lead {
+  id              Int       @id @default(autoincrement())
+  companyName     String
+  websiteUrl      String    @unique
+  industry        String?
+  location        String?
+  
+  // Scoring
+  stalenessScore  Int       @default(0)
+  scoreConfidence String    @default("LOW")
+  scoreReasons    String?   // JSON
+  lastAnalyzedAt  DateTime?
+  
+  // Analysis Signals
+  copyrightYear   Int?
+  hasSitemap      Boolean   @default(false)
+  sitemapLastMod  DateTime? // NEW
+  blogLastPost    DateTime? // NEW
+  metaViewport    Boolean   @default(false)
+  generatorTag    String?
+  
+  // Outreach
+  emailDraft      String?   // Latest draft body
+  subjectLine1    String?
+  subjectLine2    String?
+  emailStatus     String    @default("NEW") // NEW, ANALYSED, DRAFTED, APPROVED, SENT
+  approvedAt      DateTime?
+  lastDraftSavedAt DateTime?
+
+  // Relations
+  companyProspectId Int?
+  companyProspect   CompanyProspect? @relation(fields: [companyProspectId], references: [id])
+
+  drafts          EmailDraft[]
+  contacts        Contact[]
+  outreachMessages OutreachMessage[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model CompanyProspect {
+  id                      Int       @id @default(autoincrement())
+  companyName             String
+  companyNumber           String    @unique // Companies House ID
+  industry                String?
+  sicCodes                String?   // CSV
+  employeeSizeBand        String?
+  registeredLocation      String?
+  websiteUrl              String?
+  websiteConfidence       String    @default("LOW") // LOW, MEDIUM, HIGH
+  source                  String    @default("companies_house")
+  status                  String    @default("NEW") // NEW, ADDED, REJECTED
+  searchCriteria          String?   // JSON string of criteria used to find this prospect
+  
+  // Website Discovery
+  websiteDiscoveryMethod  String?   // e.g. "google_places"
+  websiteMatchEvidence    String?   // JSON
+  websiteLastMatchedAt    DateTime?
+  websiteMatchStatus      String?   // NEW, MATCHED, NEEDS_REVIEW, NOT_FOUND, FAILED
+  websiteMatchFailureReason String?
+  
+  // Staleness Analysis
+  stalenessScore          Int?      @default(0)
+  stalenessConfidence     String?   // HIGH, MEDIUM, LOW
+  scoreReasons            String?   // JSON
+  signals                 String?   // JSON
+  lastAnalysedAt          DateTime?
+
+  // Financial Analysis (Companies House)
+  financialActivityScore  Int?      @default(0) // 0-100
+  financialActivityBand   String?   // "Very Strong", "Strong", "Medium", "Low"
+  financialSignals        String?   // JSON
+  financialLastCheckedAt  DateTime?
+
+
+
+  // Contact Priority (Derived)
+  contactPriorityScore    Int?      @default(0)
+  contactPriorityBand     String?   // "High", "Medium", "Low"
+  contactPriorityLastCalculatedAt DateTime?
+
+  // Relations
+  leads                   Lead[]
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  discoveredEmails        ProspectEmail[]
+}
+
+model ProspectEmail {
+  id              Int      @id @default(autoincrement())
+  companyProspectId Int
+  companyProspect CompanyProspect @relation(fields: [companyProspectId], references: [id])
+  
+  email           String
+  type            String   @default("GENERAL") // GENERAL, SALES, SUPPORT, PERSONAL
+  confidence      String   @default("MEDIUM")  // HIGH, MEDIUM, LOW
+  sourceUrl       String?
+  contextSnippet  String?
+  
+  createdAt       DateTime @default(now())
+}
+
+model EmailDraft {
+  id           Int      @id @default(autoincrement())
+  leadId       Int
+  lead         Lead     @relation(fields: [leadId], references: [id])
+  version      Int
+  subjectLine1 String
+  subjectLine2 String
+  body         String
+  createdAt    DateTime @default(now())
+}
+
+model Contact {
+  id              Int      @id @default(autoincrement())
+  leadId          Int
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  firstName       String?
+  lastName        String?
+  title           String?
+  email           String?
+  confidence      Int      @default(0) // 0-100
+  roleCategory    String?  // "DECISION_MAKER", "MARKETING", "OTHER"
+  isPrimary       Boolean  @default(false)
+  source          String?
+  
+  outreachMessages OutreachMessage[]
+  
+  createdAt       DateTime @default(now())
+}
+
+model OutreachMessage {
+  id              Int      @id @default(autoincrement())
+  leadId          Int
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  contactId       Int?
+  contact         Contact? @relation(fields: [contactId], references: [id])
+  
+  subject         String
+  body            String
+  status          String   @default("DRAFT") // DRAFT, QUEUED, SENT, FAILED, BOUNCED
+  
+  gmailDraftId    String?
+  gmailMessageId  String?
+  gmailThreadId   String?
+  sentAt          DateTime?
+  errorLog        String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model GmailAccount {
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  accessToken     String   
+  refreshToken    String   
+  expiryDate      BigInt
+  dailyLimit      Int      @default(20)
+  sentToday       Int      @default(0)
+  lastSentAt      DateTime?
+}
+
+model SuppressionEntry {
+  id              Int      @id @default(autoincrement())
+  domain          String?  @unique
+  email           String?  @unique
+  reason          String?
+  createdAt       DateTime @default(now())
+}
+
+model Settings {
+  id              Int    @id @default(1)
+  openaiApiKey    String?
+  toneGuidelines  String?
+  emailSignature  String?
+  dailySendLimit  Int    @default(50)
+}

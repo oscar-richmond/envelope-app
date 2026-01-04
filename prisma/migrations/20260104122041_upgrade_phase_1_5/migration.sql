@@ -1,0 +1,15 @@
+-- AlterTable
+ALTER TABLE "Lead" ADD COLUMN "blogLastPost" DATETIME;
+ALTER TABLE "Lead" ADD COLUMN "sitemapLastMod" DATETIME;
+
+-- CreateTable
+CREATE TABLE "EmailDraft" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "leadId" INTEGER NOT NULL,
+    "version" INTEGER NOT NULL,
+    "subjectLine1" TEXT NOT NULL,
+    "subjectLine2" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EmailDraft_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "Lead" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);

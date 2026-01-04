@@ -1,0 +1,1384 @@
+'use client';
+
+import { useState } from 'react';
+import { Search, Filter, RefreshCw, ChevronDown, Check, X, AlertCircle, Building2, MapPin, Globe, ArrowRight, Lock, Target, Send, PenTool, Plus, Database, Mail, Info, HelpCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+import ExplainButton from '@/components/ExplainButton';
+import IndustrySelect from '@/components/industry-select';
+import OutreachComposer from '@/components/outreach/composer';
+
+export default function ProspectSearch() {
+    const router = useRouter();
+    const [filters, setFilters] = useState<{
+        industry: string[];
+        size: string;
+        location: string;
+        ageRange: string;
+        websiteRequired: boolean;
+        onlyOutdated: boolean;
+        minFinancialScore: string;
+        query: string;
+    }>({
+        industry: [],
+        size: '11-50',
+        location: 'London',
+        ageRange: '5-10',
+        websiteRequired: true,
+        onlyOutdated: false,
+        minFinancialScore: '', // "Low", "Medium", "Strong", "Very Strong"
+        query: ''
+    });
+    const [results, setResults] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+    const [viewEvidence, setViewEvidence] = useState<any>(null);
+    const [viewLocation, setViewLocation] = useState<string | null>(null);
+    const [viewLowPriorityConfirm, setViewLowPriorityConfirm] = useState<any>(null); // Reused for all soft-gating warnings
+    const [viewFinancials, setViewFinancials] = useState<any>(null);
+    const [viewPriority, setViewPriority] = useState<any>(null);
+
+    // --- Draft Action ---
+    const [viewDraft, setViewDraft] = useState<any | null>(null);
+    const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+    const [isSending, setIsSending] = useState(false);
+
+    const handleGenerateDraft = async (c: any, emailOverride?: string) => {
+        setIsGeneratingDraft(true);
+        try {
+            const res = await fetch(`/api/prospects/${c.id}/draft`, { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.error || "Failed to generate draft");
+                return;
+            }
+            const data = await res.json();
+            setViewDraft({
+                prospect: c,
+                leadId: data.leadId,
+                draft: data.draft,
+                editedSubject: data.draft.subject,
+                editedBody: data.draft.body,
+                toEmail: emailOverride || "" // User must input
+            });
+        } catch (e) {
+            console.error(e);
+            alert("Error creating draft");
+        } finally {
+            setIsGeneratingDraft(false);
+        }
+    };
+
+    const handleSendDraft = async () => {
+        if (!viewDraft || !viewDraft.toEmail) {
+            alert("Please enter a recipient email");
+            return;
+        }
+        setIsSending(true);
+        try {
+            const res = await fetch('/api/outreach/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    leadId: viewDraft.leadId,
+                    to: viewDraft.toEmail,
+                    subject: viewDraft.editedSubject,
+                    message: viewDraft.editedBody
+                })
+            });
+            if (res.ok) {
+                alert("Email sent successfully!");
+                setViewDraft(null);
+            } else {
+                alert("Failed to send email");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error sending email");
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const extractCity = (addr: string) => {
+        if (!addr) return '';
+        const parts = addr.split(',').map(s => s.trim());
+        const filtered = parts.filter(p => !/^(United Kingdom|England|Wales|Scotland|Great Britain|UK)$/i.test(p) && !/^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i.test(p));
+        return filtered.length > 0 ? filtered[filtered.length - 1] : parts[0];
+    };
+
+    const handleSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setResults([]);
+        try {
+            const res = await fetch('/api/prospects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(filters)
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setResults(data);
+                autoAnalyzeWebsites(data);
+                autoAnalyzeFinancials(data);
+            }
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    };
+
+    const handleAction = async (company: any, index: number, action: 'ADD' | 'REJECT') => {
+        try {
+            // Optimistic update using index to ensure uniqueness
+            const newStatus = action === 'ADD' ? 'ADDED' : 'REJECTED';
+            setStatusMap(prev => ({ ...prev, [index]: newStatus }));
+
+            const fallbackUrl = `https://google.com/search?q=${encodeURIComponent(company.companyName + ' ' + (company.location || 'UK'))}`;
+
+            const res = await fetch('/api/leads', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyName: company.companyName,
+                    websiteUrl: company.websiteUrl || fallbackUrl,
+                    industry: company.industry,
+                    location: company.location || extractCity(company.registeredLocation),
+                    companyProspectId: company.id, // Link the prospect ID
+                    companyNumber: company.companyNumber,
+                    source: 'companies_house',
+                    action: action
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "API Failed");
+            }
+
+        } catch (e: any) {
+            console.error(e);
+            alert(`Action failed: ${e.message}`);
+            // Revert on fail
+            setStatusMap(prev => {
+                const copy = { ...prev };
+                delete copy[index];
+                return copy;
+            });
+        }
+    };
+
+    const [matching, setMatching] = useState<Record<number, boolean>>({});
+
+    const [matchingMap, setMatchingMap] = useState<Record<number, boolean>>({});
+
+    const handleMatch = async (company: any, index: number) => {
+        setMatchingMap(prev => ({ ...prev, [index]: true }));
+        try {
+            // Step 1: Ensure prospect is saved (UPSERT)
+            let id = company.id;
+            if (!id) {
+                const saveRes = await fetch('/api/prospects', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(company)
+                });
+
+                if (!saveRes.ok) {
+                    const err = await saveRes.json();
+                    throw new Error(`Save failed: ${err.error || saveRes.statusText}`);
+                }
+
+                const saved = await saveRes.json();
+                id = saved.id;
+
+                if (!id) throw new Error("Saved prospect returned no ID");
+            }
+
+            // Step 2: Call Sync Match Endpoint
+            if (!id) throw new Error("Invalid ID for matching");
+
+            const res = await fetch(`/api/prospects/${id}/match-website`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ force: true })
+            });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'Matching failed');
+
+            // Step 3: Update Row
+            if (data.prospect) {
+                setResults(prev => {
+                    const next = [...prev];
+                    next[index] = { ...next[index], ...data.prospect };
+                    return next;
+                });
+            }
+        } catch (e: any) {
+            console.error("Match failed", e);
+            alert(`Match failed: ${e.message}`);
+        } finally {
+            setMatchingMap(prev => ({ ...prev, [index]: false }));
+        }
+    };
+
+    // Auto-match removed per requirements.
+
+    const renderMatchState = (c: any, index: number) => {
+        const status = c.websiteMatchStatus || 'NEW';
+        const isMatching = matchingMap[index];
+
+        if (isMatching) return <span className="text-xs text-blue-600 animate-pulse font-medium">Searching...</span>;
+
+        if (status === 'MATCHED' || (status === 'NEW' && c.websiteUrl)) {
+            return (
+                <div className="flex flex-col gap-1.5 relative group/web">
+                    <a href={c.websiteUrl} target="_blank" className="text-blue-600 hover:underline hover:text-blue-700 text-sm font-medium truncate max-w-[180px] block">
+                        {c.websiteUrl.replace(/^https?:\/\/(www\.)?/, '')}
+                    </a>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide
+                        ${c.websiteConfidence === 'HIGH' ? 'bg-green-50 text-green-700 border border-green-100' :
+                                c.websiteConfidence === 'MEDIUM' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                                    c.websiteConfidence === 'LOW' ? 'bg-red-50 text-red-700 border border-red-100' :
+                                        'bg-gray-50 text-gray-500 border border-gray-200'}`}>
+                            {c.websiteConfidence || 'Unknown'} Match
+                        </span>
+                        {c.websiteMatchEvidence && (
+                            <ExplainButton
+                                onClick={() => setViewEvidence(JSON.parse(c.websiteMatchEvidence))}
+                                title="See evidence for this match"
+                            />
+                        )}
+                    </div>
+                    {renderStaleness(c)}
+                </div>
+            );
+        }
+
+        if (status === 'NOT_FOUND' || status === 'FAILED') {
+            return (
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs italic">{status === 'FAILED' ? 'Search Failed' : 'No Match Found'}</span>
+                    <button onClick={() => handleMatch(c, index)} className="text-xs text-blue-600 hover:underline">Retry</button>
+                </div>
+            );
+        }
+
+        return (
+            <button onClick={() => handleMatch(c, index)} className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 text-xs font-medium rounded-md transition-all shadow-sm">
+                Find Website
+            </button>
+        );
+    };
+    const handleReanalyze = async (company: any, id: number) => {
+        if (!confirm(`Force re-analysis for ${company.companyName}?`)) return;
+
+        // Optimistic UI? Maybe loading state. 
+        // For now just alert/toast or silent.
+
+        try {
+            const res = await fetch('/api/prospects/analyze', {
+                method: 'POST',
+                body: JSON.stringify({ prospectIds: [id], force: true }) // Assuming API accepts force? Or just by calling it we re-analyze if we update logic
+            });
+            const data = await res.json();
+            if (data.results) {
+                setResults(prev => prev.map(p => {
+                    const result = data.results.find((r: any) => r.id === p.id);
+                    if (result && result.status === 'ANALYSED') {
+                        return { ...p, stalenessScore: result.score, scoreReasons: result.scoreReasons, lastAnalysedAt: new Date().toISOString() };
+                    }
+                    return p;
+                }));
+                alert("Analysis updated.");
+            }
+        } catch (e: any) {
+            alert("Re-analysis failed: " + e.message);
+        }
+    };
+
+    // Original auto-analyze below...
+    const autoAnalyzeFinancials = async (companies: any[]) => {
+        // Filter those needing analysis (no score or old)
+        const ids = companies.filter(c => !c.financialLastCheckedAt).map(c => c.id);
+        if (ids.length === 0) return;
+
+        try {
+            const res = await fetch('/api/prospects/financials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prospectIds: ids })
+            });
+            const data = await res.json();
+            if (data.results) {
+                setResults(prev => prev.map(p => {
+                    const r = data.results.find((res: any) => res.id === p.id);
+                    if (r && r.status === 'ANALYSED') {
+                        return {
+                            ...p,
+                            financialActivityScore: r.score,
+                            financialActivityBand: r.band,
+                            financialSignals: JSON.stringify(r.signals),
+                            financialLastCheckedAt: new Date().toISOString()
+                        };
+                    }
+                    return p;
+                }));
+            }
+        } catch (e) { console.error("Financial analysis failed", e); }
+    };
+
+    const autoAnalyzeWebsites = async (companies: any[]) => {
+        const idsToAnalyze = companies
+            .filter(c => c.websiteUrl && !c.lastAnalysedAt)
+            .map(c => c.id);
+
+        if (idsToAnalyze.length === 0) return;
+
+        try {
+            const res = await fetch('/api/prospects/analyze', {
+                method: 'POST',
+                body: JSON.stringify({ prospectIds: idsToAnalyze })
+            });
+            const data = await res.json();
+
+            if (data.results) {
+                setResults(prev => prev.map(p => {
+                    const result = data.results.find((r: any) => r.id === p.id);
+                    if (result && result.status === 'ANALYSED') {
+                        return { ...p, stalenessScore: result.score, scoreReasons: result.scoreReasons || p.scoreReasons, lastAnalysedAt: new Date().toISOString() };
+                    }
+                    return p;
+                }));
+            }
+        } catch (e) {
+            console.error("Auto-analyze failed", e);
+        }
+    };
+
+    const handleCheckFinancials = async (company: any, index: number) => {
+        if (!company) return;
+
+        // Optimistic Loading
+        setStatusMap(prev => ({ ...prev, [`fin-${index}`]: 'LOADING' }));
+
+        try {
+            // 1. Ensure Saved
+            let id = company.id;
+            if (!id) {
+                const saveRes = await fetch('/api/prospects', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(company)
+                });
+
+                if (!saveRes.ok) throw new Error("Failed to save prospect");
+
+                const saved = await saveRes.json();
+                id = saved.id;
+
+                if (!id) throw new Error("Saved prospect has no ID");
+            }
+
+            // 2. Analyze
+            const res = await fetch('/api/prospects/financials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prospectIds: [id], force: true })
+            });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.details || data.error || "Analysis failed");
+
+            // 3. Update Result
+            if (data.results && data.results.length > 0) {
+                const r = data.results[0];
+                if (r && r.status === 'ANALYSED') {
+                    setResults(prev => {
+                        const next = [...prev];
+                        next[index] = {
+                            ...next[index],
+                            id,
+                            financialActivityScore: r.score,
+                            financialActivityBand: r.band,
+                            financialSignals: JSON.stringify(r.signals),
+                            financialLastCheckedAt: new Date().toISOString()
+                        };
+                        return next;
+                    });
+                } else {
+                    alert(`Analysis returned status: ${r?.status || 'Unknown'}`);
+                }
+            } else {
+                throw new Error("No results returned from analysis");
+            }
+        } catch (e: any) {
+            console.error(e);
+            alert(`Financial check failed: ${e.message}`);
+        }
+        finally {
+            setStatusMap(prev => ({ ...prev, [`fin-${index}`]: '' }));
+        }
+    };
+
+    const renderStaleness = (c: any) => {
+        // Only show staleness if it's explicitly analyzed.
+        // If not, show "Analyze" button or nothing? 
+        // The previous UI showed "Not analyzed" which is clutter. Let's hide it unless there's data.
+        if (!c.websiteUrl) return null;
+        if (c.stalenessScore === undefined || c.stalenessScore === null) return null;
+
+        const score = c.stalenessScore;
+        let badgeClass = 'bg-gray-50 text-gray-500 border-gray-200';
+        let label = 'Low Priority';
+
+        if (score >= 60) { badgeClass = 'bg-rose-50 text-rose-700 border-rose-100'; label = 'High Priority'; }
+        else if (score >= 30) { badgeClass = 'bg-amber-50 text-amber-700 border-amber-100'; label = 'Design Opp'; }
+
+        return (
+            <div className="mt-1.5 flex items-center gap-2 w-full">
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${badgeClass} whitespace-nowrap`}>
+                    {label} ({score})
+                </span>
+
+                <div className="flex items-center gap-2 opacity-0 group-hover/web:opacity-100 transition-opacity ml-auto">
+                    <button
+                        onClick={() => handleReanalyze(c, c.id)}
+                        className="text-[10px] text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"
+                        title="Refresh Analysis"
+                    >
+                        <RefreshCw size={12} />
+                    </button>
+                    {c.scoreReasons && (
+                        <ExplainButton
+                            onClick={() => setViewEvidence(JSON.parse(c.scoreReasons))}
+                            title="See priority score breakdown"
+                        />
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+
+
+    // Lead Gating Helper
+    const checkAddLead = (c: any, index: number) => {
+        // Safe Parse Signals
+        let signals: any = {};
+        try {
+            if (typeof c.financialSignals === 'string') {
+                signals = JSON.parse(c.financialSignals);
+            } else if (typeof c.financialSignals === 'object') {
+                signals = c.financialSignals;
+            }
+        } catch (e) { console.warn("Signal parse error", e); }
+
+        // Rule A: Hard Dormant (Company Status is NOT active)
+        // CANONICAL CHECK: Only block if status is explicitly NOT active.
+        const isHardDormant = signals.status && signals.status !== 'active' && signals.status !== 'unknown';
+
+        // Rule B: Dormant Accounts (Active company, but filed dormant accounts)
+        // Soft Warning: Status is active, but accounts type implies dormant filing.
+        const isAccountsDormant = !isHardDormant && (
+            signals.hasDormantAccounts ||
+            (signals.accountsType && signals.accountsType.includes('dormant'))
+        );
+
+        // Other Flags
+        const isFinLow = c.financialActivityBand === 'Low';
+        const isWebLow = c.websiteConfidence === 'LOW' && c.websiteMatchStatus === 'MATCHED';
+        const isPriorityLow = c.contactPriorityBand === 'Low';
+
+        // Check for any warnings
+        if (isHardDormant || isAccountsDormant || isFinLow || isWebLow || isPriorityLow) {
+            setViewLowPriorityConfirm({
+                prospect: c,
+                index,
+                reasons: {
+                    isHardDormant,
+                    isAccountsDormant,
+                    isFinLow,
+                    isWebLow,
+                    isPriorityLow
+                }
+            });
+        } else {
+            // Clean green light
+            handleAction(c, index, 'ADD');
+        }
+    };
+
+
+
+
+
+    // --- Email Discovery ---
+    const [viewEmails, setViewEmails] = useState<any | null>(null);
+    const [emailResults, setEmailResults] = useState<any[]>([]);
+    const [isDiscovering, setIsDiscovering] = useState(false);
+
+    const handleOpenDiscovery = (c: any) => {
+        setViewEmails(c);
+        setEmailResults([]); // Clear previous
+        // Optionally auto-trigger? Let's make it manual per req.
+    };
+
+    const runDiscovery = async () => {
+        if (!viewEmails) return;
+        setIsDiscovering(true);
+        try {
+            // 1. Ensure Saved
+            let id = viewEmails.id;
+            if (!id) {
+                const saveRes = await fetch('/api/prospects', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(viewEmails)
+                });
+                if (!saveRes.ok) throw new Error("Failed to save prospect record");
+                const saved = await saveRes.json();
+                id = saved.id;
+
+                // Update local state so we have the ID for future
+                setViewEmails((prev: any) => ({ ...prev, id }));
+                // Also update the main list
+                setResults(prev => prev.map(p => p.companyNumber === viewEmails.companyNumber ? { ...p, id } : p));
+            }
+
+            if (!id) throw new Error("Missing ID after save attempt");
+
+            const res = await fetch(`/api/prospects/${id}/emails/find`, { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Discovery failed");
+            }
+            const data = await res.json();
+            setEmailResults(data.emails || []);
+        } catch (e: any) {
+            console.error(e);
+            alert(`Discovery failed: ${e.message}`);
+        } finally {
+            setIsDiscovering(false);
+        }
+    };
+
+    const handleUseEmail = (email: string) => {
+        // Open Draft with this email
+        // We need to trigger draft generation logic first OR just open compser?
+        // Let's trigger draft generation but override the email.
+        const c = viewEmails;
+        setViewEmails(null);
+
+        // Check if draft already exists?
+        // For simplicity, we just trigger handleGenerateDraft but pass the email override.
+        // We modify handleGenerateDraft to accept an override or set a temporary state.
+
+        // Better: Just open Draft modal manually with pre-fill? 
+        // But we need the AI draft content.
+        // So let's call API draft, then open modal with email.
+
+        handleGenerateDraft(c, email);
+    };
+
+    return (
+        <div className="p-8 max-w-7xl mx-auto">
+            {/* Email Discovery Modal */}
+            {viewEmails && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewEmails(null)}>
+                    <div className="bg-white rounded-lg p-6 max-w-xl w-full shadow-xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                                <Mail size={18} className="text-gray-500" />
+                                Find Emails: {viewEmails.companyName}
+                            </h3>
+                            <button onClick={() => setViewEmails(null)}><X size={20} /></button>
+                        </div>
+
+                        <div className="mb-6">
+                            {emailResults.length === 0 && !isDiscovering && (
+                                <div className="text-center py-8 bg-gray-50 rounded border border-dashed border-gray-200">
+                                    <p className="text-gray-500 mb-4 text-sm">Scan website ({viewEmails.websiteUrl}) for public contact data?</p>
+                                    <button
+                                        onClick={runDiscovery}
+                                        disabled={!viewEmails.websiteUrl}
+                                        className="bg-gray-900 text-white px-4 py-2 rounded text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
+                                    >
+                                        Start Scan
+                                    </button>
+                                    {!viewEmails.websiteUrl && <p className="text-red-500 text-xs mt-2">No website URL available.</p>}
+                                </div>
+                            )}
+
+                            {isDiscovering && (
+                                <div className="text-center py-12">
+                                    <RefreshCw size={24} className="animate-spin text-blue-600 mx-auto mb-2" />
+                                    <p className="text-gray-500 text-sm">Scanning {viewEmails.websiteUrl}...</p>
+                                </div>
+                            )}
+
+                            {emailResults.length > 0 && (
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-xs font-bold uppercase text-gray-500">Found {emailResults.length} emails</span>
+                                        <button onClick={runDiscovery} className="text-xs text-blue-600 hover:underline">Rescan</button>
+                                    </div>
+                                    {emailResults.map((r, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50 bg-white">
+                                            <div className="flex-1 min-w-0 pr-4">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-mono text-sm font-medium text-gray-900 truncate">{r.email}</span>
+                                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded
+                                                        ${r.type === 'PERSONAL' ? 'bg-purple-100 text-purple-700' :
+                                                            r.type === 'SALES' ? 'bg-green-100 text-green-700' :
+                                                                r.type === 'SUPPORT' ? 'bg-orange-100 text-orange-700' :
+                                                                    'bg-gray-100 text-gray-600'}`}>
+                                                        {r.type}
+                                                    </span>
+                                                    {r.confidence === 'HIGH' && <Check size={12} className="text-green-600" aria-label="High Confidence" />}
+                                                </div>
+                                                <p className="text-xs text-gray-400 truncate">
+                                                    Found on: {r.sourceUrl}
+                                                </p>
+                                                {r.contextSnippet && <p className="text-xs text-gray-500 italic mt-0.5 truncate max-w-md">"{r.contextSnippet}"</p>}
+                                            </div>
+                                            <button
+                                                onClick={() => handleUseEmail(r.email)}
+                                                className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded hover:bg-blue-100 whitespace-nowrap"
+                                            >
+                                                Use
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Location Modal */}
+            {viewLocation && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewLocation(null)}>
+                    <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                                <MapPin size={18} className="text-gray-500" />
+                                Full Address
+                            </h3>
+                            <button onClick={() => setViewLocation(null)} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
+                        </div>
+                        <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{viewLocation}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Financial Modal */}
+            {viewFinancials && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewFinancials(null)}>
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4 border-b pb-3">
+                            <h3 className="text-lg font-bold flex items-center gap-2 text-gray-900">
+                                <Building2 size={18} className="text-gray-500" />
+                                Financial Activity
+                            </h3>
+                            <button onClick={() => setViewFinancials(null)} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
+                        </div>
+
+                        <div className="mb-6 flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                            <div>
+                                <div className="text-xs text-gray-500 uppercase font-bold tracking-wide">Overall Score</div>
+                                <div className="text-3xl font-bold text-gray-900 mt-1">{viewFinancials.financialActivityScore}<span className="text-sm text-gray-400 font-medium">/100</span></div>
+                            </div>
+                            <div className={`px-3 py-1 rounded-full text-sm font-bold 
+                                ${viewFinancials.financialActivityBand === 'Very Strong' ? 'bg-emerald-100 text-emerald-800' :
+                                    viewFinancials.financialActivityBand === 'Strong' ? 'bg-green-100 text-green-800' :
+                                        viewFinancials.financialActivityBand === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-gray-100 text-gray-600'}`}>
+                                {viewFinancials.financialActivityBand}
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            {viewFinancials.financialSignals ? (() => {
+                                try {
+                                    const sigs = JSON.parse(viewFinancials.financialSignals);
+                                    return (
+                                        <>
+                                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Score Breakdown</h4>
+                                            <div className="space-y-2">
+                                                {sigs.details && sigs.details.map((d: string, i: number) => (
+                                                    <div key={i} className="flex items-start gap-2 text-sm text-gray-700 bg-white border border-gray-100 p-2 rounded">
+                                                        <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${d.includes('+0') ? 'bg-red-400' : 'bg-green-500'}`} />
+                                                        {d}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-4 pt-4 border-t text-xs text-gray-400 italic">
+                                                Based on Companies House filings. Not a credit rating.
+                                            </div>
+                                        </>
+                                    );
+                                } catch (e) { return <span className="text-red-500">Error parsing details</span>; }
+                            })() : <p className="text-gray-500">No details available.</p>}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Logic (Existing) */}
+            {viewEvidence && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewEvidence(null)}>
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold">Analysis Evidence</h3>
+                            <button onClick={() => setViewEvidence(null)}><X size={20} /></button>
+                        </div>
+                        {Array.isArray(viewEvidence) ? (
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Content & Activity Signals</h4>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        {viewEvidence.filter(r => r.match(/blog|sitemap|copyright|content update/i)).map((r: string, i: number) => (
+                                            <li key={i} className="text-sm text-gray-700">{r}</li>
+                                        ))}
+                                        {viewEvidence.filter(r => r.match(/blog|sitemap|copyright|content update/i)).length === 0 && (
+                                            <li className="text-sm text-gray-400 italic">No strong content signals recorded.</li>
+                                        )}
+                                    </ul>
+                                </div>
+                                <div className="border-t pt-4">
+                                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Design & Technical Opportunities</h4>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        {viewEvidence.filter(r => !r.match(/blog|sitemap|copyright|Assumed Fresh|content update/i)).map((r: string, i: number) => (
+                                            <li key={i} className="text-sm text-gray-700">{r}</li>
+                                        ))}
+                                        {viewEvidence.filter(r => !r.match(/blog|sitemap|copyright|Assumed Fresh|content update/i)).length === 0 && (
+                                            <li className="text-sm text-gray-400 italic">No specific design issues detected.</li>
+                                        )}
+                                    </ul>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                                {Object.entries(viewEvidence).map(([key, value]) => {
+                                    if (key === 'geometry' || key === 'opening_hours' || key === 'photos' || key === 'address_components') return null; // Skip complex/noisy fields
+
+                                    return (
+                                        <div key={key} className="flex flex-col sm:flex-row border-b border-gray-100 last:border-0 p-3 text-sm">
+                                            <span className="font-semibold text-gray-600 sm:w-1/3 capitalize">
+                                                {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
+                                            </span>
+                                            <span className="text-gray-900 sm:w-2/3 break-all sm:break-words mt-1 sm:mt-0 font-mono text-xs sm:text-sm">
+                                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ... Filters ... */}
+
+
+
+            <header className="mb-8">
+                <h1 className="text-3xl font-bold text-gray-900">Prospect Search</h1>
+                <p className="text-gray-500 mt-2">Search Companies House for new prospects.</p>
+            </header>
+
+            {/* Search Filters */}
+            <form onSubmit={handleSearch} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Row 1: Primary Filters */}
+                    <div>
+                        <IndustrySelect
+                            selected={Array.isArray(filters.industry) ? filters.industry : (filters.industry ? [filters.industry] : [])}
+                            onChange={(vals) => setFilters({ ...filters, industry: vals })}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Company Size</label>
+                        <select
+                            className="w-full border rounded-md px-3 py-2 bg-white"
+                            value={filters.size}
+                            onChange={(e) => setFilters({ ...filters, size: e.target.value })}
+                        >
+                            <option value="1-10">1-10 employees</option>
+                            <option value="11-50">11-50 employees</option>
+                            <option value="51-200">51-200 employees</option>
+                            <option value="201-500">201-500 employees</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                        <input
+                            type="text"
+                            placeholder="e.g. London"
+                            className="w-full border rounded-md px-3 py-2"
+                            value={filters.location}
+                            onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Region or City (UK)</p>
+                    </div>
+
+                    {/* Row 2: Age & Website Signals */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Company Age</label>
+                        <select
+                            className="w-full border rounded-md px-3 py-2 bg-white"
+                            value={filters.ageRange}
+                            onChange={(e) => setFilters({ ...filters, ageRange: e.target.value })}
+                        >
+                            <option value="2-5">2-5 years</option>
+                            <option value="5-10">5-10 years (Legacy)</option>
+                            <option value="10+">10+ years</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Min. Stability</label>
+                        <select
+                            className="w-full border rounded-md px-3 py-2 bg-white"
+                            value={(filters as any).minFinancialScore || ''}
+                            onChange={(e) => setFilters({ ...filters, minFinancialScore: e.target.value } as any)}
+                        >
+                            <option value="">Any</option>
+                            <option value="Strong">Strong+</option>
+                            <option value="Medium">Medium+</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">Operational/Financial Health</p>
+                    </div>
+
+                    <div className="flex items-center gap-4 pt-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                checked={filters.websiteRequired}
+                                onChange={(e) => setFilters({ ...filters, websiteRequired: e.target.checked })}
+                            />
+                            <span className="text-sm text-gray-700 font-medium">Must have website</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer ml-4">
+                            <input
+                                type="checkbox"
+                                className="w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
+                                checked={filters.onlyOutdated}
+                                onChange={(e) => setFilters({ ...filters, onlyOutdated: e.target.checked })}
+                            />
+                            <span className="text-sm text-gray-700 font-medium">Likely Outdated</span>
+                            <span className="text-xs text-gray-400">(Score &ge; 60)</span>
+                        </label>
+                    </div>
+
+                    <div className="flex items-end">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex justify-center items-center gap-2 font-medium"
+                        >
+                            <Search size={18} />
+                            {loading ? 'Searching...' : 'Find Companies'}
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {/* Results Table */}
+            {
+                results.length > 0 ? (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <table className="w-full text-left">
+                            <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-semibold border-b border-gray-200">
+                                <tr>
+                                    <th className="px-3 py-4 font-medium tracking-wide">Company Details</th>
+                                    <th className="px-3 py-4 font-medium tracking-wide">Location</th>
+                                    <th className="px-3 py-4 font-medium tracking-wide">Financial Analysis</th>
+                                    <th className="px-3 py-4 font-medium tracking-wide">Website Analysis</th>
+                                    <th className="px-3 py-4 font-medium tracking-wide">Lead Opportunity</th>
+                                    <th className="px-3 py-4 font-medium tracking-wide text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {results.map((c, i) => {
+                                    const status = statusMap[i]; // Use index for status lookup
+                                    if (status === 'REJECTED') return null; // Hide rejected
+
+                                    const isLoadingFin = statusMap[`fin-${i}`] === 'LOADING';
+
+                                    const isMatched = c.websiteDiscoveryMethod === 'google_places';
+                                    const confidence = c.websiteConfidence || 'LOW';
+
+                                    // Hotfix for Dormant Accounts visualization on stale data
+                                    let finScore = c.financialActivityScore || 0;
+                                    let finBand = c.financialActivityBand || 'Low';
+
+                                    // Parse signals safely for UI check
+                                    let signals: any = {};
+                                    try { signals = typeof c.financialSignals === 'string' ? JSON.parse(c.financialSignals) : c.financialSignals || {}; } catch (e) { }
+
+                                    const hasDormantAccounts = signals.hasDormantAccounts || (signals.accountsType && signals.accountsType.includes('dormant'));
+
+                                    if (hasDormantAccounts && finScore >= 60) {
+                                        finScore = 59;
+                                        finBand = 'Medium';
+                                    }
+
+                                    return (
+                                        <tr key={c.companyNumber || i} className="hover:bg-gray-50/80 group transition-colors border-b border-gray-50 last:border-0">
+                                            <td className="px-3 py-5 align-middle">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-semibold text-gray-900 text-sm">{c.companyName}</span>
+                                                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                                                        <span>{c.companyNumber}</span>
+                                                        <span>&bull;</span>
+                                                        <span className="truncate max-w-[120px]" title={c.industry || 'Unknown'}>{c.industry || 'Unknown Type'}</span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1 mt-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                        {c.source === 'companies_house' && <span className="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded border border-gray-200">CH</span>}
+                                                        {c.sicCodes?.slice(0, 2).map((code: string) => (
+                                                            <span key={code} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                                                                {code}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-4 align-top text-sm text-gray-500">
+                                                {c.location && (
+                                                    <button
+                                                        onClick={() => setViewLocation(c.location)}
+                                                        className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded transition text-left group/loc"
+                                                    >
+                                                        <MapPin size={14} className="text-gray-400 shrink-0 group-hover/loc:text-blue-500" />
+                                                        <span className="truncate max-w-[120px] underline decoration-dotted decoration-gray-400 underline-offset-2 group-hover/loc:decoration-blue-500 group-hover/loc:text-blue-700">
+                                                            {extractCity(c.location)}
+                                                        </span>
+                                                    </button>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-5 align-middle">
+                                                {isLoadingFin ? (
+                                                    <div className="animate-pulse h-5 w-20 bg-gray-100 rounded"></div>
+                                                ) : (
+                                                    c.financialActivityBand ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="flex flex-col items-center min-w-[32px]">
+                                                                <span className={`text-xl font-bold leading-none
+                                                                    ${finBand === 'Very Strong' ? 'text-emerald-700' :
+                                                                        finBand === 'Strong' ? 'text-green-700' :
+                                                                            finBand === 'Medium' ? 'text-amber-700' :
+                                                                                'text-gray-500'}`}>
+                                                                    {finScore}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className={`text-xs font-bold uppercase tracking-wide
+                                                                     ${finBand === 'Very Strong' ? 'text-emerald-700' :
+                                                                        finBand === 'Strong' ? 'text-green-700' :
+                                                                            finBand === 'Medium' ? 'text-amber-700' :
+                                                                                'text-gray-400'}`}>
+                                                                    {finBand}
+                                                                </span>
+                                                                <ExplainButton
+                                                                    onClick={() => setViewFinancials(c)}
+                                                                    title="See financial data breakdown"
+                                                                    className="-ml-1"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleCheckFinancials(c, i)}
+                                                            disabled={isLoadingFin}
+                                                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                        >
+                                                            Check Financials
+                                                        </button>
+                                                    )
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-5 align-middle">
+                                                {/* Website Analysis - Simplified */}
+                                                {renderMatchState(c, i)}
+                                            </td>
+                                            <td className="px-3 py-5 align-middle">
+                                                {c.contactPriorityBand ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex flex-col items-center min-w-[32px]">
+                                                            <span className={`text-xl font-bold leading-none
+                                                                ${c.contactPriorityBand === 'High' ? 'text-purple-700' :
+                                                                    c.contactPriorityBand === 'Medium' ? 'text-indigo-700' :
+                                                                        'text-gray-500'}`}>
+                                                                {c.contactPriorityScore}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className={`text-xs font-bold uppercase tracking-wide
+                                                                 ${c.contactPriorityBand === 'High' ? 'text-purple-700' :
+                                                                    c.contactPriorityBand === 'Medium' ? 'text-indigo-700' :
+                                                                        'text-gray-400'}`}>
+                                                                {c.contactPriorityBand}
+                                                            </span>
+                                                            <ExplainButton
+                                                                onClick={() => setViewPriority(c)}
+                                                                title="See lead opportunity score breakdown"
+                                                                className="-ml-1"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-gray-300">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-5 align-middle text-right">
+                                                {status === 'ADDED' ? (
+                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                                                        <Check size={12} /> Added
+                                                    </span>
+                                                ) : (
+                                                    <div className="flex items-center justify-end gap-1 transition-opacity">
+
+                                                        {/* Icon Group */}
+                                                        <div className="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-200 mr-2">
+                                                            <button
+                                                                onClick={() => handleOpenDiscovery(c)}
+                                                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-white rounded-md transition-all relative group/btn"
+                                                            >
+                                                                <Database size={14} />
+                                                                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap">Find Emails</div>
+                                                            </button>
+
+                                                            {(c.contactPriorityScore || 0) >= 40 && (
+                                                                <button
+                                                                    onClick={() => handleGenerateDraft(c)}
+                                                                    disabled={isGeneratingDraft}
+                                                                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-md transition-all relative group/btn"
+                                                                >
+                                                                    <PenTool size={14} />
+                                                                    <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap">Draft</div>
+                                                                </button>
+                                                            )}
+
+                                                            <button
+                                                                onClick={() => handleAction(c, i, 'REJECT')}
+                                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-white rounded-md transition-all relative group/btn"
+                                                            >
+                                                                <X size={14} />
+                                                                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap">Reject</div>
+                                                            </button>
+                                                        </div>
+
+                                                        <button
+                                                            onClick={() => checkAddLead(c, i)}
+                                                            className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-md hover:bg-gray-800 flex items-center gap-1.5 shadow-sm transition ring-1 ring-gray-900/10"
+                                                        >
+                                                            <Plus size={14} /> Add
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="text-center py-12 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
+                        <Building2 className="mx-auto h-12 w-12 text-gray-300" />
+                        <h3 className="mt-2 text-sm font-semibold text-gray-900">No prospects to show</h3>
+                        <p className="mt-1 text-sm text-gray-500">Get started by searching for companies.</p>
+                    </div>
+                )
+            }
+            {
+                viewFinancials && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewFinancials(null)}>
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                                <div>
+                                    <h3 className="font-semibold text-gray-900">Financial Evidence</h3>
+                                    <div className="text-xs text-gray-500">{viewFinancials.companyName} ({viewFinancials.companyNumber})</div>
+                                </div>
+                                <button onClick={() => setViewFinancials(null)} className="text-gray-400 hover:text-gray-600">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold">Financial Health</div>
+                                        <div className={`text-2xl font-bold mt-1
+                                        ${viewFinancials.financialActivityBand === 'Very Strong' ? 'text-emerald-700' :
+                                                viewFinancials.financialActivityBand === 'Strong' ? 'text-green-700' :
+                                                    viewFinancials.financialActivityBand === 'Medium' ? 'text-yellow-700' :
+                                                        'text-gray-700'}`}>
+                                            {viewFinancials.financialActivityBand}
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-3xl font-black text-gray-900">{viewFinancials.financialActivityScore}</div>
+                                        <div className="text-xs text-gray-400 font-medium">/ 100</div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {(() => {
+                                        let signals: any = {};
+                                        try {
+                                            signals = typeof viewFinancials.financialSignals === 'string'
+                                                ? JSON.parse(viewFinancials.financialSignals)
+                                                : viewFinancials.financialSignals || {};
+                                        } catch (e) {
+                                            console.error("Failed to parse signals", e);
+                                        }
+
+                                        const breakdown = signals.breakdown || [];
+                                        const legacyDetails = signals.details || [];
+
+                                        if (breakdown.length > 0) {
+                                            return breakdown.map((item: any, idx: number) => (
+                                                <div key={idx} className="flex items-start gap-3">
+                                                    <div className={`mt-1 w-2 h-2 rounded-full shrink-0 
+                                                    ${item.points > 10 ? 'bg-green-500' : item.points > 0 ? 'bg-yellow-500' : 'bg-gray-300'}`}
+                                                    />
+                                                    <div className="flex-1">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-sm font-medium text-gray-900">{item.label}</span>
+                                                            <span className="text-xs font-mono font-bold text-gray-500">+{item.points}</span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-600 mt-0.5">{item.text}</p>
+                                                    </div>
+                                                </div>
+                                            ));
+                                        } else if (legacyDetails.length > 0) {
+                                            return legacyDetails.map((d: string, idx: number) => (
+                                                <div key={idx} className="text-sm text-gray-600 py-1 border-b border-gray-50 last:border-0">
+                                                    {d}
+                                                </div>
+                                            ));
+                                        } else {
+                                            return <div className="text-sm text-gray-400 italic">No detailed evidence available.</div>;
+                                        }
+                                    })()}
+                                </div>
+
+                                <div className="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400">
+                                    <span>Last checked: {viewFinancials.financialLastCheckedAt ? new Date(viewFinancials.financialLastCheckedAt).toLocaleDateString() : 'Just now'}</span>
+                                    <button
+                                        onClick={() => {
+                                            handleCheckFinancials(viewFinancials, results.findIndex(r => r.id === viewFinancials.id));
+                                            setViewFinancials(null);
+                                        }}
+                                        className="text-blue-600 hover:underline"
+                                    >
+                                        Refresh Analysis
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+            {
+                viewPriority && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewPriority(null)}>
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                                <h3 className="font-semibold text-gray-900">Priority Breakdown</h3>
+                                <button onClick={() => setViewPriority(null)} className="text-gray-400 hover:text-gray-600">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                                    <span className="text-lg font-bold text-gray-700">Total Score</span>
+                                    <div className="text-right">
+                                        <div className="text-3xl font-black text-purple-600">{viewPriority.contactPriorityScore}</div>
+                                        <div className="text-xs text-purple-400 font-bold">{viewPriority.contactPriorityBand}</div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {/* Need Score */}
+                                    <div className="flex justify-between items-center text-sm border-l-2 border-purple-500 pl-3">
+                                        <div className="flex flex-col">
+                                            <span className="text-gray-700 font-bold">Need Score (0-60)</span>
+                                            <span className="text-xs text-gray-500">Based on staleness & design opps</span>
+                                        </div>
+                                        <div className="font-mono font-bold flex flex-col items-end">
+                                            <span className="text-base text-gray-900">
+                                                {(() => {
+                                                    const staleness = viewPriority.stalenessScore || 0;
+                                                    const opp = staleness >= 40;
+                                                    const conf = (viewPriority.websiteConfidence || 'LOW').toUpperCase();
+                                                    let score = Math.min(60, staleness);
+                                                    if (opp) score += 10;
+                                                    score = Math.min(60, score);
+                                                    if (conf === 'LOW') score = Math.min(30, score);
+                                                    return score;
+                                                })()}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400">
+                                                {viewPriority.stalenessScore || 0} base {(viewPriority.stalenessScore || 0) >= 40 ? '+ 10 opp' : ''}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Ability Score */}
+                                    <div className="flex justify-between items-center text-sm border-l-2 border-green-500 pl-3">
+                                        <div className="flex flex-col">
+                                            <span className="text-gray-700 font-bold">Ability Score (0-30)</span>
+                                            <span className="text-xs text-gray-500">Based on financial strength (30%)</span>
+                                        </div>
+                                        <div className="font-mono font-bold text-gray-900 text-base">
+                                            {Math.round((viewPriority.financialActivityScore || 0) * 0.3)}
+                                        </div>
+                                    </div>
+
+                                    {/* Confidence Score */}
+                                    <div className="flex justify-between items-center text-sm border-l-2 border-blue-500 pl-3">
+                                        <div className="flex flex-col">
+                                            <span className="text-gray-700 font-bold">Confidence Score (0-10)</span>
+                                            <span className="text-xs text-gray-500">Based on website match quality</span>
+                                        </div>
+                                        <div className="font-mono font-bold text-gray-900 text-base">
+                                            {(() => {
+                                                const conf = (viewPriority.websiteConfidence || 'LOW').toUpperCase();
+                                                if (conf === 'HIGH') return 10;
+                                                if (conf === 'MEDIUM') return 6;
+                                                return 0;
+                                            })()}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-gray-600">Financial Activity</span>
+                                    <div className="font-mono font-medium">
+                                        {viewPriority.financialActivityScore || 0} <span className="text-gray-400 text-xs">x 0.4</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-blue-50 p-3 rounded text-xs text-blue-700 mt-2">
+                                {(() => {
+                                    const score = viewPriority.stalenessScore || 0;
+                                    const conf = (viewPriority.websiteConfidence || 'LOW').toUpperCase();
+                                    const effective = score > 0 ? score : (['MEDIUM', 'HIGH'].includes(conf) ? 25 : 0);
+                                    if (effective === 25 && score === 0) {
+                                        return <strong>No urgent design issues, but site is suitable for improvement (Effective Score: 25). </strong>;
+                                    }
+                                })()}
+                                Priority determines if this prospect is worth contacting.
+                                <br />High (70+), Medium (40-69), Low (&lt;40).
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Warning / Confirmation Modal */}
+            {
+                viewLowPriorityConfirm && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewLowPriorityConfirm(null)}>
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-amber-50">
+                                <h3 className="font-semibold text-amber-900 flex items-center gap-2">
+                                    <span className="bg-amber-100 p-1 rounded-full"><Target size={14} className="text-amber-600" /></span>
+                                    Quality Warning
+                                </h3>
+                                <button onClick={() => setViewLowPriorityConfirm(null)} className="text-gray-400 hover:text-gray-600">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6">
+                                <p className="text-gray-900 font-medium mb-2">This prospect has some quality flags:</p>
+                                <ul className="space-y-2 mb-6">
+                                    {viewLowPriorityConfirm.reasons?.isHardDormant && (
+                                        <li className="flex gap-2 text-sm text-red-700 bg-red-50 p-2 rounded">
+                                            <Lock size={16} className="shrink-0 mt-0.5" />
+                                            <span><strong>Dormant/Inactive:</strong> Company status is not active according to Companies House.</span>
+                                        </li>
+                                    )}
+                                    {viewLowPriorityConfirm.reasons?.isAccountsDormant && (
+                                        <li className="flex gap-2 text-sm text-amber-700 bg-amber-50 p-2 rounded">
+                                            <Lock size={16} className="shrink-0 mt-0.5" />
+                                            <span><strong>Dormant accounts filed:</strong> Company status remains active.</span>
+                                        </li>
+                                    )}
+                                    {viewLowPriorityConfirm.reasons?.isFinLow && (
+                                        <li className="flex gap-2 text-sm text-red-700 bg-red-50 p-2 rounded">
+                                            <Building2 size={16} className="shrink-0 mt-0.5" />
+                                            <span><strong>Weak Financials:</strong> Stability score is Low.</span>
+                                        </li>
+                                    )}
+                                    {viewLowPriorityConfirm.reasons?.isWebLow && (
+                                        <li className="flex gap-2 text-sm text-orange-700 bg-orange-50 p-2 rounded">
+                                            <Search size={16} className="shrink-0 mt-0.5" />
+                                            <span><strong>Low Confidence Website:</strong> The matched website might be incorrect.</span>
+                                        </li>
+                                    )}
+                                    {viewLowPriorityConfirm.reasons?.isPriorityLow &&
+                                        !viewLowPriorityConfirm.reasons?.isHardDormant &&
+                                        !viewLowPriorityConfirm.reasons?.isAccountsDormant &&
+                                        !viewLowPriorityConfirm.reasons?.isFinLow &&
+                                        !viewLowPriorityConfirm.reasons?.isWebLow && (
+                                            <li className="flex gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                                                <Target size={16} className="shrink-0 mt-0.5" />
+                                                <span><strong>Low Priority:</strong> No urgent design issues found.</span>
+                                            </li>
+                                        )}
+                                </ul>
+
+                                <p className="text-gray-500 text-xs mb-6">
+                                    Proceeding may result in lower response rates or incorrect contact data.
+                                </p>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setViewLowPriorityConfirm(null)}
+                                        className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition text-sm"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            handleAction(viewLowPriorityConfirm.prospect, viewLowPriorityConfirm.index, 'ADD');
+                                            setViewLowPriorityConfirm(null);
+                                        }}
+                                        className="flex-1 px-4 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition text-sm shadow-sm"
+                                    >
+                                        Proceed Anyway
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* --- Outreach Composer --- */}
+            <OutreachComposer
+                isOpen={!!viewDraft}
+                onClose={() => setViewDraft(null)}
+                prospect={viewDraft?.prospect}
+                lead={viewDraft ? { id: viewDraft.leadId, emailDraft: viewDraft.draft.body, subjectLine1: viewDraft.draft.subject } : null}
+                initialDraft={viewDraft ? { subject: viewDraft.draft.subject, body: viewDraft.draft.body, tier: viewDraft.draft.tier, toEmail: viewDraft.toEmail } : undefined}
+                onSendSuccess={() => {
+                    alert("Email sent!");
+                    // Optimistic update logic if needed
+                }}
+            />
+
+        </div>
+    );
+}
