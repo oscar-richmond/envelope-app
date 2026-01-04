@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { CompanySearchCriteria, CompanySearchResult, companySearchProvider } from '@/lib/providers';
 import { priorityCalculator } from '@/lib/services/priority-calculator';

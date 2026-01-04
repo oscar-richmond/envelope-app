@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { contactDiscoveryProvider } from '@/lib/providers';
 import prisma from '@/lib/prisma';

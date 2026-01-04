@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { financialAnalysisService } from '@/lib/services/financial-analysis';
 import { priorityCalculator } from '@/lib/services/priority-calculator';
