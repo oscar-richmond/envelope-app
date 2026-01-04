@@ -188,7 +188,6 @@ export async function POST(request: Request) {
         }]);
     }
 }
-}
 
 export async function GET() {
     return NextResponse.json({ status: 'API Online', timestamp: new Date().toISOString() });
