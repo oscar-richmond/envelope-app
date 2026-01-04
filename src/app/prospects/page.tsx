@@ -24,10 +24,10 @@ export default function ProspectSearch() {
         industry: [],
         size: '11-50',
         location: 'London',
-        ageRange: '5-10',
-        websiteRequired: true,
+        ageRange: '', // Broad by default
+        websiteRequired: false, // Relaxed
         onlyOutdated: false,
-        minFinancialScore: '', // "Low", "Medium", "Strong", "Very Strong"
+        minFinancialScore: '',
         query: ''
     });
     const [results, setResults] = useState<any[]>([]);
@@ -856,6 +856,7 @@ export default function ProspectSearch() {
                             value={filters.ageRange}
                             onChange={(e) => setFilters({ ...filters, ageRange: e.target.value })}
                         >
+                            <option value="">Any Age</option>
                             <option value="2-5">2-5 years</option>
                             <option value="5-10">5-10 years (Legacy)</option>
                             <option value="10+">10+ years</option>
@@ -913,9 +914,16 @@ export default function ProspectSearch() {
             </form>
 
             {/* Results Table */}
+            {/* DEBUG DUMP */}
+            {results.length === 0 && filters.query && <div className="p-4 bg-yellow-50 text-yellow-800 mb-4 border border-yellow-200">
+                <strong>Debug Info:</strong> Search ran but returned 0 results.
+                <br />Filters: {JSON.stringify(filters)}
+            </div>}
+
             {
                 results.length > 0 ? (
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        {/* <pre className="text-xs p-2 bg-gray-100 max-h-40 overflow-auto">{JSON.stringify(results[0], null, 2)}</pre> */}
                         <table className="w-full text-left">
                             <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-semibold border-b border-gray-200">
                                 <tr>
