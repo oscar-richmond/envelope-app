@@ -166,7 +166,7 @@ export async function PUT(request: Request) {
                 companyName: body.companyName,
                 websiteUrl: body.websiteUrl,
                 industry: body.industry,
-                location: body.location,
+                registeredLocation: body.location,
                 // Do not overwrite analysis data blindly
             },
             create: {
@@ -174,7 +174,7 @@ export async function PUT(request: Request) {
                 companyName: body.companyName,
 
                 industry: body.industry,
-                location: body.location,
+                registeredLocation: body.location,
                 websiteUrl: body.websiteUrl,
                 // Init scores
                 stalenessScore: 0,
