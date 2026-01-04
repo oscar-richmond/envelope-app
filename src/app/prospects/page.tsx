@@ -108,10 +108,13 @@ export default function ProspectSearch() {
         return filtered.length > 0 ? filtered[filtered.length - 1] : parts[0];
     };
 
+    const [hasSearched, setHasSearched] = useState(false);
+
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setResults([]);
+        setHasSearched(false);
         try {
             const res = await fetch('/api/prospects', {
                 method: 'POST',
@@ -121,6 +124,7 @@ export default function ProspectSearch() {
             if (res.ok) {
                 const data = await res.json();
                 setResults(data);
+                setHasSearched(true);
                 autoAnalyzeWebsites(data);
                 autoAnalyzeFinancials(data);
             } else {
@@ -915,7 +919,7 @@ export default function ProspectSearch() {
 
             {/* Results Table */}
             {/* DEBUG DUMP */}
-            {results.length === 0 && filters.query && <div className="p-4 bg-yellow-50 text-yellow-800 mb-4 border border-yellow-200">
+            {hasSearched && results.length === 0 && <div className="p-4 bg-yellow-50 text-yellow-800 mb-4 border border-yellow-200">
                 <strong>Debug Info:</strong> Search ran but returned 0 results.
                 <br />Filters: {JSON.stringify(filters)}
             </div>}
