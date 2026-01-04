@@ -51,11 +51,36 @@ export async function POST(request: Request) {
             query: body.query || undefined
         };
 
+        // --- DEBUG INJECTION ---
+        if (!process.env.COMPANIES_HOUSE_API_KEY) {
+            return NextResponse.json([{
+                companyName: "⚠️ DEBUG: API KEY MISSING",
+                companyNumber: "000000",
+                industry: "Check Vercel Settings",
+                location: "Vercel Environment",
+                status: "active"
+            }]);
+        }
+        // -----------------------
+
         console.log(`[API] Searching with criteria: ${JSON.stringify(criteria)}`);
         let results: CompanySearchResult[] = [];
         try {
             results = await companySearchProvider.search(criteria);
             console.log(`[API] Search returned ${results.length} results`);
+
+            // --- DEBUG ZERO RESULTS ---
+            if (results.length === 0) {
+                return NextResponse.json([{
+                    companyName: "⚠️ DEBUG: API CONNECTED BUT 0 RESULTS",
+                    companyNumber: "111111",
+                    industry: "Try broader filters",
+                    location: "Companies House",
+                    status: "active"
+                }]);
+            }
+            // --------------------------
+
         } catch (searchError) {
             console.error('[API] Provider search failed:', searchError);
             // Fallback to empty to avoid crashing entire route if just provider fails
