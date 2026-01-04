@@ -43,13 +43,7 @@ export async function POST(request: Request) {
 
         // --- DEBUG INJECTION ---
         if (!process.env.COMPANIES_HOUSE_API_KEY) {
-            return NextResponse.json([{
-                companyName: "⚠️ DEBUG: API KEY MISSING",
-                companyNumber: "000000",
-                industry: "Check Vercel Settings",
-                location: "Vercel Environment",
-                status: "active"
-            }]);
+            console.warn("[API] COMPANIES_HOUSE_API_KEY is missing");
         }
         // -----------------------
 
@@ -59,27 +53,10 @@ export async function POST(request: Request) {
             results = await companySearchProvider.search(criteria);
             console.log(`[API] Search returned ${results.length} results`);
 
-            // --- DEBUG ZERO RESULTS ---
-            if (results.length === 0) {
-                return NextResponse.json([{
-                    companyName: "⚠️ DEBUG: API CONNECTED BUT 0 RESULTS",
-                    companyNumber: "111111",
-                    industry: "Check Filters",
-                    location: "Companies House",
-                    status: "active"
-                }]);
-            }
-            // --------------------------
-
         } catch (searchError) {
             console.error('[API] Provider search failed:', searchError);
-            results = [{
-                companyName: `⚠️ DEBUG: ERROR ${searchError}`,
-                companyNumber: "ERROR",
-                industry: "API Failure",
-                location: "Server Log",
-                status: "active"
-            }];
+            // Non-fatal, just return empty or error structure if critical
+            return NextResponse.json({ error: 'Search provider failed' }, { status: 502 });
         }
 
         // Merge with DB Data
@@ -166,12 +143,6 @@ export async function POST(request: Request) {
         return NextResponse.json(results);
     } catch (error: any) {
         console.error("Prospect search FATAL:", error);
-        return NextResponse.json([{
-            companyName: `⚠️ FATAL CRASH: ${error.message || error.toString()}`,
-            companyNumber: "500",
-            industry: "Server Error",
-            location: "Check Logs",
-            status: "active"
-        }]);
+        return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
     }
 }
