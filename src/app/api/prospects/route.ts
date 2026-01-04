@@ -145,46 +145,49 @@ export async function POST(request: Request) {
         console.error("Prospect search FATAL:", error);
         return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
     }
-    // --- PUT Handler (Save/Upsert Prospect) ---
-    export async function PUT(request: Request) {
-        try {
-            const body = await request.json();
+}
+}
 
-            // Basic validation
-            if (!body.companyNumber || !body.companyName) {
-                return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-            }
+// --- PUT Handler (Save/Upsert Prospect) ---
+export async function PUT(request: Request) {
+    try {
+        const body = await request.json();
 
-            const prospect = await prisma.companyProspect.upsert({
-                where: { companyNumber: body.companyNumber },
-                update: {
-                    // Update fields if they exist in body and are newer? 
-                    // For now, just simplistic update of key info if provided
-                    companyName: body.companyName,
-                    websiteUrl: body.websiteUrl,
-                    industry: body.industry,
-                    location: body.location,
-                    // Do not overwrite analysis data blindly
-                },
-                create: {
-                    companyNumber: body.companyNumber,
-                    companyName: body.companyName,
-                    companyStatus: body.companyStatus || 'active',
-                    companyType: body.companyType,
-                    incorporationDate: body.incorporationDate, // Ensure format?
-                    industry: body.industry,
-                    location: body.location,
-                    websiteUrl: body.websiteUrl,
-                    // Init scores
-                    stalenessScore: 0,
-                    financialActivityScore: 0,
-                    contactPriorityScore: 0
-                }
-            });
-
-            return NextResponse.json(prospect);
-        } catch (error: any) {
-            console.error("PUT /api/prospects error:", error);
-            return NextResponse.json({ error: 'Failed to save prospect', details: error.message }, { status: 500 });
+        // Basic validation
+        if (!body.companyNumber || !body.companyName) {
+            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+
+        const prospect = await prisma.companyProspect.upsert({
+            where: { companyNumber: body.companyNumber },
+            update: {
+                // Update fields if they exist in body and are newer? 
+                // For now, just simplistic update of key info if provided
+                companyName: body.companyName,
+                websiteUrl: body.websiteUrl,
+                industry: body.industry,
+                location: body.location,
+                // Do not overwrite analysis data blindly
+            },
+            create: {
+                companyNumber: body.companyNumber,
+                companyName: body.companyName,
+                companyStatus: body.companyStatus || 'active',
+                companyType: body.companyType,
+                incorporationDate: body.incorporationDate, // Ensure format?
+                industry: body.industry,
+                location: body.location,
+                websiteUrl: body.websiteUrl,
+                // Init scores
+                stalenessScore: 0,
+                financialActivityScore: 0,
+                contactPriorityScore: 0
+            }
+        });
+
+        return NextResponse.json(prospect);
+    } catch (error: any) {
+        console.error("PUT /api/prospects error:", error);
+        return NextResponse.json({ error: 'Failed to save prospect', details: error.message }, { status: 500 });
     }
+}
