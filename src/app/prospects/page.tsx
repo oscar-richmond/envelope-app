@@ -123,8 +123,14 @@ export default function ProspectSearch() {
                 setResults(data);
                 autoAnalyzeWebsites(data);
                 autoAnalyzeFinancials(data);
+            } else {
+                const txt = await res.text();
+                alert(`Search Failed: ${res.status} ${res.statusText}\n${txt}`);
             }
-        } catch (e) { console.error(e); }
+        } catch (e: any) {
+            console.error(e);
+            alert("Network Error: " + e.message);
+        }
         finally { setLoading(false); }
     };
 

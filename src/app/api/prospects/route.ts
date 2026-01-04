@@ -179,6 +179,12 @@ export async function POST(request: Request) {
         return NextResponse.json(results);
     } catch (error: any) {
         console.error("Prospect search FATAL:", error);
-        return NextResponse.json({ error: 'Search failed', details: error.toString() }, { status: 500 });
+        return NextResponse.json([{
+            companyName: `⚠️ FATAL CRASH: ${error.message || error.toString()}`,
+            companyNumber: "500",
+            industry: "Server Error",
+            location: "Check Logs",
+            status: "active"
+        }]);
     }
 }
