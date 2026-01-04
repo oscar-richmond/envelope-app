@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { analyzeUrl } from '@/lib/services/analyzer';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
     try {
         const { leadId } = await request.json();
