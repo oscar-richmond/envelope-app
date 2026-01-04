@@ -384,7 +384,10 @@ export default function ProspectSearch() {
                     body: JSON.stringify(company)
                 });
 
-                if (!saveRes.ok) throw new Error("Failed to save prospect");
+                if (!saveRes.ok) {
+                    const err = await saveRes.json();
+                    throw new Error(err.details || err.error || "Failed to save prospect");
+                }
 
                 const saved = await saveRes.json();
                 id = saved.id;
