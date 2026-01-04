@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
+export const dynamic = 'force-dynamic';
 import { Search, Filter, RefreshCw, ChevronDown, Check, X, AlertCircle, Building2, MapPin, Globe, ArrowRight, Lock, Target, Send, PenTool, Plus, Database, Mail, Info, HelpCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
