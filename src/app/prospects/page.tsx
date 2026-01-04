@@ -918,11 +918,18 @@ export default function ProspectSearch() {
             </form>
 
             {/* Results Table */}
-            {/* DEBUG DUMP */}
-            {hasSearched && results.length === 0 && <div className="p-4 bg-yellow-50 text-yellow-800 mb-4 border border-yellow-200">
-                <strong>Debug Info:</strong> Search ran but returned 0 results.
-                <br />Filters: {JSON.stringify(filters)}
-            </div>}
+            {/* Empty State */}
+            {hasSearched && results.length === 0 && (
+                <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                    <div className="text-gray-400 mb-2">
+                        <Search size={32} className="mx-auto" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900">No prospects found</h3>
+                    <p className="text-gray-500 max-w-sm mx-auto mt-1">
+                        Try adjusting your filters (e.g. broader age range) or search for a different company name.
+                    </p>
+                </div>
+            )}
 
             {
                 results.length > 0 ? (
