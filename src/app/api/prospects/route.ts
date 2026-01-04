@@ -172,9 +172,7 @@ export async function PUT(request: Request) {
             create: {
                 companyNumber: body.companyNumber,
                 companyName: body.companyName,
-                companyStatus: body.companyStatus || 'active',
-                companyType: body.companyType,
-                incorporationDate: body.incorporationDate, // Ensure format?
+
                 industry: body.industry,
                 location: body.location,
                 websiteUrl: body.websiteUrl,
