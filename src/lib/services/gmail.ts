@@ -29,6 +29,7 @@ export class GmailService {
             access_type: 'offline', // Get refresh token
             scope: [
                 'https://www.googleapis.com/auth/gmail.compose',
+                'https://www.googleapis.com/auth/gmail.readonly',
                 'https://www.googleapis.com/auth/userinfo.email'
             ],
             prompt: 'consent', // Force refresh token generation
