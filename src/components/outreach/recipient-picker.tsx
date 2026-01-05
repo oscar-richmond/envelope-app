@@ -243,8 +243,9 @@ export function RecipientPicker({ leadId, selectedEmails, onSelectionChange, onR
                                                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide
                                                         ${['SALES', 'MARKETING'].includes(r.role?.toUpperCase() || '') ? 'bg-green-100 text-green-700' :
                                                             ['SUPPORT', 'BILLING'].includes(r.role?.toUpperCase() || '') ? 'bg-orange-100 text-orange-700' :
-                                                                r.source === 'CONTACT' ? 'bg-purple-100 text-purple-700' :
-                                                                    'bg-gray-100 text-gray-600'}
+                                                                r.role === 'BUSINESS' ? 'bg-blue-100 text-blue-700' :
+                                                                    r.source === 'CONTACT' ? 'bg-purple-100 text-purple-700' :
+                                                                        'bg-gray-100 text-gray-600'}
                                                     `}>
                                                         {r.role}
                                                     </span>

@@ -3,7 +3,7 @@ import { URL } from 'url';
 
 interface DiscoveredEmail {
     email: string;
-    type: 'GENERAL' | 'SALES' | 'SUPPORT' | 'PERSONAL';
+    type: 'GENERAL' | 'SALES' | 'SUPPORT' | 'PERSONAL' | 'BUSINESS';
     confidence: 'HIGH' | 'MEDIUM' | 'LOW';
     sourceUrl: string;
     contextSnippet: string;
@@ -14,11 +14,23 @@ export class EmailDiscoveryService {
     private readonly MAX_PAGES = 5;
     private readonly TIMEOUT_MS = 5000;
 
+    private CONSUMER_PROVIDERS = new Set([
+        'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.uk', 'hotmail.com', 'hotmail.co.uk',
+        'outlook.com', 'live.com', 'icloud.com', 'me.com', 'aol.com', 'protonmail.com', 'zoho.com',
+        'yandex.com', 'mail.com', 'gmx.com'
+    ]);
+
     async discoverEmails(baseUrl: string): Promise<DiscoveredEmail[]> {
         if (!baseUrl) return [];
 
         let startUrl = baseUrl;
         if (!startUrl.startsWith('http')) startUrl = 'https://' + startUrl;
+
+        // Extract Company Domain for matching
+        let companyDomain = '';
+        try {
+            companyDomain = new URL(startUrl).hostname.replace(/^www\./, '');
+        } catch (e) { }
 
         const visited = new Set<string>();
         const queue: string[] = [startUrl];
@@ -45,7 +57,7 @@ export class EmailDiscoveryService {
                 const $ = cheerio.load(html);
 
                 // A. Extract Emails from this page
-                this.extractFromPage($, currentUrl, emails);
+                this.extractFromPage($, currentUrl, emails, companyDomain);
 
                 // B. Find "Contact", "Team", "About" links (only from Homepage)
                 if (visited.size === 1) {
@@ -75,12 +87,13 @@ export class EmailDiscoveryService {
 
         // 2. Rank & Sort
         return Array.from(emails.values()).sort((a, b) => {
-            const priority = { 'PERSONAL': 4, 'SALES': 3, 'GENERAL': 2, 'SUPPORT': 1 };
+            const priority = { 'PERSONAL': 1, 'BUSINESS': 5, 'SALES': 4, 'GENERAL': 3, 'SUPPORT': 2 };
+            // @ts-ignore - Dynamic key access
             return (priority[b.type] || 0) - (priority[a.type] || 0);
         });
     }
 
-    private extractFromPage($: cheerio.CheerioAPI, url: string, emails: Map<string, DiscoveredEmail>) {
+    private extractFromPage($: cheerio.CheerioAPI, url: string, emails: Map<string, DiscoveredEmail>, companyDomain: string) {
         const bodyText = $('body').text();
         const mailtoLinks: string[] = [];
         $('a[href^="mailto:"]').each((_, el) => {
@@ -100,8 +113,8 @@ export class EmailDiscoveryService {
             if (this.isGarbage(email)) return;
             if (emails.has(email)) return;
 
-            // Classify
-            const type = this.classify(email);
+            // Classify with context
+            const type = this.classify(email, companyDomain);
 
             // Context Snippet (simple 50 chars around)
             const index = bodyText.indexOf(rawEmail);
@@ -129,12 +142,35 @@ export class EmailDiscoveryService {
         return false;
     }
 
-    private classify(email: string): 'GENERAL' | 'SALES' | 'SUPPORT' | 'PERSONAL' {
-        const local = email.split('@')[0];
+    public classify(email: string, companyDomain?: string): 'GENERAL' | 'SALES' | 'SUPPORT' | 'PERSONAL' | 'BUSINESS' {
+        const [local, domain] = email.split('@');
+
+        // 1. Check Company Match
+        if (companyDomain && (domain === companyDomain || domain.endsWith('.' + companyDomain) || companyDomain.endsWith('.' + domain))) {
+            // It matches the company!
+            // Check roles
+            if (/sales|partner|biz|growth/i.test(local)) return 'SALES';
+            if (/support|help|desk|billing/i.test(local)) return 'SUPPORT';
+            if (/info|hello|hi|enquir|general|office|contact/i.test(local)) return 'GENERAL';
+
+            // If strictly matching company domain and not a role -> It's a Business email (likely specific person)
+            return 'BUSINESS';
+        }
+
+        // 2. Check Strict Personal
+        if (this.CONSUMER_PROVIDERS.has(domain)) return 'PERSONAL';
+
+        // 3. Fallback / Mixed
+        // If it's not a known consumer provider, and not the company domain... it might be an agency, external partner, etc.
+        // We defaults to BUSINESS used to be PERSONAL. 
+        // Prompt says: "If email is role-based and domain matches company -> Business/Role". 
+        // "If email domain does not match company and is not consumer -> External -> Business"
+
         if (/sales|partner|biz|growth/i.test(local)) return 'SALES';
         if (/support|help|desk|billing/i.test(local)) return 'SUPPORT';
         if (/info|hello|hi|enquir|general|office|contact/i.test(local)) return 'GENERAL';
-        return 'PERSONAL';
+
+        return 'BUSINESS'; // Default to Business for unknown domains (External)
     }
 
 }

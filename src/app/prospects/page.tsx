@@ -647,7 +647,8 @@ export default function ProspectSearch() {
                                                         ${r.type === 'PERSONAL' ? 'bg-purple-100 text-purple-700' :
                                                             r.type === 'SALES' ? 'bg-green-100 text-green-700' :
                                                                 r.type === 'SUPPORT' ? 'bg-orange-100 text-orange-700' :
-                                                                    'bg-gray-100 text-gray-600'}`}>
+                                                                    r.type === 'BUSINESS' ? 'bg-blue-100 text-blue-700' :
+                                                                        'bg-gray-100 text-gray-600'}`}>
                                                         {r.type}
                                                     </span>
                                                     {r.confidence === 'HIGH' && <Check size={12} className="text-green-600" aria-label="High Confidence" />}
