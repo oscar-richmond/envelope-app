@@ -107,22 +107,22 @@ export async function GET(req: NextRequest) {
                 } else {
                     debug.push(`-- No valid reply found in thread. Attempting Fuzzy Search...`);
 
-                    // 2. Fuzzy Search Strategy: Match by Subject
-                    // Outlook/Gmail sometimes break threading headers, creating a new thread ID.
-                    // We search for any message with the same subject received AFTER our sent time.
+                    // 2. Fuzzy Search Strategy: Match by Subject Prefix (Broad)
 
                     let fuzzyReply = null;
                     try {
-                        const cleanSubject = email.subject.replace(/([\[\]\{\}\(\)\*])/g, '').trim();
-                        const searchQ = `subject:("${cleanSubject}") after:${Math.floor(ourSentTime / 1000)}`;
+                        // "Quick question, {{FirstName}}" -> "Quick question"
+                        const cleanSubject = email.subject.split(',')[0].trim();
+                        const searchQ = `subject:("${cleanSubject}")`;
 
-                        // debug.push(`-- Search Q: ${searchQ}`);
+                        debug.push(`-- Search Q: ${searchQ}`);
 
                         const searchRes = await gmailService.client.request({
                             url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
                             params: {
                                 q: searchQ,
-                                includeSpamTrash: 'true'
+                                includeSpamTrash: 'true',
+                                maxResults: 5
                             }
                         });
 
@@ -131,22 +131,21 @@ export async function GET(req: NextRequest) {
 
                         // Check each potential message
                         for (const pm of potentialMsgs) {
-                            if (pm.threadId === email.sentThreadId) continue; // Skip known thread (already checked)
+                            if (pm.threadId === email.sentThreadId) continue; // Skip known thread
 
                             // Fetch details
                             const details = await gmailService.getThread(pm.threadId);
                             const msgs = details.messages || [];
 
-                            // Find the specific message or ANY in this thread that matches criteria
+                            // Find matching message
                             const match = msgs.find(m => {
-                                // Must not be FROM me
                                 const headers = m.payload?.headers || [];
                                 const from = headers.find(h => h.name === 'From')?.value || "";
                                 if (myEmail && from.includes(myEmail)) return false;
 
-                                // Timestamp check (double check)
+                                // Timestamp check: Must be AFTER sent time
                                 const msgTime = parseInt(m.internalDate || "0");
-                                if (msgTime <= ourSentTime + 2000) return false;
+                                if (msgTime <= ourSentTime) return false;
 
                                 return true;
                             });
@@ -154,7 +153,7 @@ export async function GET(req: NextRequest) {
                             if (match) {
                                 debug.push(`!! FUZZY MATCH FOUND: Thread ${pm.threadId} (Msg ${match.id})`);
                                 fuzzyReply = match;
-                                break; // Found one!
+                                break;
                             }
                         }
 
@@ -163,8 +162,6 @@ export async function GET(req: NextRequest) {
                     }
 
                     if (fuzzyReply) {
-                        // REUSE THE PROCESSING LOGIC
-                        // Ideally refactor this, but for now copy-paste the update logic
                         const snippet = fuzzyReply.snippet || "";
                         debug.push(`!! Processing Fuzzy Reply...`);
 
@@ -185,13 +182,10 @@ export async function GET(req: NextRequest) {
                                 status: 'REPLIED',
                                 replyDetectedAt: new Date(),
                                 lastCheckedAt: new Date(),
-                                // OPTIONAL: Update thread ID to the new one?
-                                // sentThreadId: fuzzyReply.threadId, 
                                 ...sentimentData
                             }
                         });
 
-                        // Auto-Actions
                         if (sentimentData['replySentiment'] === 'OOO') {
                             await prisma.sentEmail.update({
                                 where: { id: email.id },
@@ -217,10 +211,13 @@ export async function GET(req: NextRequest) {
 
         // DEBUG: List latest 5 messages in inbox
         try {
-            debug.push(`=== INBOX CHECK (Latest 5) ===`);
+            debug.push(`=== INBOX CHECK (Latest 5, inc Spam) ===`);
             const list = await gmailService.client.request({
                 url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
-                params: { maxResults: 5 }
+                params: {
+                    maxResults: 5,
+                    includeSpamTrash: 'true'
+                }
             });
             const msgs = (list.data as any).messages || [];
 
