@@ -7,6 +7,7 @@ import { gmailService } from '@/lib/services/gmail';
 import { sentimentService } from '@/lib/services/sentiment';
 
 export async function GET(req: NextRequest) {
+    const debug: string[] = [];
     try {
         // 1. Find emails awaiting reply
         const sentEmails = await prisma.sentEmail.findMany({
@@ -18,50 +19,55 @@ export async function GET(req: NextRequest) {
             take: 20 // Limit batch
         });
 
+        debug.push(`Found ${sentEmails.length} emails to check.`);
+
         let checked = 0;
         let replied = 0;
+
+        // Get my email to exclude
+        const me = await prisma.gmailAccount.findFirst();
+        const myEmail = me?.email || "";
+        debug.push(`My Email (to exclude): "${myEmail}"`);
 
         for (const email of sentEmails) {
             if (!email.sentThreadId) continue;
             checked++;
 
             try {
+                debug.push(`Checking Thread ID: ${email.sentThreadId} (Subject: ${email.subject})`);
                 const thread = await gmailService.getThread(email.sentThreadId);
                 const messages = thread.messages || [];
-
-                // Find if there is a reply
-                // A reply is a message sent AFTER our last sentAt
-                // And FROM someone else (simplistic check: from != me)
-                // Better check: 'sentAt' of our email record.
+                debug.push(`-- Found ${messages.length} messages in thread.`);
 
                 const ourSentTime = email.sentAt.getTime();
 
-                // Get my email to exclude
-                const me = await prisma.gmailAccount.findFirst();
-                const myEmail = me?.email || "";
-
                 const reply = messages.find(m => {
                     const msgTime = parseInt(m.internalDate || "0");
-                    if (msgTime <= ourSentTime + 5000) return false; // Buffer 5s
+                    // debug.push(`-- Msg ${m.id}: Time diff = ${(msgTime - ourSentTime)/1000}s`);
+
+                    if (msgTime <= ourSentTime + 2000) return false; // Buffer 2s
 
                     // Check headers for sender
                     const headers = m.payload?.headers || [];
                     const from = headers.find(h => h.name === 'From')?.value || "";
 
+                    debug.push(`-- Msg ${m.id} Candidate: From="${from}"`);
+
                     // If generic "me", ignore. If strictly matches my email, ignore.
-                    if (from.includes(myEmail)) return false;
+                    if (myEmail && from.includes(myEmail)) {
+                        debug.push(`---- Ignored: Matches my email.`);
+                        return false;
+                    }
 
                     return true;
                 });
 
                 if (reply) {
+                    debug.push(`!! REPLY DETECTED from id ${reply.id}`);
                     // Extract body snippet for analysis (simplistic)
                     const snippet = reply.snippet || "";
 
                     // Task 11: Sentiment Analysis
-                    // We import dynamically or top-level. Top-level preferred.
-                    // But we need to import it first: import { sentimentService } from '@/lib/services/sentiment';
-
                     let sentimentData = {};
                     try {
                         const analysis = await sentimentService.analyzeReply(snippet, email.subject);
@@ -70,9 +76,10 @@ export async function GET(req: NextRequest) {
                             replySummary: analysis.summary,
                             replyConfidence: analysis.confidence
                         };
-                        console.log(`Analyzed reply for ${email.id}: ${analysis.sentiment}`);
+                        debug.push(`!! Analysis: ${analysis.sentiment}`);
                     } catch (err) {
                         console.error("Sentiment analysis failed during cron", err);
+                        debug.push(`!! Analysis Failed: ${err}`);
                     }
 
                     await prisma.sentEmail.update({
@@ -98,20 +105,22 @@ export async function GET(req: NextRequest) {
 
                     replied++;
                 } else {
+                    debug.push(`-- No valid reply found in thread.`);
                     await prisma.sentEmail.update({
                         where: { id: email.id },
                         data: { lastCheckedAt: new Date() }
                     });
                 }
 
-            } catch (e) {
+            } catch (e: any) {
                 console.error(`Failed to check thread ${email.sentThreadId}`, e);
+                debug.push(`Error checking thread: ${e.message}`);
             }
         }
 
-        return NextResponse.json({ success: true, checked, replied });
+        return NextResponse.json({ success: true, checked, replied, debug });
 
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        return NextResponse.json({ error: e.message, debug }, { status: 500 });
     }
 }
