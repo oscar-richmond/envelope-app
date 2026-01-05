@@ -4,6 +4,7 @@ export const maxDuration = 300; // 5 minutes
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { gmailService } from '@/lib/services/gmail';
+import { sentimentService } from '@/lib/services/sentiment';
 
 export async function GET(req: NextRequest) {
     try {
@@ -54,14 +55,47 @@ export async function GET(req: NextRequest) {
                 });
 
                 if (reply) {
+                    // Extract body snippet for analysis (simplistic)
+                    const snippet = reply.snippet || "";
+
+                    // Task 11: Sentiment Analysis
+                    // We import dynamically or top-level. Top-level preferred.
+                    // But we need to import it first: import { sentimentService } from '@/lib/services/sentiment';
+
+                    let sentimentData = {};
+                    try {
+                        const analysis = await sentimentService.analyzeReply(snippet, email.subject);
+                        sentimentData = {
+                            replySentiment: analysis.sentiment,
+                            replySummary: analysis.summary,
+                            replyConfidence: analysis.confidence
+                        };
+                        console.log(`Analyzed reply for ${email.id}: ${analysis.sentiment}`);
+                    } catch (err) {
+                        console.error("Sentiment analysis failed during cron", err);
+                    }
+
                     await prisma.sentEmail.update({
                         where: { id: email.id },
                         data: {
                             status: 'REPLIED',
                             replyDetectedAt: new Date(),
-                            lastCheckedAt: new Date()
+                            lastCheckedAt: new Date(),
+                            ...sentimentData
                         }
                     });
+
+                    // Auto-Actions (Optional: Could start simple, just tagging)
+                    // If OOO -> Update nextFollowUpAt
+                    if (sentimentData['replySentiment'] === 'OOO') {
+                        await prisma.sentEmail.update({
+                            where: { id: email.id },
+                            data: {
+                                nextFollowUpAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // +3 Days
+                            }
+                        });
+                    }
+
                     replied++;
                 } else {
                     await prisma.sentEmail.update({

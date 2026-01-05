@@ -87,6 +87,11 @@ export default function SentBoxPage() {
                                     <td className="px-6 py-4">
                                         <div className="text-gray-700 font-medium truncate max-w-[300px]">{email.subject}</div>
                                         <div className="text-xs text-gray-400 truncate max-w-[300px]">{email.bodyText.substring(0, 50)}...</div>
+                                        {email.replySummary && email.status === 'REPLIED' && (
+                                            <div className="mt-1 text-[10px] text-indigo-600 bg-indigo-50 border border-indigo-100 p-1 rounded max-w-[300px]">
+                                                AI Summary: {email.replySummary}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-gray-500">
                                         {new Date(email.sentAt).toLocaleDateString()}
@@ -94,8 +99,11 @@ export default function SentBoxPage() {
                                             {new Date(email.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 flex flex-col gap-1 items-start justify-center h-full min-h-[80px]">
                                         <StatusBadge status={email.status} />
+                                        {email.replySentiment && email.status === 'REPLIED' && (
+                                            <SentimentBadge sentiment={email.replySentiment} />
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -112,6 +120,13 @@ export default function SentBoxPage() {
             </div>
         </div>
     );
+}
+
+function SentimentBadge({ sentiment }: { sentiment: string }) {
+    if (sentiment === 'INTERESTED') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 border border-green-200">👍 Interested</span>
+    if (sentiment === 'NOT_INTERESTED') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-600 border border-red-100">👎 Not Interested</span>
+    if (sentiment === 'OOO') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-100">✈️ OOO</span>
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200">🤔 Other</span>
 }
 
 function StatusBadge({ status }: { status: string }) {

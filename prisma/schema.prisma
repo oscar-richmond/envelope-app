@@ -203,6 +203,11 @@ model SentEmail {
   // Tracking
   replyDetectedAt DateTime?
   lastCheckedAt   DateTime?
+
+  // Analysis
+  replySentiment  String?   // INTERESTED, NOT_INTERESTED, OOO, OTHER
+  replySummary    String?   
+  replyConfidence Int?      // 0-100
   
   // Follow Up Logic
   followUpCount   Int       @default(0) // 0 = Initial, 1 = First FU sent
