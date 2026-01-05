@@ -54,10 +54,10 @@ export async function GET(req: NextRequest) {
                     debug.push(`-- Msg ${m.id} Candidate: From="${from}"`);
 
                     // If generic "me", ignore. If strictly matches my email, ignore.
-                    if (myEmail && from.includes(myEmail)) {
-                        debug.push(`---- Ignored: Matches my email.`);
-                        return false;
-                    }
+                    // if (myEmail && from.includes(myEmail)) {
+                    //    debug.push(`---- Ignored: Matches my email.`);
+                    //    return false;
+                    // }
 
                     return true;
                 });
@@ -211,30 +211,31 @@ export async function GET(req: NextRequest) {
 
         // DEBUG: List latest 5 messages in inbox
         try {
-            debug.push(`=== INBOX CHECK (Latest 5, inc Spam) ===`);
-            url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
+            debug.push(`=== INBOX CHECK (Global Subject Search) ===`);
+            const list = await gmailService.client.request({
+                url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
                 params: {
-                maxResults: 5,
-                    q: 'label:INBOX include:spamtrash'
+                    maxResults: 10,
+                    q: 'subject:("Quick question") include:spamtrash' // Global search
+                }
+            });
+            const msgs = (list.data as any).messages || [];
+
+            for (const m of msgs) {
+                const details = await gmailService.getThread(m.threadId);
+                const firstMsg = details.messages?.[0];
+                const subject = firstMsg?.payload?.headers?.find((h: any) => h.name === 'Subject')?.value;
+                const snippet = firstMsg?.snippet;
+                debug.push(`Msg: ${m.id} | Thd: ${m.threadId} | Sub: "${subject}" | Snip: "${snippet?.substring(0, 30)}..."`);
             }
-        });
-        const msgs = (list.data as any).messages || [];
-
-        for (const m of msgs) {
-            const details = await gmailService.getThread(m.threadId);
-            const firstMsg = details.messages?.[0];
-            const subject = firstMsg?.payload?.headers?.find((h: any) => h.name === 'Subject')?.value;
-            const snippet = firstMsg?.snippet;
-            debug.push(`Msg: ${m.id} | Thd: ${m.threadId} | Sub: "${subject}" | Snip: "${snippet?.substring(0, 30)}..."`);
+            debug.push(`============================`);
+        } catch (e: any) {
+            debug.push(`Inbox Check Failed: ${e.message}`);
         }
-        debug.push(`============================`);
+
+        return NextResponse.json({ success: true, checked, replied, debug });
+
     } catch (e: any) {
-        debug.push(`Inbox Check Failed: ${e.message}`);
+        return NextResponse.json({ error: e.message, debug }, { status: 500 });
     }
-
-    return NextResponse.json({ success: true, checked, replied, debug });
-
-} catch (e: any) {
-    return NextResponse.json({ error: e.message, debug }, { status: 500 });
-}
 }
