@@ -106,6 +106,31 @@ export async function GET(req: NextRequest) {
                     replied++;
                 } else {
                     debug.push(`-- No valid reply found in thread.`);
+
+                    // DEBUG FALLBACK: Check if reply lost threading
+                    try {
+                        debug.push(`-- Debug: Searching by subject for lost reply...`);
+                        const cleanSubject = email.subject.replace(/([\[\]\{\}\(\)\*])/g, ''); // crude clean
+                        const searchRes = await gmailService.client.request({
+                            url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
+                            params: { q: `subject:("${cleanSubject}")` }
+                        });
+                        const data: any = searchRes.data;
+                        if (data.messages && data.messages.length > 0) {
+                            debug.push(`-- Debug: Found ${data.messages.length} msgs with subject.`);
+                            data.messages.forEach((m: any) => {
+                                debug.push(`---- Msg: ${m.id} | Thread: ${m.threadId}`);
+                            });
+                            if (data.messages.some((m: any) => m.threadId !== email.sentThreadId)) {
+                                debug.push(`!! WARNING: Found messages in DIFFERENT threads. Threading is broken.`);
+                            }
+                        } else {
+                            debug.push(`-- Debug: No other messages found by subject.`);
+                        }
+                    } catch (dE: any) {
+                        debug.push(`-- Debug Search Failed: ${dE.message}`);
+                    }
+
                     await prisma.sentEmail.update({
                         where: { id: email.id },
                         data: { lastCheckedAt: new Date() }
