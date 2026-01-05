@@ -6,10 +6,35 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const code = searchParams.get('code');
+        const state = searchParams.get('state'); // Retrieve the encoded redirect URI
 
         if (!code) return NextResponse.json({ error: 'No code provided' }, { status: 400 });
 
-        const email = await gmailService.handleCallback(code);
+        let redirectUri = process.env.GOOGLE_REDIRECT_URI;
+
+        // SAFETY CHECK: Same as in the start route.
+        if (process.env.NODE_ENV === 'production' && redirectUri?.includes('localhost')) {
+            console.warn("WARN: Ignoring GOOGLE_REDIRECT_URI (localhost) in callback. Using state/dynamic.");
+            redirectUri = undefined;
+        }
+
+        // If no env var, try to recover from state
+        if (!redirectUri && state) {
+            try {
+                redirectUri = Buffer.from(state, 'base64').toString('ascii');
+                console.log("Recovered redirect URI from state:", redirectUri);
+            } catch (e) {
+                console.warn("Failed to decode state:", e);
+            }
+        }
+
+        // Final Fallback if everything fails
+        if (!redirectUri) {
+            const host = request.headers.get('host');
+            redirectUri = `https://${host}/api/auth/google/callback`;
+        }
+
+        const email = await gmailService.handleCallback(code, redirectUri);
 
         // Redirect back to settings with success
         return NextResponse.redirect(new URL('/settings?connected=' + email, request.url));

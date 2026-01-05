@@ -52,12 +52,16 @@ export async function GET(
         if (lead.companyProspect?.discoveredEmails) {
             for (const e of lead.companyProspect.discoveredEmails) {
                 if (!seenEmails.has(e.email.toLowerCase())) {
+                    // Logic: Use Name/Role from prospect email if available
+                    // Priority calculation happens in sorting later, but source/confidence matters here
                     recipients.push({
                         email: e.email,
-                        name: null,
-                        role: e.type, // Sales, Support, General
+                        name: e.name || null,
+                        role: e.roleTitle || e.type, // Fallback to type if no role title
+                        roleSource: e.roleSource || (e.roleTitle ? 'discovered' : 'type_fallback'),
+                        roleConfidence: e.roleConfidence || 'LOW',
                         source: 'WEBSITE',
-                        confidence: e.confidence,
+                        confidence: e.confidence, // This is Email confidence
                         sendabilityStatus: e.sendabilityStatus,
                         sourceUrl: e.sourceUrl,
                         id: `web-${e.id}`

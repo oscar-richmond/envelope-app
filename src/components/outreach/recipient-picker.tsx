@@ -1,6 +1,7 @@
+'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Check, User, Search, Briefcase, Mail, Shield, Building2, Plus, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Check, User, Search, Briefcase, Mail, Shield, Building2, Plus, X, Pencil, Loader2 } from 'lucide-react';
 
 interface Recipient {
     email: string;
@@ -9,7 +10,7 @@ interface Recipient {
     source: 'CONTACT' | 'WEBSITE' | 'MANUAL';
     confidence: 'HIGH' | 'MEDIUM' | 'LOW';
     sendabilityStatus?: 'GOOD' | 'CAUTION' | 'HIGH_RISK';
-    id: string; // unique key
+    id: string; // unique key e.g. "web-123"
 }
 
 interface RecipientPickerProps {
@@ -25,34 +26,47 @@ export function RecipientPicker({ leadId, selectedEmails, onSelectionChange, onR
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [manualEmail, setManualEmail] = useState('');
+
+    // Edit State
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editRole, setEditRole] = useState('');
+    const [isSavingRole, setIsSavingRole] = useState(false);
+
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Local cache for verification status
     const [verificationMap, setVerificationMap] = useState<Record<string, string>>({});
     const [verifying, setVerifying] = useState<Record<string, boolean>>({});
 
-    // Fetch Recipients on Open
+    // Fetch Recipients on Mount or Lead Change
     useEffect(() => {
-        if (isOpen && leadId && recipients.length === 0) {
-            setLoading(true);
-            fetch(`/api/leads/${leadId}/recipients`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.recipients) {
-                        setRecipients(data.recipients);
-                        // Pre-populate map
-                        const map: Record<string, string> = {};
-                        data.recipients.forEach((r: Recipient) => {
-                            if (r.sendabilityStatus) map[r.email] = r.sendabilityStatus;
-                        });
-                        setVerificationMap(prev => ({ ...prev, ...map }));
-                    }
-                })
-                .catch(console.error)
-                .finally(() => setLoading(false));
+        if (leadId) {
+            fetchRecipients();
         }
-    }, [isOpen, leadId]);
+    }, [leadId]);
 
+    const fetchRecipients = () => {
+        setLoading(true);
+        fetch(`/api/leads/${leadId}/recipients`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.recipients) {
+                    console.log("Recipients fetched:", data.recipients);
+                    setRecipients(data.recipients);
+                    // Pre-populate map
+                    const map: Record<string, string> = {};
+                    data.recipients.forEach((r: Recipient) => {
+                        if (r.sendabilityStatus) map[r.email] = r.sendabilityStatus;
+                    });
+                    setVerificationMap(prev => ({ ...prev, ...map }));
+                }
+            })
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }
+
+    // ... (Outside Click & Verification Effect same as before)
     // Outside Click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -116,11 +130,55 @@ export function RecipientPicker({ leadId, selectedEmails, onSelectionChange, onR
         }
     };
 
-    const filtered = recipients.filter(r =>
-        r.email.toLowerCase().includes(search.toLowerCase()) ||
-        (r.name && r.name.toLowerCase().includes(search.toLowerCase())) ||
-        (r.role && r.role.toLowerCase().includes(search.toLowerCase()))
-    );
+    const startEditing = (e: React.MouseEvent, r: Recipient) => {
+        e.stopPropagation(); // Don't toggle selection
+        setEditingId(r.id);
+        setEditName(r.name || '');
+        setEditRole(r.role || '');
+    };
+
+    const saveRole = async (e: React.MouseEvent, r: Recipient) => {
+        e.stopPropagation();
+        if (!editName && !editRole) {
+            setEditingId(null);
+            return;
+        }
+
+        setIsSavingRole(true);
+        try {
+            // Check if it's a web/discovered email which we can update
+            if (r.id.startsWith('web-')) {
+                const dbId = r.id.replace('web-', '');
+                const res = await fetch(`/api/email/${dbId}/update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: editName, roleTitle: editRole })
+                });
+
+                if (res.ok) {
+                    // Optimistic update locally
+                    setRecipients(prev => prev.map(item =>
+                        item.id === r.id ? { ...item, name: editName, role: editRole, source: 'MANUAL', confidence: 'HIGH' } : item
+                    ));
+                }
+            } else {
+                alert("Can currently only edit discovered emails, not synced contacts.");
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsSavingRole(false);
+            setEditingId(null);
+        }
+    };
+
+    const filtered = recipients.filter(r => {
+        if (!r) return false;
+        const s = search.toLowerCase();
+        return (r.email && r.email.toLowerCase().includes(s)) ||
+            (r.name && r.name.toLowerCase().includes(s)) ||
+            (r.role && r.role.toLowerCase().includes(s));
+    });
 
     // Helper to render badge
     const renderBadge = (email: string) => {
@@ -153,16 +211,24 @@ export function RecipientPicker({ leadId, selectedEmails, onSelectionChange, onR
                 <div className="flex items-center gap-1 select-none">
                     <span className="text-gray-500 text-sm pl-1">To:</span>
                     {selectedEmails.map(email => {
+                        // Find data for this email (Safe navigation)
+                        const rec = recipients.find(r => r?.email === email);
                         const status = verificationMap[email];
                         const isRisk = status === 'HIGH_RISK';
+
+                        // Show Name if available, otherwise Email. Append Role if Name exists.
+                        const label = rec?.name
+                            ? `${rec.name}${rec.role ? ` • ${rec.role}` : ''}`
+                            : email;
+
                         return (
-                            <span key={email} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs border 
+                            <span key={email} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs border max-w-[200px]
                                 ${isRisk ? 'bg-red-50 border-red-200 text-red-800' : 'bg-gray-100 border-gray-200 text-gray-800'}`}>
                                 {renderBadge(email)}
-                                <span className={isRisk ? 'line-through opacity-70' : ''}>{email}</span>
+                                <span className={`truncate ${isRisk ? 'line-through opacity-70' : ''}`} title={email}>{label}</span>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); toggleRecipient(email); }}
-                                    className="hover:bg-black/10 rounded-full p-0.5 ml-0.5"
+                                    className="hover:bg-black/10 rounded-full p-0.5 ml-0.5 shrink-0"
                                 >
                                     <X size={12} />
                                 </button>
@@ -214,59 +280,107 @@ export function RecipientPicker({ leadId, selectedEmails, onSelectionChange, onR
                         <div className="flex flex-col">
                             {filtered.map(r => {
                                 const isSelected = selectedEmails.includes(r.email);
-                                // Use mapped status if verified, else API status
                                 const status = verificationMap[r.email] || r.sendabilityStatus;
+                                const isEditing = editingId === r.id;
 
                                 return (
-                                    <button
+                                    <div
                                         key={r.id}
-                                        onClick={() => toggleRecipient(r.email)}
-                                        className={`flex items-start gap-3 p-3 text-left border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors
+                                        className={`flex items-start gap-3 p-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors group relative
                                             ${isSelected ? 'bg-blue-50/50' : ''}
                                         `}
+                                        onClick={() => !isEditing && toggleRecipient(r.email)}
                                     >
-                                        <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0
+                                        <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer
                                             ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}
                                         `}>
                                             {isSelected && <Check size={10} className="text-white" />}
                                         </div>
 
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-0.5">
-                                                {r.name ? (
-                                                    <span className="font-semibold text-sm text-gray-900">{r.name}</span>
-                                                ) : (
-                                                    <span className="text-sm text-gray-500 italic">General Contact</span>
-                                                )}
+                                            {isEditing ? (
+                                                <div className="flex flex-col gap-2 mb-1" onClick={e => e.stopPropagation()}>
+                                                    <input
+                                                        className="text-sm border rounded px-2 py-1 w-full"
+                                                        placeholder="Name (e.g. John Doe)"
+                                                        value={editName}
+                                                        onChange={e => setEditName(e.target.value)}
+                                                        autoFocus
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            className="text-xs border rounded px-2 py-1 w-2/3"
+                                                            placeholder="Role (e.g. CEO)"
+                                                            value={editRole}
+                                                            onChange={e => setEditRole(e.target.value)}
+                                                        />
+                                                        <button
+                                                            className="bg-blue-600 text-white text-xs px-3 py-1 rounded"
+                                                            disabled={isSavingRole}
+                                                            onClick={(e) => saveRole(e, r)}
+                                                        >
+                                                            {isSavingRole ? <Loader2 size={12} className="animate-spin" /> : 'Save'}
+                                                        </button>
+                                                        <button
+                                                            className="text-gray-500 text-xs px-2"
+                                                            onClick={(e) => { e.stopPropagation(); setEditingId(null); }}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        {r.name ? (
+                                                            <span className="font-semibold text-sm text-gray-900">{r.name}</span>
+                                                        ) : (
+                                                            <span className="text-sm text-gray-400 italic">Name unknown</span>
+                                                        )}
 
-                                                {r.role && (
-                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide
-                                                        ${['SALES', 'MARKETING'].includes(r.role?.toUpperCase() || '') ? 'bg-green-100 text-green-700' :
-                                                            ['SUPPORT', 'BILLING'].includes(r.role?.toUpperCase() || '') ? 'bg-orange-100 text-orange-700' :
-                                                                r.role === 'BUSINESS' ? 'bg-blue-100 text-blue-700' :
-                                                                    r.source === 'CONTACT' ? 'bg-purple-100 text-purple-700' :
-                                                                        'bg-gray-100 text-gray-600'}
-                                                    `}>
-                                                        {r.role}
-                                                    </span>
-                                                )}
+                                                        {r.role ? (
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide
+                                                                ${['SALES', 'MARKETING'].includes(r.role?.toUpperCase() || '') ? 'bg-green-100 text-green-700' :
+                                                                    ['SUPPORT', 'BILLING'].includes(r.role?.toUpperCase() || '') ? 'bg-orange-100 text-orange-700' :
+                                                                        r.role === 'BUSINESS' ? 'bg-blue-100 text-blue-700' :
+                                                                            r.source === 'CONTACT' ? 'bg-purple-100 text-purple-700' :
+                                                                                'bg-gray-100 text-gray-600'}
+                                                            `}>
+                                                                {r.role}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px] text-gray-300 uppercase font-medium">No Role</span>
+                                                        )}
 
-                                                {/* In Dropdown Status */}
-                                                {(status === 'HIGH_RISK') && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded font-bold">Risk</span>}
-                                                {(status === 'GOOD') && <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>}
-                                            </div>
+                                                        {/* Edit Button (Only visible on hover, only for website leads) */}
+                                                        {r.source === 'WEBSITE' && (
+                                                            <button
+                                                                onClick={(e) => startEditing(e, r)}
+                                                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-0.5"
+                                                                title="Edit Name/Role"
+                                                            >
+                                                                <Pencil size={12} />
+                                                            </button>
+                                                        )}
 
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-mono text-gray-600">{r.email}</span>
-                                                <span className={`text-[10px] font-medium 
-                                                    ${r.confidence === 'HIGH' ? 'text-green-600' :
-                                                        r.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-gray-400'}
-                                                `}>
-                                                    {r.confidence} Conf.
-                                                </span>
-                                            </div>
+                                                        {/* In Dropdown Status */}
+                                                        {(status === 'HIGH_RISK') && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded font-bold ml-auto">Risk</span>}
+                                                        {(status === 'GOOD') && <span className="w-1.5 h-1.5 bg-green-500 rounded-full ml-auto"></span>}
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-mono text-gray-600">{r.email}</span>
+                                                        <span className={`text-[10px] font-medium
+                                                            ${r.confidence === 'HIGH' ? 'text-green-600' :
+                                                                r.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-gray-400'}
+                                                        `}>
+                                                            {r.confidence} Conf.
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
-                                    </button>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -282,4 +396,3 @@ export function RecipientPicker({ leadId, selectedEmails, onSelectionChange, onR
         </div>
     );
 }
-

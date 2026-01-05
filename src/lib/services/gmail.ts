@@ -13,18 +13,38 @@ export class GmailService {
         );
     }
 
-    getAuthUrl() {
+    getAuthUrl(redirectUri?: string, state?: string) {
+        // If dynamic URI provided, update client (or create temp context)
+        // For safety in serverless, we can clone or just set it if we trust sequential execution isolation (Vercel usually isolates).
+        // Safest: set it on the instance, as we need it.
+        if (redirectUri) {
+            this.client = new google.auth.OAuth2(
+                process.env.GOOGLE_CLIENT_ID,
+                process.env.GOOGLE_CLIENT_SECRET,
+                redirectUri
+            );
+        }
+
         return this.client.generateAuthUrl({
             access_type: 'offline', // Get refresh token
             scope: [
                 'https://www.googleapis.com/auth/gmail.compose',
                 'https://www.googleapis.com/auth/userinfo.email'
             ],
-            prompt: 'consent' // Force refresh token generation
+            prompt: 'consent', // Force refresh token generation
+            state: state // Pass state (used for dynamic redirect persistence)
         });
     }
 
-    async handleCallback(code: string) {
+    async handleCallback(code: string, redirectUri?: string) {
+        if (redirectUri) {
+            this.client = new google.auth.OAuth2(
+                process.env.GOOGLE_CLIENT_ID,
+                process.env.GOOGLE_CLIENT_SECRET,
+                redirectUri
+            );
+        }
+
         const { tokens } = await this.client.getToken(code);
         this.client.setCredentials(tokens);
 
@@ -57,13 +77,43 @@ export class GmailService {
         return user.email;
     }
 
-    async createDraft(to: string, subject: string, body: string) {
+    private makeBody(to: string, subject: string, body: string, htmlBody?: string) {
+        const boundary = "__boundary__";
+        // Header
+        const str = [
+            `MIME-Version: 1.0`,
+            `To: ${to}`,
+            `Subject: ${subject}`,
+            `Content-Type: multipart/alternative; boundary="${boundary}"`,
+            ``,
+            `--${boundary}`,
+            `Content-Type: text/plain; charset=utf-8`,
+            `Content-Transfer-Encoding: 7bit`,
+            ``,
+            body,
+            ``,
+            `--${boundary}`,
+            `Content-Type: text/html; charset=utf-8`,
+            `Content-Transfer-Encoding: 7bit`,
+            ``,
+            htmlBody || body, // Fallback to body if no HTML, though caller should handle
+            ``,
+            `--${boundary}--`
+        ].join('\n');
+
+        return Buffer.from(str)
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+    }
+
+    async createDraft(to: string, subject: string, body: string, htmlBody?: string) {
         // 1. Get Connection
         const conn = await prisma.gmailAccount.findFirst();
         if (!conn) throw new Error("No Gmail connection found");
 
-        // 2. Refresh Token if needed (simplified check)
-        // For proper impl: check expiryDate. Google lib handles simple refresh if creds set.
+        // 2. Refresh Token
         this.client.setCredentials({
             access_token: conn.accessToken,
             refresh_token: conn.refreshToken
@@ -72,33 +122,31 @@ export class GmailService {
         // 3. Create Draft
         const gmail = google.gmail({ version: 'v1', auth: this.client });
 
-        const str = [
-            `To: ${to}`,
-            `Subject: ${subject}`,
-            `Content-Type: text/plain; charset=utf-8`,
-            ``,
-            body
-        ].join('\n');
-
-        const encodedMessage = Buffer.from(str)
-            .toString('base64')
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=+$/, '');
+        // Use HTML body if provided, otherwise simple text
+        let raw = '';
+        if (htmlBody) {
+            raw = this.makeBody(to, subject, body, htmlBody);
+        } else {
+            // Fallback legacy simple text
+            const str = [
+                `To: ${to}`,
+                `Subject: ${subject}`,
+                `Content-Type: text/plain; charset=utf-8`,
+                ``,
+                body
+            ].join('\n');
+            raw = Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
 
         const res = await gmail.users.drafts.create({
             userId: 'me',
-            requestBody: {
-                message: {
-                    raw: encodedMessage
-                }
-            }
+            requestBody: { message: { raw } }
         });
 
         return res.data;
     }
 
-    async sendEmail(to: string, subject: string, body: string) {
+    async sendEmail(to: string, subject: string, body: string, htmlBody?: string, threadId?: string) {
         // 1. Get Connection
         const conn = await prisma.gmailAccount.findFirst();
         if (!conn) throw new Error("No Gmail connection found");
@@ -112,25 +160,28 @@ export class GmailService {
         // 3. Create & Send
         const gmail = google.gmail({ version: 'v1', auth: this.client });
 
-        const str = [
-            `To: ${to}`,
-            `Subject: ${subject}`,
-            `Content-Type: text/plain; charset=utf-8`,
-            ``,
-            body
-        ].join('\n');
+        let raw = '';
+        if (htmlBody) {
+            raw = this.makeBody(to, subject, body, htmlBody);
+        } else {
+            const str = [
+                `To: ${to}`,
+                `Subject: ${subject}`,
+                `Content-Type: text/plain; charset=utf-8`,
+                ``,
+                body
+            ].join('\n');
+            raw = Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
 
-        const encodedMessage = Buffer.from(str)
-            .toString('base64')
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=+$/, '');
+        const requestBody: any = { raw };
+        if (threadId) {
+            requestBody.threadId = threadId;
+        }
 
         const res = await gmail.users.messages.send({
             userId: 'me',
-            requestBody: {
-                raw: encodedMessage
-            }
+            requestBody
         });
 
         // Update stats
@@ -140,6 +191,27 @@ export class GmailService {
                 sentToday: { increment: 1 },
                 lastSentAt: new Date()
             }
+        });
+
+        return res.data;
+    }
+    async getThread(threadId: string) {
+        // 1. Get Connection
+        const conn = await prisma.gmailAccount.findFirst();
+        if (!conn) throw new Error("No Gmail connection found");
+
+        // 2. Refresh Token
+        this.client.setCredentials({
+            access_token: conn.accessToken,
+            refresh_token: conn.refreshToken
+        });
+
+        const gmail = google.gmail({ version: 'v1', auth: this.client });
+
+        // 3. Fetch
+        const res = await gmail.users.threads.get({
+            userId: 'me',
+            id: threadId
         });
 
         return res.data;

@@ -1,28 +1,58 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Minimize2, Send, Save, Check, RotateCcw, AlertCircle, Sparkles, ChevronDown, Paperclip, Bold, Italic, Link as LinkIcon, List, Mail, User } from 'lucide-react';
+import { X, Minimize2, Send, Save, Check, RotateCcw, AlertCircle, Sparkles, ChevronDown, Paperclip, Bold, Italic, Link as LinkIcon, List, Mail, User, Pencil } from 'lucide-react';
 
 import { RecipientPicker } from './recipient-picker';
+import { ErrorBoundary } from '../ui/error-boundary';
+import dynamic from 'next/dynamic';
+
+const RichEditor = dynamic(() => import('./rich-editor'), {
+    ssr: false,
+    loading: () => <div className="h-[150px] bg-gray-50 border rounded-md animate-pulse" />
+});
 
 interface ComposerProps {
     isOpen: boolean;
     onClose: () => void;
     prospect: any;
     lead: any;
-    initialDraft?: { subject: string; body: string; tier: string; toEmail?: string };
+    initialDraft?: { subject: string; subjectOptions?: string[]; body: string; tier: string; toEmail?: string };
     onSendSuccess: () => void;
 }
 
 export default function OutreachComposer({ isOpen, onClose, prospect, lead, initialDraft, onSendSuccess }: ComposerProps) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const [toEmails, setToEmails] = useState<string[]>(initialDraft?.toEmail ? [initialDraft.toEmail] : []);
     const [subject, setSubject] = useState(initialDraft?.subject || (lead?.subjectLine1 || ""));
-    const [body, setBody] = useState(initialDraft?.body || (lead?.emailDraft || ""));
+    const [subjectOptions, setSubjectOptions] = useState<string[]>(initialDraft?.subjectOptions || []);
+
+    // Primary State: HTML. Fallback: Text.
+    const [bodyHtml, setBodyHtml] = useState(initialDraft?.body || (lead?.emailDraftHtml || ""));
+    const [bodyText, setBodyText] = useState(initialDraft?.body || (lead?.emailDraft || ""));
+
+    // Status
     const [status, setStatus] = useState<'DRAFTED' | 'APPROVED' | 'SENT'>(lead?.emailStatus || 'DRAFTED');
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [isSending, setIsSending] = useState(false);
     const [hasRisk, setHasRisk] = useState(false);
+
+    // Sync Initial Draft
+    useEffect(() => {
+        if (initialDraft) {
+            setSubject(initialDraft.subject);
+            setSubjectOptions(initialDraft.subjectOptions || []);
+            setBodyText(initialDraft.body);
+            // If bodyHtml saved, use it. Else fallback to body text if rich text missing
+            setBodyHtml(initialDraft.body);
+            if (initialDraft.toEmail) setToEmails([initialDraft.toEmail]);
+        }
+    }, [initialDraft]);
 
     // Debounce Save
     useEffect(() => {
@@ -31,22 +61,18 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
             handleSave();
         }, 3000);
         return () => clearTimeout(timer);
-    }, [subject, body]);
+    }, [subject, bodyHtml]); // Save on HTML change
 
-    // Initial load sync
-    useEffect(() => {
-        if (initialDraft) {
-            setSubject(initialDraft.subject);
-            setBody(initialDraft.body);
-            if (initialDraft.toEmail) setToEmails([initialDraft.toEmail]);
-        }
-    }, [initialDraft]);
+    const handleEditorChange = (html: string, text: string) => {
+        setBodyHtml(html);
+        setBodyText(text);
+    };
 
     const handleSave = async (newStatus?: string) => {
         if (!lead?.id) return;
         setIsSaving(true);
         try {
-            const payload: any = { subject, body };
+            const payload: any = { subject, body: bodyText, bodyHtml: bodyHtml };
             if (newStatus) payload.status = newStatus;
 
             await fetch(`/api/leads/${lead.id}/save-draft`, {
@@ -64,7 +90,7 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
     };
 
     const handleSend = async () => {
-        if (!subject || !body) {
+        if (!subject || !bodyText) {
             alert("Subject and Body are required");
             return;
         }
@@ -92,9 +118,10 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     leadId: lead.id,
-                    to: toEmails.join(','), // Comma separated for now
+                    to: toEmails.join(','),
                     subject,
-                    message: body
+                    message: bodyHtml, // Prefer HTML
+                    messageText: bodyText  // Fallback
                 })
             });
 
@@ -114,7 +141,7 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
         }
     };
 
-    if (!isOpen) return null;
+    if (!mounted || !isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-end pointer-events-none pr-4 pb-0 sm:pb-0 sm:items-end">
@@ -124,7 +151,69 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 bg-gray-900 text-white rounded-t-lg">
                     <h3 className="text-sm font-medium flex items-center gap-2">
-                        <span>New Message</span>
+                        <div className="flex flex-col group relative">
+                            {/* Click to Edit Brand Name */}
+                            <div className="flex items-center gap-2">
+                                <span
+                                    className="leading-tight hover:underline decoration-dotted cursor-pointer"
+                                    title="Click to edit brand name"
+                                    onClick={() => {
+                                        const currentVal = prospect?.brandNameOverride || prospect?.websiteBrandName || prospect?.companyName;
+                                        const newName = prompt("Update Brand Name for Outreach:", currentVal);
+                                        if (newName !== null) { // User didn't cancel
+                                            // If empty string provided, treat as 'Reset'? Or just save empty? 
+                                            // Let's treat empty as reset if they want. Or provide explicit reset?
+                                            // Explicit reset button is better.
+                                            // If they provide a name, save it.
+                                            if (newName.trim()) {
+                                                fetch(`/api/prospects/${prospect.id}/brand`, {
+                                                    method: 'PUT',
+                                                    body: JSON.stringify({ brandName: newName.trim() })
+                                                }).then(() => {
+                                                    alert("Brand name updated!");
+                                                    // Ideally refresh data
+                                                });
+                                            }
+                                        }
+                                    }}
+                                >
+                                    {prospect?.brandNameOverride || prospect?.websiteBrandName || prospect?.companyName || "New Message"}
+                                </span>
+
+                                {/* Indicators */}
+                                {prospect?.brandNameOverride ? (
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1 rounded uppercase font-bold tracking-wider">Manual</span>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (confirm("Reset to auto-generated name?")) {
+                                                    fetch(`/api/prospects/${prospect.id}/brand`, {
+                                                        method: 'PUT',
+                                                        body: JSON.stringify({ brandName: null }) // Reset
+                                                    }).then(() => alert("Reset to auto name."));
+                                                }
+                                            }}
+                                            className="text-gray-400 hover:text-red-500"
+                                            title="Reset to auto"
+                                        >
+                                            <RotateCcw size={10} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <span className="text-[9px] text-gray-400 opacity-50 uppercase tracking-wider font-medium">
+                                        {prospect?.websiteBrandNameSource ? `Auto (${prospect.websiteBrandNameSource.replace('_', ' ')})` : 'Legal'}
+                                    </span>
+                                )}
+
+                                <Pencil size={10} className="opacity-0 group-hover:opacity-50 cursor-pointer" />
+                            </div>
+
+                            {/* Legal Name fallback for context if different */}
+                            {((prospect?.brandNameOverride || prospect?.websiteBrandName) && prospect?.companyName && (prospect.brandNameOverride || prospect.websiteBrandName) !== prospect.companyName) && (
+                                <span className="text-[9px] text-gray-400 font-normal leading-none mt-0.5">{prospect.companyName}</span>
+                            )}
+                        </div>
                         {status === 'DRAFTED' && <span className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-300">Draft</span>}
                         {status === 'APPROVED' && <span className="text-[10px] bg-green-900 text-green-100 px-1.5 py-0.5 rounded flex items-center gap-1"><Check size={8} /> Approved</span>}
                     </h3>
@@ -137,14 +226,15 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
                 {/* Metadata Fields */}
                 <div className="px-4 py-2 border-b border-gray-100 space-y-1">
                     <div className="flex items-start py-2 border-b border-transparent hover:border-gray-100 group z-50">
-                        {/* <span className="text-gray-500 text-sm w-16 pt-2">To</span> */}
                         <div className="flex-1">
-                            <RecipientPicker
-                                leadId={lead?.id}
-                                selectedEmails={toEmails}
-                                onSelectionChange={setToEmails}
-                                onRiskChange={setHasRisk}
-                            />
+                            <ErrorBoundary name="RecipientPicker">
+                                <RecipientPicker
+                                    leadId={lead?.id}
+                                    selectedEmails={toEmails}
+                                    onSelectionChange={setToEmails}
+                                    onRiskChange={setHasRisk}
+                                />
+                            </ErrorBoundary>
                         </div>
                     </div>
 
@@ -155,38 +245,55 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
                         </div>
                     )}
 
-                    <div className="flex items-center py-1">
-                        <span className="text-gray-500 text-sm w-16">Subject</span>
-                        <input
-                            type="text"
-                            className="flex-1 text-sm outline-none placeholder-gray-400 font-medium"
-                            placeholder="Subject line"
-                            value={subject}
-                            onChange={(e) => setSubject(e.target.value)}
-                        />
+                    <div className="flex items-center py-1 relative group">
+                        <span className="text-gray-500 text-sm w-16 px-1">Subject</span>
+                        <div className="flex-1 flex items-center relative">
+                            <input
+                                type="text"
+                                className="flex-1 text-sm outline-none placeholder-gray-400 font-medium bg-transparent"
+                                placeholder="Subject line"
+                                value={subject}
+                                onChange={(e) => setSubject(e.target.value)}
+                            />
+                            {/* Subject Options Dropdown Trigger */}
+                            {subjectOptions.length > 0 && (
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="relative group/dropdown">
+                                        <button className="text-gray-400 hover:text-indigo-600 bg-white shadow-sm border border-gray-200 rounded p-1">
+                                            <Sparkles size={12} />
+                                        </button>
+                                        <div className="hidden group-hover/dropdown:block absolute right-0 top-full mt-1 w-[300px] bg-white border border-gray-200 shadow-xl rounded-md z-50 overflow-hidden">
+                                            <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                                                AI Suggestions
+                                            </div>
+                                            {subjectOptions.map((opt, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => setSubject(opt)}
+                                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors border-b border-gray-50 last:border-0"
+                                                >
+                                                    {opt}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
 
-                {/* Editor Toolbar (Fake) */}
-                {/* 
-                <div className="px-3 py-2 border-b border-gray-50 flex gap-1 text-gray-500">
-                    <button className="p-1 hover:bg-gray-100 rounded"><Bold size={14} /></button>
-                    <button className="p-1 hover:bg-gray-100 rounded"><Italic size={14} /></button>
-                    <button className="p-1 hover:bg-gray-100 rounded"><LinkIcon size={14} /></button>
-                    <div className="w-px h-4 bg-gray-200 mx-1 self-center" />
-                    <button className="p-1 hover:bg-gray-100 rounded"><List size={14} /></button>
                 </div>
-                */}
 
                 {/* Body Area */}
                 <div className="flex-1 p-4 overflow-y-auto flex flex-col">
-                    <textarea
-                        className="flex-1 w-full resize-none outline-none text-sm leading-relaxed text-gray-800 font-sans"
-                        placeholder="Write your email here..."
-                        value={body}
-                        onChange={(e) => setBody(e.target.value)}
-                        readOnly={status === 'APPROVED' && false} // Can still edit, maybe auto-unlock?
-                    />
+                    <ErrorBoundary name="RichEditor">
+                        <RichEditor
+                            valueHtml={bodyHtml}
+                            onChange={handleEditorChange}
+                            placeholder="Write your email here..."
+                            disabled={false}
+                        />
+                    </ErrorBoundary>
 
                     {/* Signature Preview */}
                     <div className="mt-8 pt-4 border-t border-gray-100 text-gray-500 text-xs">

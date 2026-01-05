@@ -23,7 +23,20 @@ export async function POST(
         }
 
         // 1. Run Discovery
-        const emails = await emailDiscovery.discoverEmails(prospect.websiteUrl);
+        const { emails, brandName, brandNameSource, brandNameConfidence, websiteDomain } = await emailDiscovery.discoverEmails(prospect.websiteUrl); // Destructure result
+
+        // Save Brand Name & Metadata if found
+        if (brandName || websiteDomain) {
+            await prisma.companyProspect.update({
+                where: { id },
+                data: {
+                    websiteBrandName: brandName,
+                    websiteBrandNameSource: brandNameSource,
+                    websiteBrandNameConfidence: brandNameConfidence,
+                    websiteDomain: websiteDomain
+                }
+            });
+        }
 
         if (!prisma.prospectEmail) {
             console.error("Prisma Client missing ProspectEmail model. Run 'npx prisma generate'.");
@@ -45,12 +58,39 @@ export async function POST(
                         type: e.type,
                         confidence: e.confidence,
                         sourceUrl: e.sourceUrl,
-                        contextSnippet: e.contextSnippet
+                        contextSnippet: e.contextSnippet,
+                        name: e.name || null,
+                        roleTitle: e.roleTitle,
+                        roleConfidence: e.roleConfidence,
+                        roleSource: e.roleSource
                     }
                 });
                 saved.push(rec);
             } else {
-                saved.push(exists);
+                // Update type AND new role fields if improved/discovered
+                // We only overwrite role if the existing one is missing or if the new one is higher confidence?
+                // For simplicity: If existing role is null, fill it. If exists, keep it (assume old one might be manual or better)
+                // Actually if source is manual, never overwrite. But we haven't implemented manual yet.
+                // Logic: Update type always. Update role if null.
+
+                const updateData: any = {};
+                if (exists.type !== e.type) updateData.type = e.type;
+                if (!exists.name && e.name) updateData.name = e.name; // Enrich name if missing
+                if (!exists.roleTitle && e.roleTitle) {
+                    updateData.roleTitle = e.roleTitle;
+                    updateData.roleSource = e.roleSource;
+                    updateData.roleConfidence = e.roleConfidence;
+                }
+
+                if (Object.keys(updateData).length > 0) {
+                    const updated = await prisma.prospectEmail.update({
+                        where: { id: exists.id },
+                        data: updateData
+                    });
+                    saved.push(updated);
+                } else {
+                    saved.push(exists);
+                }
             }
         }
 

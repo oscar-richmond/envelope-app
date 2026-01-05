@@ -71,15 +71,28 @@ function SettingsContent() {
                     ) : (
                         <div className="flex flex-col items-start gap-4">
                             <a
-                                href="/api/auth/google"
+                                href={typeof window !== 'undefined' ? `/api/auth/google?origin=${encodeURIComponent(window.location.origin)}` : '/api/auth/google'}
                                 className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md shadow-sm flex items-center gap-2 transition"
                             >
                                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
                                 Connect Gmail Account
                             </a>
-                            <p className="text-xs text-gray-400">
-                                Requires Google OAuth Client ID & Secret configuration.
-                            </p>
+                            <div className="flex flex-col gap-2 mt-2 p-3 bg-gray-50 rounded border border-gray-200 w-full text-xs">
+                                <div>
+                                    <span className="font-bold text-gray-500 uppercase text-[10px]">Your Current URL (Dynamic)</span>
+                                    <code className="block bg-white border border-gray-100 p-1 rounded mt-1 break-all">
+                                        {typeof window !== 'undefined' ? `${window.location.origin}/api/auth/google/callback` : '...'}
+                                    </code>
+                                </div>
+                                <div className="text-gray-400 text-[10px] leading-tight">
+                                    <strong>Fix:</strong> This URL ^ must match exactly what is in your Google Cloud Console &gt; Authorized Redirect URIs.
+                                    <br />
+                                    <strong>Alternative:</strong> Set <code>GOOGLE_REDIRECT_URI</code> in Vercel to override this.
+                                    <div className="mt-2 text-amber-600 bg-amber-50 p-1 rounded border border-amber-100">
+                                        <strong>⚠️ IMPORTANT:</strong> Paste into "Authorized <u>Redirect URIs</u>", NOT "JavaScript Origins".
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

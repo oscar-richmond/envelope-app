@@ -11,15 +11,26 @@ export async function POST(
 
     try {
         const id = parseInt(params.id);
-        const { subject, body, status, version } = await req.json();
+        const { subject, body, bodyHtml, status, version } = await req.json();
 
         if (!id) {
             return NextResponse.json({ error: "Missing Lead ID" }, { status: 400 });
         }
 
+        // Sanitize HTML if present - Note: DOMPurify is client-side usually, for server use 'isomorphic-dompurify'
+        let cleanHtml = bodyHtml;
+        if (bodyHtml) {
+            const DOMPurify = require('isomorphic-dompurify');
+            cleanHtml = DOMPurify.sanitize(bodyHtml, {
+                ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a', 'ul', 'ol', 'li', 'blockquote'],
+                ALLOWED_ATTR: ['href', 'target', 'rel']
+            });
+        }
+
         const data: any = {
             subjectLine1: subject,
             emailDraft: body,
+            emailDraftHtml: cleanHtml,
             lastDraftSavedAt: new Date(),
         };
 

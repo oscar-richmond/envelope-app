@@ -49,6 +49,7 @@ const Sidebar = () => {
             <nav className="flex-1 p-3 space-y-1">
                 <NavItem href="/" icon={<List size={20} />} label="Lead Board" collapsed={isCollapsed} />
                 <NavItem href="/prospects" icon={<Users size={20} />} label="Prospect Search" collapsed={isCollapsed} />
+                <NavItem href="/outreach/sent" icon={<Upload size={20} className="rotate-90" />} label="Outbox" collapsed={isCollapsed} />
                 <NavItem href="/outreach" icon={<Send size={20} />} label="Outreach Queue" collapsed={isCollapsed} />
                 <NavItem href="/import" icon={<PlusCircle size={20} />} label="Import Leads" collapsed={isCollapsed} />
                 <NavItem href="/settings" icon={<Settings size={20} />} label="Settings" collapsed={isCollapsed} />
