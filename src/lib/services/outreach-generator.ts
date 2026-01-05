@@ -68,15 +68,18 @@ Best,
         if (score >= 70) tier = 'HIGH';
         else if (score >= 40) tier = 'MEDIUM';
 
-        if (tier === 'LOW') return null;
+        // Remove blocking check for LOW tier
+        // if (tier === 'LOW') return null;
 
         // 2. Parse Website Signals for Observations
         const observations = this.generateObservations(prospect);
         const specificIssue = observations.length > 0 ? observations[0] : "digital presence and user experience";
         const specificIssue2 = observations.length > 1 ? observations[1] : "performance optimization";
 
-        // 3. Select Template
-        const template = this.TEMPLATES[tier];
+        // 3. Select Template (Fallback LOW to MEDIUM template for now)
+        // If we want a specific LOW template we can add it, but for now reuse MEDIUM
+        const templateKey = tier === 'LOW' ? 'MEDIUM' : tier;
+        const template = this.TEMPLATES[templateKey];
         const subject = template.subject[Math.floor(Math.random() * template.subject.length)]
             .replace('{{CompanyName}}', prospect.companyName);
 
