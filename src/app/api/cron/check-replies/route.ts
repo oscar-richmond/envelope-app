@@ -105,39 +105,108 @@ export async function GET(req: NextRequest) {
 
                     replied++;
                 } else {
-                    debug.push(`-- No valid reply found in thread.`);
+                    debug.push(`-- No valid reply found in thread. Attempting Fuzzy Search...`);
 
-                    // DEBUG FALLBACK: Check if reply lost threading
+                    // 2. Fuzzy Search Strategy: Match by Subject
+                    // Outlook/Gmail sometimes break threading headers, creating a new thread ID.
+                    // We search for any message with the same subject received AFTER our sent time.
+
+                    let fuzzyReply = null;
                     try {
-                        debug.push(`-- Debug: Searching by subject for lost reply...`);
-                        const cleanSubject = email.subject.replace(/([\[\]\{\}\(\)\*])/g, ''); // crude clean
+                        const cleanSubject = email.subject.replace(/([\[\]\{\}\(\)\*])/g, '').trim();
+                        const searchQ = `subject:("${cleanSubject}") after:${Math.floor(ourSentTime / 1000)}`;
+
+                        // debug.push(`-- Search Q: ${searchQ}`);
+
                         const searchRes = await gmailService.client.request({
                             url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
                             params: {
-                                q: `subject:("${cleanSubject}")`,
+                                q: searchQ,
                                 includeSpamTrash: 'true'
                             }
                         });
+
                         const data: any = searchRes.data;
-                        if (data.messages && data.messages.length > 0) {
-                            debug.push(`-- Debug: Found ${data.messages.length} msgs with subject.`);
-                            data.messages.forEach((m: any) => {
-                                debug.push(`---- Msg: ${m.id} | Thread: ${m.threadId}`);
+                        const potentialMsgs = data.messages || [];
+
+                        // Check each potential message
+                        for (const pm of potentialMsgs) {
+                            if (pm.threadId === email.sentThreadId) continue; // Skip known thread (already checked)
+
+                            // Fetch details
+                            const details = await gmailService.getThread(pm.threadId);
+                            const msgs = details.messages || [];
+
+                            // Find the specific message or ANY in this thread that matches criteria
+                            const match = msgs.find(m => {
+                                // Must not be FROM me
+                                const headers = m.payload?.headers || [];
+                                const from = headers.find(h => h.name === 'From')?.value || "";
+                                if (myEmail && from.includes(myEmail)) return false;
+
+                                // Timestamp check (double check)
+                                const msgTime = parseInt(m.internalDate || "0");
+                                if (msgTime <= ourSentTime + 2000) return false;
+
+                                return true;
                             });
-                            if (data.messages.some((m: any) => m.threadId !== email.sentThreadId)) {
-                                debug.push(`!! WARNING: Found messages in DIFFERENT threads. Threading is broken.`);
+
+                            if (match) {
+                                debug.push(`!! FUZZY MATCH FOUND: Thread ${pm.threadId} (Msg ${match.id})`);
+                                fuzzyReply = match;
+                                break; // Found one!
                             }
-                        } else {
-                            debug.push(`-- Debug: No other messages found by subject.`);
                         }
+
                     } catch (dE: any) {
-                        debug.push(`-- Debug Search Failed: ${dE.message}`);
+                        debug.push(`-- Fuzzy Search Error: ${dE.message}`);
                     }
 
-                    await prisma.sentEmail.update({
-                        where: { id: email.id },
-                        data: { lastCheckedAt: new Date() }
-                    });
+                    if (fuzzyReply) {
+                        // REUSE THE PROCESSING LOGIC
+                        // Ideally refactor this, but for now copy-paste the update logic
+                        const snippet = fuzzyReply.snippet || "";
+                        debug.push(`!! Processing Fuzzy Reply...`);
+
+                        let sentimentData = {};
+                        try {
+                            const analysis = await sentimentService.analyzeReply(snippet, email.subject);
+                            sentimentData = {
+                                replySentiment: analysis.sentiment,
+                                replySummary: analysis.summary,
+                                replyConfidence: analysis.confidence
+                            };
+                            debug.push(`!! Analysis: ${analysis.sentiment}`);
+                        } catch (err) { console.error(err); }
+
+                        await prisma.sentEmail.update({
+                            where: { id: email.id },
+                            data: {
+                                status: 'REPLIED',
+                                replyDetectedAt: new Date(),
+                                lastCheckedAt: new Date(),
+                                // OPTIONAL: Update thread ID to the new one?
+                                // sentThreadId: fuzzyReply.threadId, 
+                                ...sentimentData
+                            }
+                        });
+
+                        // Auto-Actions
+                        if (sentimentData['replySentiment'] === 'OOO') {
+                            await prisma.sentEmail.update({
+                                where: { id: email.id },
+                                data: { nextFollowUpAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) }
+                            });
+                        }
+                        replied++;
+
+                    } else {
+                        debug.push(`-- No fuzzy match found.`);
+                        await prisma.sentEmail.update({
+                            where: { id: email.id },
+                            data: { lastCheckedAt: new Date() }
+                        });
+                    }
                 }
 
             } catch (e: any) {
