@@ -4,28 +4,27 @@ import { gmailService } from '@/lib/services/gmail';
 
 export async function GET(req: any) {
     // Strategy: Priority Cascade
-    // 1. Explicit Env Var (The "Nuclear Option" - overrides everything)
+    // 1. Explicit Env Var
     let redirectUri = process.env.GOOGLE_REDIRECT_URI;
 
-    // SAFETY CHECK: If we are in production, but the env var says "localhost", IGNORE IT.
-    // This prevents the common mistake of deploying with dev env vars.
-    if (process.env.NODE_ENV === 'production' && redirectUri?.includes('localhost')) {
-        console.warn("WARN: Ignoring GOOGLE_REDIRECT_URI (localhost) in production. Falling back to dynamic origin.");
-        redirectUri = undefined;
+    // 2. HARD OVERRIDE FOR VERCEL
+    const host = req.headers.get('host') || "";
+    if (host.includes('vercel.app')) {
+        // If we are on Vercel, we MUST use the Vercel URL with HTTPS.
+        // This generally fixes all "Access blocked" or "Site can't be reached" issues
+        // by ignoring any misconfigured env vars or http/https confusion.
+        redirectUri = `https://${host}/api/auth/google/callback`;
+        console.log("Vercel detected. Forcing redirect URI to:", redirectUri);
     }
-
-    // 2. Client-Side Origin Injection (If no env var)
-    if (!redirectUri) {
+    // 3. Client-Side Origin Injection (Only if NOT on Vercel and no env var)
+    else if (!redirectUri) {
         const { searchParams } = new URL(req.url);
         const origin = searchParams.get('origin');
 
         if (origin) {
-            // Client told us EXACTLY where it is (e.g. "https://my-app.vercel.app")
-            // We trust this for the redirect base.
             redirectUri = `${origin}/api/auth/google/callback`;
         } else {
-            // 3. Fallback Server-Side Detection
-            const host = req.headers.get('host');
+            // 4. Fallback Server-Side Detection
             let protocol = req.headers.get('x-forwarded-proto');
             if (!protocol && process.env.NODE_ENV === 'production') protocol = 'https';
             if (!protocol) protocol = 'http';

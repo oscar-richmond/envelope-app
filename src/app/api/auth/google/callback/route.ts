@@ -12,14 +12,14 @@ export async function GET(request: Request) {
 
         let redirectUri = process.env.GOOGLE_REDIRECT_URI;
 
-        // SAFETY CHECK: Same as in the start route.
-        if (process.env.NODE_ENV === 'production' && redirectUri?.includes('localhost')) {
-            console.warn("WARN: Ignoring GOOGLE_REDIRECT_URI (localhost) in callback. Using state/dynamic.");
-            redirectUri = undefined;
+        // HARD OVERRIDE FOR VERCEL (Consistency Check)
+        const host = request.headers.get('host') || "";
+        if (host.includes('vercel.app')) {
+            redirectUri = `https://${host}/api/auth/google/callback`;
+            console.log("Callback: Vercel detected. Forcing redirect URI to:", redirectUri);
         }
-
-        // If no env var, try to recover from state
-        if (!redirectUri && state) {
+        // If no env var/override, try to recover from state
+        else if (!redirectUri && state) {
             try {
                 redirectUri = Buffer.from(state, 'base64').toString('ascii');
                 console.log("Recovered redirect URI from state:", redirectUri);
