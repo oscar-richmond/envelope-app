@@ -58,6 +58,7 @@ export async function GET(
                         role: e.type, // Sales, Support, General
                         source: 'WEBSITE',
                         confidence: e.confidence,
+                        sendabilityStatus: e.sendabilityStatus,
                         sourceUrl: e.sourceUrl,
                         id: `web-${e.id}`
                     });

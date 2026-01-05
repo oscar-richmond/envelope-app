@@ -110,6 +110,13 @@ model ProspectEmail {
   contextSnippet  String?
   
   createdAt       DateTime @default(now())
+
+  // Verification Signals
+  syntaxValid     Boolean?
+  mxValid         Boolean?
+  roleRisk        String?  // HIGH, MEDIUM, LOW, NONE
+  sendabilityStatus String? // GOOD, CAUTION, HIGH_RISK
+  checkedAt       DateTime?
 }
 
 model EmailDraft {

@@ -22,6 +22,7 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [isSending, setIsSending] = useState(false);
+    const [hasRisk, setHasRisk] = useState(false);
 
     // Debounce Save
     useEffect(() => {
@@ -72,7 +73,11 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
             return;
         }
 
-        if (!confirm(`Confirm sending this email to ${toEmails.join(', ')}?`)) return;
+        if (hasRisk) {
+            if (!confirm(`Warning: Some recipients are marked High Risk and may bounce. Send anyway?`)) return;
+        } else {
+            if (!confirm(`Confirm sending this email to ${toEmails.join(', ')}?`)) return;
+        }
 
         setIsSending(true);
         try {
@@ -138,9 +143,17 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
                                 leadId={lead?.id}
                                 selectedEmails={toEmails}
                                 onSelectionChange={setToEmails}
+                                onRiskChange={setHasRisk}
                             />
                         </div>
                     </div>
+
+                    {hasRisk && (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border-b border-red-100 text-red-700 text-xs font-medium">
+                            <AlertCircle size={14} className="shrink-0" />
+                            <span>Warning: <strong>High risk</strong> recipients detected. Deliverability may be low.</span>
+                        </div>
+                    )}
 
                     <div className="flex items-center py-1">
                         <span className="text-gray-500 text-sm w-16">Subject</span>
