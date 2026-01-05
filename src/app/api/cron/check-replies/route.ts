@@ -113,7 +113,10 @@ export async function GET(req: NextRequest) {
                         const cleanSubject = email.subject.replace(/([\[\]\{\}\(\)\*])/g, ''); // crude clean
                         const searchRes = await gmailService.client.request({
                             url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
-                            params: { q: `subject:("${cleanSubject}")` }
+                            params: {
+                                q: `subject:("${cleanSubject}")`,
+                                includeSpamTrash: 'true'
+                            }
                         });
                         const data: any = searchRes.data;
                         if (data.messages && data.messages.length > 0) {
