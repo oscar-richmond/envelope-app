@@ -54,10 +54,10 @@ export async function GET(req: NextRequest) {
                     debug.push(`-- Msg ${m.id} Candidate: From="${from}"`);
 
                     // If generic "me", ignore. If strictly matches my email, ignore.
-                    if (myEmail && from.includes(myEmail)) {
-                        debug.push(`---- Ignored: Matches my email.`);
-                        return false;
-                    }
+                    // if (myEmail && from.includes(myEmail)) {
+                    //    debug.push(`---- Ignored: Matches my email.`);
+                    //    return false;
+                    // }
 
                     return true;
                 });
