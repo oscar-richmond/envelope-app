@@ -1099,16 +1099,14 @@ export default function ProspectSearch() {
                                                                 <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap">Find Emails</div>
                                                             </button>
 
-                                                            {(c.contactPriorityScore || 0) >= 40 && (
-                                                                <button
-                                                                    onClick={() => handleGenerateDraft(c)}
-                                                                    disabled={isGeneratingDraft}
-                                                                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-md transition-all relative group/btn"
-                                                                >
-                                                                    <PenTool size={14} />
-                                                                    <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap">Draft</div>
-                                                                </button>
-                                                            )}
+                                                            <button
+                                                                onClick={() => handleGenerateDraft(c)}
+                                                                disabled={isGeneratingDraft}
+                                                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-md transition-all relative group/btn"
+                                                            >
+                                                                <PenTool size={14} />
+                                                                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap">Draft</div>
+                                                            </button>
 
                                                             <button
                                                                 onClick={() => handleAction(c, i, 'REJECT')}
