@@ -250,35 +250,116 @@ ${senderFirstName}`;
     }
 
     /**
-     * Generate a short follow-up email
+     * Generate follow-up email drafts
+     * Returns both variants (call-first and email-ideas-first)
+     */
+    generateFollowUpDrafts(
+        originalSubject: string,
+        companyName: string,
+        firstName: string | null,
+        followUpNumber: number // 1 or 2
+    ): { callFirst: string; emailIdeasFirst: string } {
+        const greeting = firstName ? `Hi ${firstName},` : 'Hi there,';
+        const senderName = 'Oscar';
+
+        if (followUpNumber === 1) {
+            return this.generateFollowUp1(greeting, companyName, senderName);
+        } else {
+            return this.generateFollowUp2(greeting, companyName, senderName);
+        }
+    }
+
+    /**
+     * Follow-up 1: 70-110 words
+     * References prior email, adds one specific reminder, soft CTA with two options
+     */
+    private generateFollowUp1(
+        greeting: string,
+        companyName: string,
+        senderName: string
+    ): { callFirst: string; emailIdeasFirst: string } {
+        // Paragraph 1: Polite nudge, reference prior email
+        const opener = 'Just following up on the note I sent earlier about ' + companyName + '\'s website.';
+
+        // Paragraph 2: One specific reminder of pain/result
+        const painReminders = [
+            'The main point was that the first impression could do more to reflect the quality of the organisation and guide visitors to the right next step. Small improvements there often make a noticeable difference to trust and enquiries.',
+            'I mentioned that the site structure could better communicate your expertise in those first few seconds. Getting that right tends to build confidence and encourage people to get in touch.',
+            'The key observation was that the visual presentation could more strongly reflect the quality of your work. This often helps the right visitors feel confident enough to reach out.'
+        ];
+        const pain = painReminders[Math.floor(Math.random() * painReminders.length)];
+
+        // CTA variants
+        const callFirstCTA = 'Would you be open to a short call this week, or would you prefer I send two or three specific ideas by email?';
+        const emailFirstCTA = 'I can send a few specific ideas by email if that\'s easier, or we could have a quick call this week if you prefer.';
+
+        const closing = `Best,\n${senderName}`;
+
+        const callFirst = this.validateAndClean(`${greeting}
+
+${opener}
+
+${pain}
+
+${callFirstCTA}
+
+${closing}`);
+
+        const emailIdeasFirst = this.validateAndClean(`${greeting}
+
+${opener}
+
+${pain}
+
+${emailFirstCTA}
+
+${closing}`);
+
+        return { callFirst, emailIdeasFirst };
+    }
+
+    /**
+     * Follow-up 2: 50-80 words
+     * Shorter, light touch, graceful exit offered
+     */
+    private generateFollowUp2(
+        greeting: string,
+        companyName: string,
+        senderName: string
+    ): { callFirst: string; emailIdeasFirst: string } {
+        // Acknowledge busy, offer final nudge, graceful exit
+        const bodyCallFirst = `Quick final follow-up from my side. If improving ${companyName}'s first impression and enquiry journey is on the list this quarter, I'm happy to share a few specific suggestions on a call.
+
+If not, no problem at all. Just let me know and I will close this out.`;
+
+        const bodyEmailFirst = `Quick final follow-up from my side. If improving ${companyName}'s first impression and enquiry journey is on the list this quarter, I can send over a few specific ideas.
+
+If not, no problem at all. Just let me know and I will close this out.`;
+
+        const closing = `Best,\n${senderName}`;
+
+        const callFirst = this.validateAndClean(`${greeting}
+
+${bodyCallFirst}
+
+${closing}`);
+
+        const emailIdeasFirst = this.validateAndClean(`${greeting}
+
+${bodyEmailFirst}
+
+${closing}`);
+
+        return { callFirst, emailIdeasFirst };
+    }
+
+    /**
+     * Legacy method for backward compatibility
+     * @deprecated Use generateFollowUpDrafts instead
      */
     generateFollowUp(originalSubject: string, companyName: string, count: number): string {
-        const openers = [
-            "Just bumping this to the top in case it got buried.",
-            "Wanted to quickly circle back on the note below.",
-            "Just checking in on this."
-        ];
-
-        const opening = openers[Math.floor(Math.random() * openers.length)];
-
-        const closers = [
-            "Would you have a few minutes later this week?",
-            "Happy to send over a rough idea if you're open to it.",
-            "Let me know if this isn't a priority right now."
-        ];
-
-        const close = closers[Math.floor(Math.random() * closers.length)];
-
-        return `Hi there,
-
-${opening}
-
-I still think there's a good opportunity to strengthen how ${companyName} comes across online.
-
-${close}
-
-Best,
-Oscar`;
+        const drafts = this.generateFollowUpDrafts(originalSubject, companyName, null, count + 1);
+        return drafts.callFirst;
     }
 }
 

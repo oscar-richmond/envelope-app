@@ -246,14 +246,54 @@ model SentEmail {
   replyConfidence Int?      // 0-100
   
   // Follow Up Logic
-  followUpCount   Int       @default(0) // 0 = Initial, 1 = First FU sent
-  nextFollowUpAt  DateTime? // When the next check/action is due
+  followUpCount         Int       @default(0) // 0 = Initial, 1 = First FU sent, 2 = Second FU sent
+  nextFollowUpAt        DateTime? // When the next follow-up is due
+  lastFollowUpSentAt    DateTime?
+  followUpSnoozedUntil  DateTime? // If snoozed, when to resurface
+  followUpSkipped       Boolean   @default(false)
+  followUpPriorityScore Int?      // 0-100 priority for queue ordering
+  followUpReasonSummary String?   // e.g. "High opportunity, overdue 2 days"
+  
+  // Relations
+  followUpQueueItems    FollowUpQueueItem[]
   
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   
   @@index([status])
   @@index([nextFollowUpAt])
+  @@index([followUpPriorityScore])
+}
+
+model FollowUpQueueItem {
+  id              Int       @id @default(autoincrement())
+  sentEmailId     Int
+  sentEmail       SentEmail @relation(fields: [sentEmailId], references: [id])
+  
+  // Context
+  recipientEmail  String
+  followUpNumber  Int       // 1 or 2
+  
+  // Scheduling
+  dueAt           DateTime
+  priorityScore   Int       @default(0) // 0-100
+  
+  // Status
+  status          String    @default("QUEUED") // QUEUED, SNOOZED, SKIPPED, COMPLETED
+  snoozedUntil    DateTime?
+  
+  // Draft Content
+  draftSubject    String
+  draftBodyText   String    @db.Text
+  draftBodyHtml   String?   @db.Text
+  draftVariant    String    @default("call-first") // call-first, email-ideas-first
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([status])
+  @@index([dueAt])
+  @@index([priorityScore])
 }
 
 model GmailAccount {
@@ -276,12 +316,18 @@ model SuppressionEntry {
 }
 
 model Settings {
-  id              Int    @id @default(1)
-  openaiApiKey    String?
-  toneGuidelines  String?
-  emailSignature  String?
-  dailySendLimit  Int    @default(50)
-  followUpDelayDays Int  @default(4)
+  id                  Int     @id @default(1)
+  openaiApiKey        String?
+  toneGuidelines      String?
+  emailSignature      String?
+  dailySendLimit      Int     @default(50)
+  
+  // Follow-up Configuration
+  followUpDelayDays   Int     @default(4)  // Business days for FU1
+  followUp2DelayDays  Int     @default(7)  // Business days for FU2 (after FU1)
+  followUp2Enabled    Boolean @default(false)
+  maxFollowUpAgeDays  Int     @default(45) // Max age before no more follow-ups
+  timezone            String  @default("Europe/London")
 }
 
 // --- Auth & Waitlist Models ---
