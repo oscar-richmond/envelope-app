@@ -79,11 +79,20 @@ export class GmailService {
     }
 
     private makeBody(from: string, to: string, subject: string, body: string, htmlBody?: string) {
-        const boundary = "__boundary__";
-        // Header - IMPORTANT: RFC 5322 requires CRLF line endings
+        const boundary = "__boundary__" + Date.now();
         const CRLF = '\r\n';
+
+        // Generate RFC 5322 compliant Message-ID
+        const domain = from.split('@')[1] || 'envelope.local';
+        const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2)}@${domain}>`;
+
+        // RFC 5322 compliant Date header
+        const dateHeader = new Date().toUTCString();
+
         const str = [
             `MIME-Version: 1.0`,
+            `Date: ${dateHeader}`,
+            `Message-ID: ${messageId}`,
             `From: ${from}`,
             `To: ${to}`,
             `Subject: ${subject}`,
@@ -91,13 +100,13 @@ export class GmailService {
             ``,
             `--${boundary}`,
             `Content-Type: text/plain; charset=utf-8`,
-            `Content-Transfer-Encoding: 7bit`,
+            `Content-Transfer-Encoding: quoted-printable`,
             ``,
             body,
             ``,
             `--${boundary}`,
             `Content-Type: text/html; charset=utf-8`,
-            `Content-Transfer-Encoding: 7bit`,
+            `Content-Transfer-Encoding: quoted-printable`,
             ``,
             htmlBody || body,
             ``,
