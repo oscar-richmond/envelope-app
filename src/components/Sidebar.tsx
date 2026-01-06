@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, List, Settings, PlusCircle, Send, Users, Upload, LayoutDashboard, ChevronLeft, ChevronRight, Mail, LogOut, User as UserIcon } from 'lucide-react';
+import { Home, List, Settings, PlusCircle, Send, Users, Upload, LayoutDashboard, ChevronLeft, ChevronRight, Mail, LogOut, User as UserIcon, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from "next-auth/react";
 
@@ -59,7 +59,8 @@ const Sidebar = () => {
                 <NavItem href="/" icon={<List size={20} />} label="Lead Board" collapsed={isCollapsed} isActive={pathname === '/'} />
                 <NavItem href="/prospects" icon={<Users size={20} />} label="Prospect Search" collapsed={isCollapsed} isActive={pathname === '/prospects'} />
                 <NavItem href="/outreach/sent" icon={<Mail size={20} />} label="Inbox" collapsed={isCollapsed} isActive={pathname === '/outreach/sent'} />
-                <NavItem href="/outreach" icon={<Send size={20} />} label="Outreach Queue" collapsed={isCollapsed} isActive={pathname === '/outreach' && !pathname.includes('/sent')} />
+                <NavItem href="/outreach/follow-ups" icon={<RefreshCw size={20} />} label="Follow-Ups" collapsed={isCollapsed} isActive={pathname === '/outreach/follow-ups'} />
+                <NavItem href="/outreach" icon={<Send size={20} />} label="Outreach Queue" collapsed={isCollapsed} isActive={pathname === '/outreach' && !pathname.includes('/sent') && !pathname.includes('/follow-ups')} />
                 <NavItem href="/import" icon={<PlusCircle size={20} />} label="Import Leads" collapsed={isCollapsed} isActive={pathname === '/import'} />
                 <NavItem href="/settings" icon={<Settings size={20} />} label="Settings" collapsed={isCollapsed} isActive={pathname === '/settings'} />
             </nav>
