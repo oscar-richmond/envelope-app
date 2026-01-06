@@ -1,8 +1,98 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { Mail, CheckCircle, XCircle, LogOut, Lock } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, LogOut, Lock, Shield, AlertCircle } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+
+/**
+ * Sender Health Indicator
+ * Shows authentication status and volume guidance with calm language
+ */
+function SenderHealthIndicator() {
+    const [health, setHealth] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch('/api/settings/sender-health')
+            .then(res => res.json())
+            .then(data => {
+                if (data.health) {
+                    setHealth(data.health);
+                }
+                setLoading(false);
+            })
+            .catch(() => setLoading(false));
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="mt-4 animate-pulse h-20 bg-gray-50 rounded-lg"></div>
+        );
+    }
+
+    if (!health) return null;
+
+    const statusColors = {
+        'VERIFIED_WARM': 'bg-green-50 border-green-100 text-green-700',
+        'VERIFIED_WARMING': 'bg-amber-50 border-amber-100 text-amber-700',
+        'UNVERIFIED': 'bg-gray-50 border-gray-200 text-gray-500'
+    };
+
+    return (
+        <div className="mt-4 space-y-3">
+            {/* Status Badge */}
+            <div className={`rounded-lg border p-4 ${statusColors[health.status as keyof typeof statusColors] || statusColors.UNVERIFIED}`}>
+                <div className="flex items-center gap-2 mb-2">
+                    <Shield size={16} />
+                    <span className="font-medium">{health.statusLabel}</span>
+                </div>
+                <p className="text-sm opacity-80">{health.statusDescription}</p>
+            </div>
+
+            {/* Authentication Checks */}
+            <div className="flex gap-4 text-xs">
+                <div className="flex items-center gap-1.5">
+                    {health.spf === 'pass' ? (
+                        <CheckCircle size={12} className="text-green-600" />
+                    ) : (
+                        <XCircle size={12} className="text-gray-400" />
+                    )}
+                    <span className="text-gray-600">SPF</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    {health.dkim === 'pass' ? (
+                        <CheckCircle size={12} className="text-green-600" />
+                    ) : (
+                        <XCircle size={12} className="text-gray-400" />
+                    )}
+                    <span className="text-gray-600">DKIM</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    {health.dmarc !== 'none' && health.dmarc !== 'unknown' ? (
+                        <CheckCircle size={12} className="text-green-600" />
+                    ) : (
+                        <XCircle size={12} className="text-gray-400" />
+                    )}
+                    <span className="text-gray-600">DMARC</span>
+                </div>
+            </div>
+
+            {/* Volume Guidance */}
+            <div className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                    <span>Today: {health.todaySent || 0} sent</span>
+                    <span>Recommended: {health.recommendedDailyVolume.min}-{health.recommendedDailyVolume.max}/day</span>
+                </div>
+                {health.volumeWarning && (
+                    <div className="mt-2 flex items-center gap-1.5 text-amber-600">
+                        <AlertCircle size={12} />
+                        <span>{health.volumeWarning}</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 function SettingsContent() {
     const searchParams = useSearchParams();
@@ -104,9 +194,9 @@ function SettingsContent() {
                                     <LogOut size={18} />
                                 </button>
                             </div>
-                            <p className="text-xs text-gray-400">
-                                Using the primary connected account for all outbound prospect emails.
-                            </p>
+
+                            {/* Sender Health Indicator */}
+                            <SenderHealthIndicator />
                         </div>
                     ) : (
                         <div className="flex flex-col items-start gap-4">
