@@ -1,19 +1,19 @@
+
 import NextAuth from "next-auth"
-import Credentials from "next-auth/providers/credentials"
-import Google from "next-auth/providers/google"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/prisma"
+import { authConfig } from "./auth.config"
 import { cookies } from "next/headers"
 import { PasskeyService } from "@/lib/auth/passkeys"
+import Credentials from "next-auth/providers/credentials"
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+// We need to merge the providers carefully because we want to enable the real Credentials logic here
+// which relies on the DB, unavailable in auth.config.ts
+const fullConfig = {
+    ...authConfig,
     adapter: PrismaAdapter(prisma),
     providers: [
-        Google({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            allowDangerousEmailAccountLinking: true,
-        }),
+        ...authConfig.providers.filter(p => p.id !== 'credentials'), // Remove mock
         Credentials({
             id: "passkey",
             name: "Passkey",
@@ -29,8 +29,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 const challenge = (await cookies()).get('auth-challenge')?.value;
                 if (!challenge) throw new Error("Missing challenge");
 
-                // Find credential
-                // DB stores id as base64url
                 const credId = credentials.id;
 
                 const dbCred = await prisma.passkeyCredential.findFirst({
@@ -40,7 +38,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 if (!dbCred) throw new Error("Credential not found");
 
-                // Verify
                 const verification = await PasskeyService.verifyAuthResponse(
                     credentials,
                     challenge,
@@ -60,59 +57,64 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         }
                     });
 
-                    // Cleanup
                     (await cookies()).delete('auth-challenge');
 
-                    return dbCred.user;
+                    // Return user object for JWT
+                    return {
+                        id: dbCred.user.id,
+                        name: dbCred.user.name,
+                        email: dbCred.user.email,
+                        // Custom fields need to be handled in jwt callback via user arg
+                        // But Adapter 'user' differs from 'authorize' return.
+                        // We attach them to the returned object:
+                        accessStatus: dbCred.user.accessStatus,
+                        isAdmin: dbCred.user.isAdmin
+                    };
                 }
 
                 return null;
             }
         })
     ],
-    callbacks: {
-        async session({ session, user }) {
-            // Expose custom fields to the session
-            if (session.user) {
-                // We need to fetch the user again or rely on the `user` object passed if checking database strategy.
-                // With Prisma Adapter and "database" strategy (default), `user` is the DB user.
-                // But NextAuth v5 often uses "jwt" by default even with adapter if strictly next.js edge?
-                // Actually, with Adapter, it defaults to database sessions unless configured otherwise.
-
-                // We want to verify waitlist status easily.
-                // session.user is the session user.
-                // The `user` arg is populated if using database sessions.
-
-                session.user.id = user.id;
-                // @ts-ignore - Dynamic fields
-                session.user.accessStatus = user.accessStatus;
-                // @ts-ignore
-                session.user.isAdmin = user.isAdmin;
+    session: { strategy: "jwt" }, // Ensure consistency
+    events: {
+        async createUser({ user }) {
+            const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
+            if (adminEmail && user.email === adminEmail) {
+                console.log(`Bootstrapping Initial Admin: ${user.email}`);
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        isAdmin: true,
+                        accessStatus: 'approved',
+                        approvedAt: new Date(),
+                        approvedByUserId: 'system'
+                    }
+                });
             }
-            return session
-        },
-        async signIn({ user, account, profile }) {
-            // We allow sign in. Middleware handles the gating.
-            // But if we want to bootstrap the first Admin:
-            if (user.email === process.env.INITIAL_ADMIN_EMAIL) {
-                // Check if updated?
-                // This runs before the adapter creates the user? No, after?
-                // Actually signIn callback runs *before* creation for OAuth usually.
-                // Bootstrap logic might be better in a separate utility or manually.
-                // Or we check after-the-fact in session?
-                // Let's create a "Bootstrap" hook or just rely on manual DB entry for now as requested "Provide a secure way... Allow setting env var... On first login set isAdmin".
-
-                // To do this strictly "On first login", we'd need to intercept creation.
-                // Easier: In session callback, if user.email == ENV and !user.isAdmin, update it?
-                // Bad for performance.
-                // Better: Allow it. We'll handle bootstrap separately or assume standard flow.
-            }
-            return true;
         }
     },
-    pages: {
-        signIn: "/auth/sign-in",
-        error: "/auth/error", // Error code passed in query string as ?error=
-        // newUser: "/auth/pending" // If we want to force redirect new users there?
+    callbacks: {
+        ...authConfig.callbacks,
+        // Extend JWT callback to fetch latest status from DB if possible?
+        // Or just rely on initial login.
+        // For robustness, usually we want to check DB on each session?
+        // But doing so in JWT callback might run on Edge if not careful?
+        // Actually auth.ts is not Edge.
+        // But session() callback in auth.config runs on Edge in Middleware.
+
+        async jwt({ token, user, trigger, session }) {
+            if (user) {
+                token.id = user.id;
+                // @ts-ignore
+                token.accessStatus = user.accessStatus || 'waitlisted';
+                // @ts-ignore
+                token.isAdmin = user.isAdmin || false;
+            }
+            // On update trigger?
+            return token;
+        }
     }
-})
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth(fullConfig as any)
