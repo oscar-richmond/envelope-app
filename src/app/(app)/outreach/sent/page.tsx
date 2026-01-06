@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Mail, ArrowRight, Clock, AlertCircle, CheckCircle, MessageSquare } from 'lucide-react';
+import { Mail, ArrowRight, Clock, AlertCircle, CheckCircle, MessageSquare, RefreshCw } from 'lucide-react';
 
 export default function SentBoxPage() {
     const [emails, setEmails] = useState<any[]>([]);
     const [filter, setFilter] = useState('ALL');
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
 
     useEffect(() => {
         fetchEmails();
@@ -26,16 +27,39 @@ export default function SentBoxPage() {
         }
     }
 
+    async function syncReplies() {
+        setSyncing(true);
+        try {
+            const res = await fetch('/api/cron/check-replies');
+            const data = await res.json();
+            console.log('Sync result:', data);
+            // Refresh emails after sync
+            await fetchEmails();
+        } catch (e) {
+            console.error('Sync failed:', e);
+        } finally {
+            setSyncing(false);
+        }
+    }
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <header className="flex items-center justify-between mb-8">
                 <div>
                     <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">
-                        Sent Box
+                        Inbox
                     </h1>
                     <p className="text-gray-500 mt-1">Track replies and manage follow-ups.</p>
                 </div>
                 <div className="flex gap-2">
+                    <button
+                        onClick={syncReplies}
+                        disabled={syncing}
+                        className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm disabled:opacity-50"
+                    >
+                        <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+                        {syncing ? 'Syncing...' : 'Sync Replies'}
+                    </button>
                     <Link href="/outreach/follow-ups" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm">
                         <MessageSquare size={16} />
                         Go to Follow Up Queue
