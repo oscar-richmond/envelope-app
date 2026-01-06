@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     Send, Clock, X, ArrowLeft, CheckCircle, Building2,
     Globe, MapPin, TrendingUp, Palette, DollarSign,
-    ChevronRight, ExternalLink
+    ChevronRight, ExternalLink, RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -46,6 +46,14 @@ interface QueueItem {
     leadId: number;
 }
 
+type ToneVariant = 'polite' | 'assertive' | 'ultra-soft';
+
+const TONE_LABELS: Record<ToneVariant, { label: string; description: string }> = {
+    'polite': { label: 'Polite', description: 'Calm, respectful, low pressure' },
+    'assertive': { label: 'Assertive', description: 'Confident, direct' },
+    'ultra-soft': { label: 'Ultra-Soft', description: 'Minimal, easy to ignore' }
+};
+
 export default function FollowUpQueuePage() {
     const [queue, setQueue] = useState<QueueItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -58,11 +66,16 @@ export default function FollowUpQueuePage() {
     const [showSnoozeOptions, setShowSnoozeOptions] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [transitioning, setTransitioning] = useState(false);
+    const [regenerating, setRegenerating] = useState(false);
+
+    // Tone variant
+    const [selectedTone, setSelectedTone] = useState<ToneVariant>('polite');
 
     // Editable content
     const [editedTo, setEditedTo] = useState('');
     const [editedSubject, setEditedSubject] = useState('');
     const [editedBody, setEditedBody] = useState('');
+    const [hasUserEdited, setHasUserEdited] = useState(false);
 
     const currentItem = queue[currentIndex];
 
@@ -78,6 +91,8 @@ export default function FollowUpQueuePage() {
             setEditedBody(currentItem.draft.bodyText);
             setShowSnoozeOptions(false);
             setIsEditing(false);
+            setSelectedTone('polite');
+            setHasUserEdited(false);
         }
     }, [currentItem?.id]);
 
@@ -196,6 +211,61 @@ export default function FollowUpQueuePage() {
             console.error(e);
         }
         setShowSnoozeOptions(false);
+    };
+
+    // Switch tone variant
+    const handleToneChange = async (tone: ToneVariant) => {
+        if (!currentItem || tone === selectedTone) return;
+
+        // Warn if user has made edits
+        if (hasUserEdited) {
+            if (!confirm('Switching tone will replace your edits. Continue?')) {
+                return;
+            }
+        }
+
+        setRegenerating(true);
+        setSelectedTone(tone);
+
+        try {
+            const res = await fetch(`/api/follow-ups/${currentItem.id}/variants?tone=${tone}`);
+            const data = await res.json();
+
+            if (data.body) {
+                setEditedBody(data.body);
+                setHasUserEdited(false);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setRegenerating(false);
+        }
+    };
+
+    // Regenerate with varied phrasing
+    const handleRegenerate = async () => {
+        if (!currentItem) return;
+
+        setRegenerating(true);
+        try {
+            const res = await fetch(`/api/follow-ups/${currentItem.id}/variants?tone=${selectedTone}&regenerate=true`);
+            const data = await res.json();
+
+            if (data.body) {
+                setEditedBody(data.body);
+                setHasUserEdited(false);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setRegenerating(false);
+        }
+    };
+
+    // Track user edits
+    const handleBodyChange = (value: string) => {
+        setEditedBody(value);
+        setHasUserEdited(true);
     };
 
     // Loading state
@@ -322,6 +392,35 @@ export default function FollowUpQueuePage() {
                         </div>
                     </div>
 
+                    {/* Tone Selector */}
+                    <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">Tone:</span>
+                            {(Object.keys(TONE_LABELS) as ToneVariant[]).map(tone => (
+                                <button
+                                    key={tone}
+                                    onClick={() => handleToneChange(tone)}
+                                    disabled={regenerating}
+                                    className={`text-xs px-3 py-1.5 rounded-full transition-all disabled:opacity-50 ${selectedTone === tone
+                                            ? 'bg-gray-900 text-white'
+                                            : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+                                        }`}
+                                    title={TONE_LABELS[tone].description}
+                                >
+                                    {TONE_LABELS[tone].label}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={handleRegenerate}
+                            disabled={regenerating}
+                            className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-white transition-all disabled:opacity-50"
+                        >
+                            <RefreshCw size={12} className={regenerating ? 'animate-spin' : ''} />
+                            Regenerate
+                        </button>
+                    </div>
+
                     {/* Gmail-Style Composer */}
                     <div className="p-6">
                         {/* To Field */}
@@ -352,10 +451,11 @@ export default function FollowUpQueuePage() {
                         <div className="pt-4">
                             <textarea
                                 value={editedBody}
-                                onChange={(e) => setEditedBody(e.target.value)}
-                                disabled={!isEditing}
+                                onChange={(e) => handleBodyChange(e.target.value)}
+                                disabled={!isEditing && !regenerating}
                                 rows={10}
-                                className="w-full resize-none outline-none text-gray-800 leading-relaxed text-[15px] bg-transparent disabled:text-gray-700 placeholder:text-gray-400"
+                                className={`w-full resize-none outline-none text-gray-800 leading-relaxed text-[15px] bg-transparent disabled:text-gray-700 placeholder:text-gray-400 ${regenerating ? 'opacity-50' : ''
+                                    }`}
                                 placeholder="Write your follow-up..."
                             />
                         </div>

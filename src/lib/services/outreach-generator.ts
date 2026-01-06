@@ -250,117 +250,214 @@ ${senderFirstName}`;
     }
 
     /**
-     * Generate follow-up email drafts
-     * Returns both variants (call-first and email-ideas-first)
+     * Tone variants for follow-up emails
+     */
+    public readonly VARIANTS = {
+        POLITE: 'polite',
+        ASSERTIVE: 'assertive',
+        ULTRA_SOFT: 'ultra-soft'
+    } as const;
+
+    /**
+ * Generate follow-up email drafts for all three variants
+ */
+    generateFollowUpVariants(
+        originalSubject: string,
+        companyName: string,
+        firstName: string | null,
+        followUpNumber: number,
+        regenerate: boolean = false
+    ): { polite: string; assertive: string; ultraSoft: string; subject: string } {
+        const name = firstName || 'there';
+        const greeting = `Hi ${name},`;
+        const senderName = 'Oscar';
+
+        // Use regenerate flag to vary phrasing
+        const variantIndex = regenerate ? Math.floor(Math.random() * 3) : 0;
+
+        return {
+            polite: this.generatePolite(greeting, companyName, senderName, followUpNumber, variantIndex),
+            assertive: this.generateAssertive(greeting, companyName, senderName, followUpNumber, variantIndex),
+            ultraSoft: this.generateUltraSoft(greeting, companyName, senderName, followUpNumber, variantIndex),
+            subject: `Re: ${originalSubject}`
+        };
+    }
+
+    /**
+     * POLITE variant - calm, respectful, low pressure
+     * Use for: First follow-up, medium confidence, conservative industries
+     */
+    private generatePolite(
+        greeting: string,
+        companyName: string,
+        senderName: string,
+        followUpNumber: number,
+        variantIndex: number
+    ): string {
+        const openers = [
+            `Just following up on the note I sent earlier after spending some time on ${companyName}'s website.`,
+            `Wanted to check in on the message I sent about ${companyName}'s website.`,
+            `Following up briefly on my earlier note about ${companyName}'s online presence.`
+        ];
+
+        const values = [
+            `I wanted to see if it would be useful to share a few specific thoughts around how the site could better support first impressions and enquiries.`,
+            `There were a few areas where I thought small adjustments could help the site communicate your expertise more clearly in those first few seconds.`,
+            `I noticed some opportunities to strengthen how the site builds trust with visitors and guides them to the right next step.`
+        ];
+
+        const ctas = [
+            `If it helps, I'm happy to walk through those ideas briefly over a short call this week or next.`,
+            `Happy to share those thoughts on a quick call if that would be useful.`,
+            `Let me know if you'd like to discuss. I'm flexible on timing.`
+        ];
+
+        const opener = openers[variantIndex % openers.length];
+        const value = values[variantIndex % values.length];
+        const cta = ctas[variantIndex % ctas.length];
+
+        return this.validateAndClean(`${greeting}
+
+${opener}
+
+${value}
+
+${cta}
+
+Best,
+${senderName}`);
+    }
+
+    /**
+     * ASSERTIVE variant - confident, direct, still respectful
+     * Use for: Second follow-up, high opportunity, clear issues detected
+     */
+    private generateAssertive(
+        greeting: string,
+        companyName: string,
+        senderName: string,
+        followUpNumber: number,
+        variantIndex: number
+    ): string {
+        const openers = [
+            `I wanted to follow up on my earlier message about ${companyName}'s website.`,
+            `Checking back in on the note I sent about ${companyName}'s online presence.`,
+            `Following up on my observations about ${companyName}'s site.`
+        ];
+
+        const values = [
+            `In my experience, early impressions play a big role in whether people feel confident enough to get in touch, and there are a few areas where small changes could make a meaningful difference.`,
+            `First impressions often determine whether visitors stay or leave. There are specific improvements that could strengthen how ${companyName} comes across online.`,
+            `The way a site presents your work in those first few seconds has a real impact on enquiry rates. I've identified some clear opportunities.`
+        ];
+
+        const ctas = [
+            `If you're open to it, I'd be happy to run through those observations on a quick call over the next few days.`,
+            `Would you have 15 minutes this week to discuss? I can walk through the key points.`,
+            `Let me know if you'd like to see specific recommendations. I can share them on a brief call.`
+        ];
+
+        const opener = openers[variantIndex % openers.length];
+        const value = values[variantIndex % values.length];
+        const cta = ctas[variantIndex % ctas.length];
+
+        return this.validateAndClean(`${greeting}
+
+${opener}
+
+${value}
+
+${cta}
+
+Best,
+${senderName}`);
+    }
+
+    /**
+     * ULTRA-SOFT variant - minimal, human, non-intrusive
+     * Use for: Low confidence leads, last follow-up, risk of annoyance
+     */
+    private generateUltraSoft(
+        greeting: string,
+        companyName: string,
+        senderName: string,
+        followUpNumber: number,
+        variantIndex: number
+    ): string {
+        const bodies = [
+            `Just wanted to briefly check in on the note I sent about ${companyName}'s website. No problem at all if now isn't the right time, but happy to share a couple of thoughts if useful.
+
+Either way, thanks for your time.`,
+            `Quick check in on my earlier message about ${companyName}'s site. Completely understand if this isn't a priority right now.
+
+If it is, I'm happy to help.`,
+            `Checking in briefly on my note about ${companyName}'s website. No worries if this doesn't fit your plans at the moment.
+
+Just let me know either way.`
+        ];
+
+        const body = bodies[variantIndex % bodies.length];
+
+        return this.validateAndClean(`${greeting}
+
+${body}
+
+Best,
+${senderName}`);
+    }
+
+    /**
+     * Get a single variant by name
+     */
+    getVariant(
+        originalSubject: string,
+        companyName: string,
+        firstName: string | null,
+        followUpNumber: number,
+        variant: string,
+        regenerate: boolean = false
+    ): { body: string; subject: string } {
+        const variants = this.generateFollowUpVariants(
+            originalSubject,
+            companyName,
+            firstName,
+            followUpNumber,
+            regenerate
+        );
+
+        let body = variants.polite; // Default
+        if (variant === 'assertive') body = variants.assertive;
+        if (variant === 'ultra-soft') body = variants.ultraSoft;
+
+        return { body, subject: variants.subject };
+    }
+
+    /**
+     * Legacy method - returns polite variant
+     * @deprecated Use generateFollowUpVariants instead
      */
     generateFollowUpDrafts(
         originalSubject: string,
         companyName: string,
         firstName: string | null,
-        followUpNumber: number // 1 or 2
+        followUpNumber: number
     ): { callFirst: string; emailIdeasFirst: string } {
-        const greeting = firstName ? `Hi ${firstName},` : 'Hi there,';
-        const senderName = 'Oscar';
-
-        if (followUpNumber === 1) {
-            return this.generateFollowUp1(greeting, companyName, senderName);
-        } else {
-            return this.generateFollowUp2(greeting, companyName, senderName);
-        }
-    }
-
-    /**
-     * Follow-up 1: 70-110 words
-     * References prior email, adds one specific reminder, soft CTA with two options
-     */
-    private generateFollowUp1(
-        greeting: string,
-        companyName: string,
-        senderName: string
-    ): { callFirst: string; emailIdeasFirst: string } {
-        // Paragraph 1: Polite nudge, reference prior email
-        const opener = 'Just following up on the note I sent earlier about ' + companyName + '\'s website.';
-
-        // Paragraph 2: One specific reminder of pain/result
-        const painReminders = [
-            'The main point was that the first impression could do more to reflect the quality of the organisation and guide visitors to the right next step. Small improvements there often make a noticeable difference to trust and enquiries.',
-            'I mentioned that the site structure could better communicate your expertise in those first few seconds. Getting that right tends to build confidence and encourage people to get in touch.',
-            'The key observation was that the visual presentation could more strongly reflect the quality of your work. This often helps the right visitors feel confident enough to reach out.'
-        ];
-        const pain = painReminders[Math.floor(Math.random() * painReminders.length)];
-
-        // CTA variants
-        const callFirstCTA = 'Would you be open to a short call this week, or would you prefer I send two or three specific ideas by email?';
-        const emailFirstCTA = 'I can send a few specific ideas by email if that\'s easier, or we could have a quick call this week if you prefer.';
-
-        const closing = `Best,\n${senderName}`;
-
-        const callFirst = this.validateAndClean(`${greeting}
-
-${opener}
-
-${pain}
-
-${callFirstCTA}
-
-${closing}`);
-
-        const emailIdeasFirst = this.validateAndClean(`${greeting}
-
-${opener}
-
-${pain}
-
-${emailFirstCTA}
-
-${closing}`);
-
-        return { callFirst, emailIdeasFirst };
-    }
-
-    /**
-     * Follow-up 2: 50-80 words
-     * Shorter, light touch, graceful exit offered
-     */
-    private generateFollowUp2(
-        greeting: string,
-        companyName: string,
-        senderName: string
-    ): { callFirst: string; emailIdeasFirst: string } {
-        // Acknowledge busy, offer final nudge, graceful exit
-        const bodyCallFirst = `Quick final follow-up from my side. If improving ${companyName}'s first impression and enquiry journey is on the list this quarter, I'm happy to share a few specific suggestions on a call.
-
-If not, no problem at all. Just let me know and I will close this out.`;
-
-        const bodyEmailFirst = `Quick final follow-up from my side. If improving ${companyName}'s first impression and enquiry journey is on the list this quarter, I can send over a few specific ideas.
-
-If not, no problem at all. Just let me know and I will close this out.`;
-
-        const closing = `Best,\n${senderName}`;
-
-        const callFirst = this.validateAndClean(`${greeting}
-
-${bodyCallFirst}
-
-${closing}`);
-
-        const emailIdeasFirst = this.validateAndClean(`${greeting}
-
-${bodyEmailFirst}
-
-${closing}`);
-
-        return { callFirst, emailIdeasFirst };
+        const variants = this.generateFollowUpVariants(originalSubject, companyName, firstName, followUpNumber);
+        return {
+            callFirst: variants.polite,
+            emailIdeasFirst: variants.assertive
+        };
     }
 
     /**
      * Legacy method for backward compatibility
-     * @deprecated Use generateFollowUpDrafts instead
+     * @deprecated Use generateFollowUpVariants instead
      */
     generateFollowUp(originalSubject: string, companyName: string, count: number): string {
-        const drafts = this.generateFollowUpDrafts(originalSubject, companyName, null, count + 1);
-        return drafts.callFirst;
+        const variants = this.generateFollowUpVariants(originalSubject, companyName, null, count + 1);
+        return variants.polite;
     }
 }
 
 export const outreachGenerator = new OutreachGeneratorService();
+
