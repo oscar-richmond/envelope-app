@@ -1,133 +1,188 @@
+
 import { CompanyProspect, Lead } from '@prisma/client';
 
 interface OutreachDraft {
     tier: 'HIGH' | 'MEDIUM' | 'LOW';
     subject: string;
-    subjectOptions?: string[]; // New: 3 options
+    subjectOptions: string[];
     body: string;
     observations: string[];
-    internalNote?: string; // New: Debug info
+    internalNote?: string;
+    recipientFirstName?: string;
+    companyName: string;
 }
 
 export class OutreachGeneratorService {
 
     /**
-     * Generate a draft based on prospect data and signals
+     * Generate a draft based on prospect data and signals.
+     * Implements strict formatting and name resolution rules.
      */
-    generateDraft(prospect: CompanyProspect, lead?: Lead | null): OutreachDraft | null {
-        // 1. Determine Tier & Opportunity
+    generateDraft(prospect: CompanyProspect, lead?: Lead | null, recipientEmail?: string): OutreachDraft | null {
+        // 1. Resolve Canonical Company Name (CRITICAL)
+        const companyName = this.getCanonicalName(prospect);
+        if (!companyName || companyName === "Company") {
+            // Cannot generate without a valid company name
+            return null;
+        }
+
+        // 2. Determine Tier
         const score = prospect.contactPriorityScore || 0;
         let signals: any = {};
-        try { signals = typeof prospect.financialSignals === 'string' ? JSON.parse(prospect.financialSignals) : prospect.financialSignals || {}; } catch (e) { }
+        try {
+            signals = typeof prospect.financialSignals === 'string'
+                ? JSON.parse(prospect.financialSignals)
+                : prospect.financialSignals || {};
+        } catch (e) { }
 
         // Hard Dormant Safety Check
         const isHardDormant = signals.status && signals.status !== 'active';
         if (isHardDormant) return null;
 
-        // Opportunity Tone
+        // Opportunity Tier
         let opportunity: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
         if (score >= 70) opportunity = 'HIGH';
         else if (score < 40) opportunity = 'LOW';
 
-        // if (opportunity === 'LOW') return null; // Constraint Removed: Allow generation for all
+        // 3. Resolve Recipient First Name
+        const recipientFirstName = this.extractFirstName(recipientEmail, prospect);
+        const greeting = recipientFirstName ? `Hi ${recipientFirstName},` : 'Hi there,';
 
-        // 2. Data Preparation
-        const companyLabel = this.getCanonicalName(prospect);
-        const industry = prospect.industry || "professional services";
-        const location = this.extractCity(prospect.registeredLocation) || "the UK";
-        const websiteSignals = this.parseWebsiteSignals(prospect);
+        // 4. Generate Email Components
+        const subjectOptions = this.generateSubjectLines(companyName, recipientFirstName);
+        const paragraph1 = this.generateProofOfReview(companyName);
+        const paragraph2 = this.generatePainAndInsight();
+        const paragraph3 = this.generateOutcomeValue();
+        const paragraph4 = this.generateSoftCTA();
 
-        // 3. Generate Components
-        const opening = this.generateOpening(companyLabel, industry, location, websiteSignals, opportunity);
-        const valueProp = this.generateValueProp(opportunity, websiteSignals);
-        const cta = this.generateCTA(opportunity);
-        const subjectOptions = this.generateSubjectLines(companyLabel, opportunity);
+        // 5. Get Sender Name (TODO: Could be dynamic from session)
+        const senderFirstName = "Oscar";
 
-        // 4. Assemble Body (Short paragraphs, no em-dashes)
-        const senderName = "Oscar"; // Default
+        // 6. Assemble Body (Strict formatting: short paragraphs, no em-dashes)
+        const body = `${greeting}
 
-        const body = `Hi {{FirstName}},
+${paragraph1}
 
-${opening}
+${paragraph2}
 
-${valueProp}
+${paragraph3}
 
-${cta}
+${paragraph4}
 
 Best,
-${senderName}`;
+${senderFirstName}`;
 
-        const internalNote = `Generated for ${opportunity} opportunity (${score}). Opening: ${opening.substring(0, 30)}...`;
+        // 7. Validation: No em-dashes, correct company name placement
+        const validatedBody = this.validateAndClean(body);
+
+        const internalNote = `Generated for ${opportunity} opportunity (score: ${score}). Company: ${companyName}`;
 
         return {
             tier: opportunity,
-            subject: subjectOptions[0], // Default to first
+            subject: subjectOptions[0],
             subjectOptions,
-            body,
-            observations: websiteSignals,
-            internalNote
+            body: validatedBody,
+            observations: this.parseWebsiteSignals(prospect),
+            internalNote,
+            recipientFirstName: recipientFirstName || undefined,
+            companyName
         };
     }
 
-    // --- Component Generators ---
+    // --- Component Generators (Following Exact Approved Patterns) ---
 
-    private generateSubjectLines(companyName: string, opportunity: 'HIGH' | 'MEDIUM' | 'LOW'): string[] {
-        // Rules: 3-7 words, Curious but professional. Include First/Company Name.
-        return [
-            `Quick question, {{FirstName}}`,
-            `Thought on ${companyName}`,
-            `${companyName} website question`
-        ];
+    private generateSubjectLines(companyName: string, firstName?: string): string[] {
+        // Rules: 3-7 words, curious but professional, include name or company
+        const lines: string[] = [];
+
+        if (firstName) {
+            lines.push(`Quick question, ${firstName}`);
+        }
+        lines.push(`Quick thought on ${companyName}`);
+        lines.push(`${companyName} website question`);
+        lines.push(`Thought on your website`);
+
+        // Return first 3
+        return lines.slice(0, 3);
     }
 
-    private generateOpening(company: string, industry: string, location: string, signals: string[], opportunity: 'HIGH' | 'MEDIUM' | 'LOW'): string {
-        // Rule: Tailored opening (prove research immediately). Reference Homepage/Services/Nav.
+    private generateProofOfReview(companyName: string): string {
+        // Paragraph 1: Must reference company name and a concrete area of the site
         const templates = [
-            `I was looking at the ${company} website earlier today, particularly the homepage and services section.`,
-            `I spent a few minutes on the ${company} website this morning, specifically looking at your navigation structure.`,
-            `I was reviewing ${company}'s digital presence earlier and reading through your main service pages.`
+            `I spent a few minutes on ${companyName}'s website earlier, looking through the main service pages.`,
+            `I was reviewing ${companyName}'s website this morning, particularly the homepage and how the services are presented.`,
+            `I had a look at the ${companyName} website earlier today, specifically the homepage and navigation structure.`
         ];
-
         return templates[Math.floor(Math.random() * templates.length)];
     }
 
-    private generateValueProp(opportunity: 'HIGH' | 'MEDIUM' | 'LOW', signals: string[]): string {
-        // Rule: Rebuild-Led. Frame as "Underselling" or "Earlier Version of Business". 
-        // NO "tweaks", "optimisation", "quick wins".
-
-        const painPoints = [
-            // Pain 1: Earlier Version
-            `The business has clearly evolved, but the current site structure feels like it represents an earlier version of the firm. A more modern platform would better align your digital presence with where the business is today.`,
-
-            // Pain 2: Underselling
-            `It’s clear you are established in the sector, but the current site seems to slightly undersell that expertise. A site built to modern standards would ensure visitors immediately grasp the full weight of your experience.`,
-
-            // Pain 3: Structural Limit
-            `The content is valuable, but the current site architecture limits how clearly you can communicate your value. Moving to a purpose-built structure would allow you to present your services with much greater clarity.`
-        ];
-
-        // Signal override (if mobile is REALLY bad, frame it as "Brand misalignment" not "mobile fix")
-        if (signals.some(s => s.includes("mobile"))) {
-            return `The current mobile experience doesn't quite match the professional standard set by the firm itself. A rebuilt platform would ensure the brand feels just as established on a phone as it does in person.`;
-        }
-
-        return painPoints[Math.floor(Math.random() * painPoints.length)];
+    private generatePainAndInsight(): string {
+        // Paragraph 2: Exact approved framing
+        // Focus on perception and trust, never say "outdated", never criticise directly
+        return `What you do is clear, but the site doesn't fully reflect the quality of the organisation in the first few seconds. For service businesses like yours, that initial impression often decides whether someone trusts the firm enough to get in touch or moves on.`;
     }
 
-    private generateCTA(opportunity: 'HIGH' | 'MEDIUM' | 'LOW'): string {
-        // Rule: "Walk through observations", 15 mins. No "sales".
+    private generateOutcomeValue(): string {
+        // Paragraph 3: Describe improvement in plain terms
+        // "User experience" may appear once only
+        const templates = [
+            `Improving the user experience in those early moments would help communicate your value more confidently and guide people to the right next step.`,
+            `A clearer structure and stronger visual presence would help visitors understand your expertise immediately and take the next step with confidence.`,
+            `Refining how the site presents your work would build trust faster and make it easier for the right people to get in touch.`
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+    }
 
-        const offer = `I made a few notes on what a more representative site could look like.`;
+    private generateSoftCTA(): string {
+        // Paragraph 4: Soft, clear CTA. Ask for a call, low pressure, loose timeframe.
+        // No booking links. No urgency language.
+        const templates = [
+            `I've noted a few specific ideas if that would be useful. Would you be open to a short call over the next few days to talk it through?`,
+            `I have a few observations that might be helpful. Would you have time for a brief conversation this week?`,
+            `I've made some notes on what could work well. Happy to walk through them on a quick call if you're interested.`
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+    }
 
-        if (opportunity === 'HIGH') {
-            return `${offer} If you’re free over the next few days, happy to run through those observations on a 15-minute call.`;
-        } else {
-            // Even for medium, we keep the high-value "observation walk through" but softer
-            return `${offer} Happy to walk through those observations briefly if you're open to a short conversation.`;
-        }
+    // --- Validation ---
+
+    private validateAndClean(body: string): string {
+        // Remove any em-dashes or en-dashes
+        let cleaned = body.replace(/—/g, '. ');
+        cleaned = cleaned.replace(/–/g, '. ');
+        cleaned = cleaned.replace(/ - /g, '. ');
+
+        // Ensure no double spaces
+        cleaned = cleaned.replace(/  +/g, ' ');
+
+        // Ensure proper line breaks (no triple line breaks)
+        cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+
+        return cleaned.trim();
     }
 
     // --- Helpers ---
+
+    private extractFirstName(email?: string, prospect?: CompanyProspect): string | null {
+        // Try to extract first name from email if it follows pattern: firstname.lastname@domain.com
+        if (email) {
+            const localPart = email.split('@')[0];
+            if (localPart.includes('.')) {
+                const firstName = localPart.split('.')[0];
+                // Capitalize
+                return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+            }
+            // Check if it looks like a name (not info@, hello@, etc.)
+            const commonGeneric = ['info', 'hello', 'contact', 'sales', 'support', 'admin', 'enquiries', 'enquiry', 'office', 'team'];
+            if (!commonGeneric.includes(localPart.toLowerCase())) {
+                // Might be a name, capitalise it
+                if (localPart.length > 2 && localPart.length < 15) {
+                    return localPart.charAt(0).toUpperCase() + localPart.slice(1).toLowerCase();
+                }
+            }
+        }
+        return null;
+    }
 
     private parseWebsiteSignals(prospect: CompanyProspect): string[] {
         const obs: string[] = [];
@@ -136,11 +191,10 @@ ${senderName}`;
             webSignals = typeof prospect.signals === 'string' ? JSON.parse(prospect.signals) : prospect.signals || {};
         } catch (e) { }
 
-        // Mapped to "Issues" but expressed as "Areas to improve"
         if (webSignals.hasJQuery) obs.push("modernising the tech stack");
         if (webSignals.hasBootstrap) obs.push("moving away from generic templates");
         if ((webSignals.tableCount || 0) > 2) obs.push("updating older layout structures");
-        if (webSignals.viewport === false) obs.push("optimising mobile responsiveness"); // Prime signal
+        if (webSignals.viewport === false) obs.push("optimising mobile responsiveness");
 
         if (webSignals.blogLastPost) {
             const lastPost = new Date(webSignals.blogLastPost);
@@ -154,32 +208,41 @@ ${senderName}`;
         return obs;
     }
 
-    private extractCity(address: string | null): string | null {
-        if (!address) return null;
-        const parts = address.split(',');
-        if (parts.length > 1) return parts[parts.length - 2].trim();
-        return parts[0].trim();
-    }
-
     public getCanonicalName(prospect: CompanyProspect): string {
+        // Priority: brandNameOverride > websiteBrandName > cleaned legal name > domain
+
         // 1. Manual Override (Highest Priority)
-        if (prospect.brandNameOverride) return prospect.brandNameOverride;
+        if (prospect.brandNameOverride && prospect.brandNameOverride.trim().length > 0) {
+            return prospect.brandNameOverride.trim();
+        }
 
         // 2. Extracted Website Brand Name
-        if (prospect.websiteBrandName) return prospect.websiteBrandName;
+        if (prospect.websiteBrandName && prospect.websiteBrandName.trim().length > 0) {
+            return prospect.websiteBrandName.trim();
+        }
 
         // 3. Legal Name (Cleaned)
         let name = prospect.companyName || "";
-        // Remove Legal Entities
+        // Remove Legal Entities and Trading suffixes
+        name = name.replace(/\s*\(?(trading|t\/a)\)?.*$/i, '');
         name = name.replace(/\s+(ltd|limited|llp|plc|inc|corp|corporation|holdings|group)\.?$/i, '');
-        // Remove trailing punctuation
         name = name.replace(/[.,]+$/, '');
+        name = name.trim();
 
-        if (name.trim().length > 0) return name.trim();
+        // Avoid using category-like names
+        const categoryWords = ['services', 'solutions', 'consulting', 'consultants', 'associates', 'partners', 'group'];
+        const words = name.toLowerCase().split(/\s+/);
+        const isCategoryLike = words.length <= 2 && categoryWords.some(cw => words.includes(cw));
+
+        if (name.length > 0 && !isCategoryLike) {
+            return name;
+        }
 
         // 4. Domain Fallback
         if (prospect.websiteDomain) {
-            const clean = prospect.websiteDomain.split('.')[0];
+            const domain = prospect.websiteDomain.replace(/^www\./, '');
+            const clean = domain.split('.')[0];
+            // Capitalise properly
             return clean.charAt(0).toUpperCase() + clean.slice(1);
         }
 
@@ -187,22 +250,20 @@ ${senderName}`;
     }
 
     /**
-     * Generate a short follow-up
+     * Generate a short follow-up email
      */
     generateFollowUp(originalSubject: string, companyName: string, count: number): string {
-        const templates = [
-            "Just bumping this thread to see if it might be of interest?",
+        const openers = [
+            "Just bumping this to the top in case it got buried.",
             "Wanted to quickly circle back on the note below.",
-            "Just bubbling this up in case it got buried.",
-            "Quick checking in on this."
+            "Just checking in on this."
         ];
 
-        const opening = templates[Math.floor(Math.random() * templates.length)];
+        const opening = openers[Math.floor(Math.random() * openers.length)];
 
         const closers = [
-            "Do you have 5 minutes later this week?",
-            "Happy to send over a draft idea if you're open to it?",
-            "Worth a brief chat to explore?",
+            "Would you have a few minutes later this week?",
+            "Happy to send over a rough idea if you're open to it.",
             "Let me know if this isn't a priority right now."
         ];
 
@@ -212,7 +273,7 @@ ${senderName}`;
 
 ${opening}
 
-I know things get busy, but I still think there's a strong opportunity to elevate the ${companyName} digital presence.
+I still think there's a good opportunity to strengthen how ${companyName} comes across online.
 
 ${close}
 
