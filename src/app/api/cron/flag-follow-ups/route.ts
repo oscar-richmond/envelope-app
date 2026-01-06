@@ -3,19 +3,26 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { addBusinessDays } from '@/lib/utils/business-days';
+import { addBusinessDays, getBusinessDaysBetween } from '@/lib/utils/business-days';
 import { followUpPriority } from '@/lib/services/followup-priority';
 import { outreachGenerator } from '@/lib/services/outreach-generator';
 
 /**
  * Flag Follow-Ups Cron Job
  * 
- * Runs to evaluate sent emails and create/update follow-up queue items:
- * 1. Find emails where nextFollowUpAt <= now and status is SENT
- * 2. Apply suppression rules (replied, closed, skipped, snoozed, too old)
- * 3. Calculate priority score
- * 4. Create FollowUpQueueItem with draft content
- * 5. Update SentEmail status to ACTION_NEEDED
+ * Implements deterministic, lead-aware follow-up timing:
+ * - High Opportunity (70+): FU1 at 3-4 days, FU2 at 6-7 days after FU1
+ * - Medium Opportunity (40-69): FU1 at 4-6 days, FU2 at 8-10 days after FU1
+ * - Low Opportunity (<40): FU1 only at 6-7 days, no FU2
+ * 
+ * Eligibility gates:
+ * - Status = SENT or FOLLOWED_UP
+ * - No reply received
+ * - Not CLOSED
+ * - Not snoozed (or snooze expired)
+ * - Not already in queue
+ * - Max 2 follow-ups per contact
+ * - Min 3 business days since last message
  */
 export async function GET(req: NextRequest) {
     const debug: string[] = [];
@@ -23,8 +30,6 @@ export async function GET(req: NextRequest) {
     try {
         // Load settings
         const settings = await prisma.settings.findFirst();
-        const fu1Delay = settings?.followUpDelayDays || 4;
-        const fu2Delay = settings?.followUp2DelayDays || 7;
         const fu2Enabled = settings?.followUp2Enabled || false;
         const maxAgeDays = settings?.maxFollowUpAgeDays || 45;
 
@@ -32,9 +37,9 @@ export async function GET(req: NextRequest) {
         const maxAgeDate = new Date(now);
         maxAgeDate.setDate(maxAgeDate.getDate() - maxAgeDays);
 
-        debug.push(`Settings: FU1=${fu1Delay} days, FU2=${fu2Delay} days (${fu2Enabled ? 'enabled' : 'disabled'}), maxAge=${maxAgeDays} days`);
+        debug.push(`FU2 Enabled: ${fu2Enabled}, Max Age: ${maxAgeDays} days`);
 
-        // Find eligible emails for follow-up
+        // Find eligible emails
         // Status: SENT (for FU1) or FOLLOWED_UP (for FU2 if enabled)
         const eligibleStatuses = ['SENT'];
         if (fu2Enabled) {
@@ -44,7 +49,7 @@ export async function GET(req: NextRequest) {
         const candidates = await prisma.sentEmail.findMany({
             where: {
                 status: { in: eligibleStatuses },
-                // Not replied
+                // No reply received
                 replyDetectedAt: null,
                 // Not skipped
                 followUpSkipped: false,
@@ -54,12 +59,7 @@ export async function GET(req: NextRequest) {
                     { followUpSnoozedUntil: { lte: now } }
                 ],
                 // Not too old
-                sentAt: { gte: maxAgeDate },
-                // Due for follow-up (or never had nextFollowUpAt set)
-                OR: [
-                    { nextFollowUpAt: null },
-                    { nextFollowUpAt: { lte: now } }
-                ]
+                sentAt: { gte: maxAgeDate }
             },
             include: {
                 lead: {
@@ -82,57 +82,78 @@ export async function GET(req: NextRequest) {
         let skipped = 0;
 
         for (const email of candidates) {
+            // Skip if already has a queued item
+            if (email.followUpQueueItems.length > 0) {
+                debug.push(`[${email.id}] Already in queue, skipping`);
+                continue;
+            }
+
+            // Get lead priority score for timing decisions
+            const prospect = email.lead.companyProspect;
+            const opportunityScore = prospect?.contactPriorityScore || 0;
+
             // Determine which follow-up number this is
             const followUpNumber = email.followUpCount + 1; // 0->1, 1->2
 
-            // Skip if FU2 but not enabled
-            if (followUpNumber > 1 && !fu2Enabled) {
-                skipped++;
-                continue;
-            }
-
-            // Skip if already have FU2 sent
+            // HARD GATE: Max 2 follow-ups
             if (followUpNumber > 2) {
+                debug.push(`[${email.id}] Max follow-ups reached (${email.followUpCount})`);
                 skipped++;
                 continue;
             }
 
-            // Calculate due date based on follow-up number
-            const baseDate = email.lastFollowUpSentAt || email.sentAt;
-            const delayDays = followUpNumber === 1 ? fu1Delay : fu2Delay;
-            const dueAt = addBusinessDays(baseDate, delayDays);
+            // ELIGIBILITY: FU2 requires Medium+ opportunity and FU2 enabled
+            if (followUpNumber === 2) {
+                if (!fu2Enabled) {
+                    debug.push(`[${email.id}] FU2 disabled globally`);
+                    skipped++;
+                    continue;
+                }
+                if (opportunityScore < 40) {
+                    debug.push(`[${email.id}] Low opportunity (${opportunityScore}), no FU2`);
+                    skipped++;
+                    continue;
+                }
+            }
 
-            // Check if actually due
+            // Calculate lead-aware delay
+            const delay = getLeadAwareDelay(opportunityScore, followUpNumber);
+
+            // Calculate due date
+            const baseDate = email.lastFollowUpSentAt || email.sentAt;
+            const dueAt = addBusinessDays(baseDate, delay);
+
+            // Check if due
             if (dueAt > now) {
                 // Not due yet, update nextFollowUpAt if not set
-                if (!email.nextFollowUpAt) {
+                if (!email.nextFollowUpAt || email.nextFollowUpAt.getTime() !== dueAt.getTime()) {
                     await prisma.sentEmail.update({
                         where: { id: email.id },
                         data: { nextFollowUpAt: dueAt }
                     });
                 }
+                debug.push(`[${email.id}] Not due yet (due: ${dueAt.toISOString().split('T')[0]})`);
                 continue;
             }
 
-            debug.push(`Processing: ${email.subject} (FU ${followUpNumber})`);
-
-            // Skip if already has a queued item for this follow-up
-            if (email.followUpQueueItems.length > 0) {
-                debug.push(`-- Already has queued item, skipping`);
+            // SAFEGUARD: Min 3 business days since last message
+            const lastMessageDate = email.lastFollowUpSentAt || email.sentAt;
+            const daysSinceLastMessage = getBusinessDaysBetween(lastMessageDate, now);
+            if (daysSinceLastMessage < 3) {
+                debug.push(`[${email.id}] Too soon (${daysSinceLastMessage} days since last)`);
                 continue;
             }
+
+            debug.push(`[${email.id}] Creating FU${followUpNumber} queue item`);
 
             // Calculate priority score
-            const prospect = email.lead.companyProspect;
             const priorityResult = followUpPriority.calculate({
-                opportunityScore: prospect?.contactPriorityScore || 0,
+                opportunityScore,
                 financialActivityScore: prospect?.financialActivityScore || 0,
                 stalenessScore: prospect?.stalenessScore || 0,
                 dueAt,
                 now
             });
-
-            debug.push(`-- Priority: ${priorityResult.score} (${priorityResult.reasonSummary})`);
 
             // Extract recipient info
             const recipientEmail = extractEmail(email.formattedTo);
@@ -151,6 +172,9 @@ export async function GET(req: NextRequest) {
                 followUpNumber
             );
 
+            // Generate reason for transparency
+            const reason = generateReason(followUpNumber, delay, opportunityScore);
+
             // Create queue item
             await prisma.followUpQueueItem.create({
                 data: {
@@ -162,7 +186,7 @@ export async function GET(req: NextRequest) {
                     status: 'QUEUED',
                     draftSubject: `Re: ${email.subject}`,
                     draftBodyText: drafts.callFirst,
-                    draftBodyHtml: null, // Plain text for now
+                    draftBodyHtml: null,
                     draftVariant: 'call-first'
                 }
             });
@@ -175,7 +199,7 @@ export async function GET(req: NextRequest) {
                 data: {
                     status: 'FOLLOW_UP_DUE',
                     followUpPriorityScore: priorityResult.score,
-                    followUpReasonSummary: priorityResult.reasonSummary
+                    followUpReasonSummary: reason
                 }
             });
 
@@ -198,6 +222,39 @@ export async function GET(req: NextRequest) {
     }
 }
 
+/**
+ * Get lead-aware follow-up delay in business days
+ * 
+ * High (70+): FU1=4, FU2=7
+ * Medium (40-69): FU1=5, FU2=9
+ * Low (<40): FU1=6, no FU2
+ */
+function getLeadAwareDelay(opportunityScore: number, followUpNumber: number): number {
+    if (opportunityScore >= 70) {
+        // High opportunity - faster follow-up
+        return followUpNumber === 1 ? 4 : 7;
+    } else if (opportunityScore >= 40) {
+        // Medium opportunity - standard timing
+        return followUpNumber === 1 ? 5 : 9;
+    } else {
+        // Low opportunity - slower, FU1 only
+        return 6;
+    }
+}
+
+/**
+ * Generate human-readable reason for queue entry
+ */
+function generateReason(followUpNumber: number, delay: number, opportunityScore: number): string {
+    const priority = opportunityScore >= 70 ? 'High' : opportunityScore >= 40 ? 'Medium' : 'Low';
+
+    if (followUpNumber === 1) {
+        return `No reply after ${delay} days (${priority} priority)`;
+    } else {
+        return `Second follow-up scheduled (${priority} priority)`;
+    }
+}
+
 // Helper functions
 function extractEmail(formatted: string): string {
     const match = formatted.match(/<(.+)>/);
@@ -205,7 +262,6 @@ function extractEmail(formatted: string): string {
 }
 
 function extractFirstName(formatted: string): string | null {
-    // "Oscar Richmond <oscar@example.com>" -> "Oscar"
     const nameMatch = formatted.match(/^([^<]+)</);
     if (nameMatch) {
         const fullName = nameMatch[1].trim();

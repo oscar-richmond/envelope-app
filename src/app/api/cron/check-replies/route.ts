@@ -103,6 +103,22 @@ export async function GET(req: NextRequest) {
                         });
                     }
 
+                    // AUTO-EXIT: Remove any queued follow-up items for this email
+                    // Replies always stop automation immediately
+                    const removedItems = await prisma.followUpQueueItem.updateMany({
+                        where: {
+                            sentEmailId: email.id,
+                            status: 'QUEUED'
+                        },
+                        data: {
+                            status: 'SKIPPED' // Mark as skipped (auto-cancelled due to reply)
+                        }
+                    });
+
+                    if (removedItems.count > 0) {
+                        debug.push(`-- Auto-removed ${removedItems.count} queued follow-up(s)`);
+                    }
+
                     replied++;
                 } else {
                     debug.push(`-- No valid reply found in thread. Attempting Fuzzy Search...`);
