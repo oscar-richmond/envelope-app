@@ -6,6 +6,30 @@ import prisma from '@/lib/prisma';
 import { gmailService } from '@/lib/services/gmail';
 import { sentimentService } from '@/lib/services/sentiment';
 
+/**
+ * Map reply intent to suggested conversation outcome
+ */
+function mapIntentToOutcome(intent: string | null): string | null {
+    if (!intent) return null;
+
+    switch (intent) {
+        case 'INTERESTED':
+            return 'INTERESTED';
+        case 'NOT_NOW':
+            return 'NOT_NOW';
+        case 'NOT_INTERESTED':
+            return 'NOT_INTERESTED';
+        case 'REFERRAL':
+            return 'REFERRED';
+        case 'AUTO_REPLY':
+            return null; // No outcome for auto-replies
+        case 'UNCLEAR':
+            return null; // User must decide
+        default:
+            return null;
+    }
+}
+
 export async function GET(req: NextRequest) {
     const debug: string[] = [];
     try {
@@ -129,6 +153,14 @@ export async function GET(req: NextRequest) {
                                 newStatus = 'REPLIED';
                                 debug.push(`-- Intent: ${sentimentData['replyIntent']} -> Standard reply`);
                                 break;
+                        }
+
+                        // Map intent to suggested outcome
+                        const suggestedOutcome = mapIntentToOutcome(sentimentData['replyIntent']);
+                        if (suggestedOutcome) {
+                            intentData.suggestedOutcome = suggestedOutcome;
+                            intentData.suggestedOutcomeConfidence = sentimentData['replyConfidence'] || 70;
+                            debug.push(`-- Suggested outcome: ${suggestedOutcome}`);
                         }
                     }
 

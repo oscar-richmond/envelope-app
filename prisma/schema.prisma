@@ -246,6 +246,15 @@ model SentEmail {
   replySummary    String?   
   replyConfidence Int?      // 0-100
   
+  // Conversation Outcome (CRM-lite)
+  // Canonical outcomes: INTERESTED, NOT_NOW, NOT_INTERESTED, REFERRED, NO_RESPONSE, CLOSED
+  conversationOutcome           String?   // Active outcome
+  outcomeSetAt                  DateTime? // When outcome was set
+  outcomeSetBy                  String?   // 'ai' or 'user'
+  suggestedOutcome              String?   // AI-suggested outcome
+  suggestedOutcomeConfidence    Int?      // 0-100 confidence
+  manualOutcomeOverride         Boolean   @default(false) // User manually set/changed
+  
   // Follow Up Logic
   followUpCount         Int       @default(0) // 0 = Initial, 1 = First FU sent, 2 = Second FU sent
   nextFollowUpAt        DateTime? // When the next follow-up is due
