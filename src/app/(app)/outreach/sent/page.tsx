@@ -4,11 +4,20 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Mail, ArrowRight, Clock, AlertCircle, CheckCircle, MessageSquare, RefreshCw } from 'lucide-react';
+import { Mail, ArrowRight, Clock, AlertCircle, CheckCircle, MessageSquare, RefreshCw, XCircle } from 'lucide-react';
 
-export default function SentBoxPage() {
+interface StatusCounts {
+    actionNeeded: number;
+    waiting: number;
+    replied: number;
+    closed: number;
+    all: number;
+}
+
+export default function InboxPage() {
     const [emails, setEmails] = useState<any[]>([]);
-    const [filter, setFilter] = useState('ALL');
+    const [counts, setCounts] = useState<StatusCounts>({ actionNeeded: 0, waiting: 0, replied: 0, closed: 0, all: 0 });
+    const [filter, setFilter] = useState('ACTION_NEEDED'); // Default to ACTION NEEDED
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
 
@@ -22,6 +31,7 @@ export default function SentBoxPage() {
             const res = await fetch(`/api/outreach/sent?filter=${filter}`);
             const data = await res.json();
             if (data.sentEmails) setEmails(data.sentEmails);
+            if (data.counts) setCounts(data.counts);
         } catch (e) {
             console.error(e);
         } finally {
@@ -35,7 +45,6 @@ export default function SentBoxPage() {
             const res = await fetch('/api/cron/check-replies');
             const data = await res.json();
             console.log('Sync result:', data);
-            // Refresh emails after sync
             await fetchEmails();
         } catch (e) {
             console.error('Sync failed:', e);
@@ -43,6 +52,14 @@ export default function SentBoxPage() {
             setSyncing(false);
         }
     }
+
+    // Tab configuration with proper order
+    const tabs = [
+        { key: 'ACTION_NEEDED', label: 'Action Needed', count: counts.actionNeeded },
+        { key: 'WAITING', label: 'Waiting', count: counts.waiting },
+        { key: 'REPLIED', label: 'Replied', count: counts.replied },
+        { key: 'ALL', label: 'All', count: counts.all }
+    ];
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
@@ -69,15 +86,23 @@ export default function SentBoxPage() {
                 </div>
             </header>
 
-            {/* Filters */}
+            {/* Tabs - Ordered: Action Needed, Waiting, Replied, All */}
             <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg w-fit mb-6">
-                {['ALL', 'WAITING', 'ACTION_NEEDED', 'REPLIED'].map((f) => (
+                {tabs.map((tab) => (
                     <button
-                        key={f}
-                        onClick={() => setFilter(f)}
-                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${filter === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        key={tab.key}
+                        onClick={() => setFilter(tab.key)}
+                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2 ${filter === tab.key
+                                ? 'bg-white text-gray-900 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
                     >
-                        {f.replace('_', ' ')}
+                        {tab.label}
+                        {tab.key === 'ACTION_NEEDED' && tab.count > 0 && (
+                            <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                {tab.count}
+                            </span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -101,7 +126,11 @@ export default function SentBoxPage() {
                             </tr>
                         ) : emails.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-gray-400">No sent emails found for this filter.</td>
+                                <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                                    {filter === 'ACTION_NEEDED'
+                                        ? 'No items need your attention right now.'
+                                        : 'No emails found for this filter.'}
+                                </td>
                             </tr>
                         ) : (
                             emails.map((email) => (
@@ -113,11 +142,8 @@ export default function SentBoxPage() {
                                     <td className="px-6 py-4">
                                         <div className="text-gray-700 font-medium truncate max-w-[300px]">{email.subject}</div>
                                         <div className="text-xs text-gray-400 truncate max-w-[300px]">{email.bodyText.substring(0, 50)}...</div>
-                                        {email.replySummary && email.status === 'REPLIED' && (
-                                            <div className="mt-1 text-[10px] text-indigo-600 bg-indigo-50 border border-indigo-100 p-1 rounded max-w-[300px]">
-                                                AI Summary: {email.replySummary}
-                                            </div>
-                                        )}
+                                        {/* AI Summary - Only show if valid */}
+                                        <AISummary summary={email.replySummary} status={email.status} />
                                     </td>
                                     <td className="px-6 py-4 text-gray-500">
                                         {new Date(email.sentAt).toLocaleDateString()}
@@ -125,11 +151,12 @@ export default function SentBoxPage() {
                                             {new Date(email.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 flex flex-col gap-1 items-start justify-center h-full min-h-[80px]">
-                                        <StatusBadge status={email.status} />
-                                        {email.replySentiment && email.status === 'REPLIED' && (
-                                            <SentimentBadge sentiment={email.replySentiment} />
-                                        )}
+                                    <td className="px-6 py-4">
+                                        <StatusBadge
+                                            status={email.status}
+                                            nextFollowUpAt={email.nextFollowUpAt}
+                                            replySentiment={email.replySentiment}
+                                        />
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -148,22 +175,108 @@ export default function SentBoxPage() {
     );
 }
 
-function SentimentBadge({ sentiment }: { sentiment: string }) {
-    if (sentiment === 'INTERESTED') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 border border-green-200">👍 Interested</span>
-    if (sentiment === 'NOT_INTERESTED') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-600 border border-red-100">👎 Not Interested</span>
-    if (sentiment === 'OOO') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-100">✈️ OOO</span>
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200">🤔 Other</span>
+/**
+ * AI Summary - Only displays if valid summary exists
+ * Never shows "failed", "error", etc.
+ */
+function AISummary({ summary, status }: { summary: string | null; status: string }) {
+    // Only show for replied emails with a valid summary
+    if (status !== 'REPLIED') return null;
+    if (!summary) return null;
+
+    // Never show failure messages to users
+    const lowerSummary = summary.toLowerCase();
+    if (lowerSummary.includes('failed') ||
+        lowerSummary.includes('error') ||
+        lowerSummary.includes('analysis') ||
+        summary.length < 5) {
+        return null;
+    }
+
+    return (
+        <div className="mt-1 text-[10px] text-indigo-600 bg-indigo-50 border border-indigo-100 p-1 rounded max-w-[300px]">
+            {summary}
+        </div>
+    );
 }
 
-function StatusBadge({ status }: { status: string }) {
+/**
+ * Status Badge with contextual hints
+ */
+function StatusBadge({
+    status,
+    nextFollowUpAt,
+    replySentiment
+}: {
+    status: string;
+    nextFollowUpAt?: string | null;
+    replySentiment?: string | null;
+}) {
+    // Calculate contextual hint
+    const getContextHint = () => {
+        if (status === 'FOLLOW_UP_DUE') {
+            return 'Follow-up due';
+        }
+        if (status === 'REPLIED') {
+            if (replySentiment === 'INTERESTED') return 'Positive reply';
+            if (replySentiment === 'NOT_INTERESTED') return 'Not interested';
+            if (replySentiment === 'OOO') return 'Out of office';
+            return 'Review needed';
+        }
+        if ((status === 'SENT' || status === 'FOLLOWED_UP') && nextFollowUpAt) {
+            const days = Math.ceil((new Date(nextFollowUpAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            if (days === 0) return 'Follow-up today';
+            if (days === 1) return 'Follow-up tomorrow';
+            if (days > 0) return `Follow-up in ${days} days`;
+            return 'Follow-up overdue';
+        }
+        return null;
+    };
+
+    const hint = getContextHint();
+
+    // Status display
+    let badge = null;
+
     if (status === 'REPLIED') {
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-green-50 text-green-700 uppercase tracking-wider"><MessageSquare size={10} /> Replied</span>
+        badge = (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-green-50 text-green-700 uppercase tracking-wider">
+                <MessageSquare size={10} />
+                Reply received
+            </span>
+        );
+    } else if (status === 'FOLLOW_UP_DUE') {
+        badge = (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 uppercase tracking-wider">
+                <AlertCircle size={10} />
+                Action Needed
+            </span>
+        );
+    } else if (status === 'CLOSED') {
+        badge = (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 uppercase tracking-wider">
+                <XCircle size={10} />
+                Closed
+            </span>
+        );
+    } else {
+        // SENT, FOLLOWED_UP → Waiting
+        badge = (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 uppercase tracking-wider">
+                <Clock size={10} />
+                Waiting for reply
+            </span>
+        );
     }
-    if (status === 'FOLLOW_UP_DUE') {
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 uppercase tracking-wider"><AlertCircle size={10} /> Follow Up Due</span>
-    }
-    if (status === 'FOLLOWED_UP') {
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 uppercase tracking-wider"><CheckCircle size={10} /> Followed Up</span>
-    }
-    return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 uppercase tracking-wider"><Clock size={10} /> Waiting</span>
+
+    return (
+        <div className="flex flex-col gap-1">
+            {badge}
+            {hint && (
+                <span className="text-[10px] text-gray-400">
+                    {hint}
+                </span>
+            )}
+        </div>
+    );
 }
