@@ -80,17 +80,17 @@ function SubmitButton() {
 
 export default function RequestAccessPage() {
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-            <div className="mb-8 text-center">
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">LeadGen Pro</h1>
-                <p className="text-gray-500 text-sm mt-1">Join the waitlist</p>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+            <div className="text-center mb-8">
+                <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Request Access</h1>
+                <p className="text-sm text-gray-500 mt-2">
+                    Join the waitlist to get started.
+                </p>
             </div>
 
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 w-full max-w-sm">
-                <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
-                    <RequestForm />
-                </Suspense>
-            </div>
+            <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+                <RequestForm />
+            </Suspense>
         </div>
     );
 }

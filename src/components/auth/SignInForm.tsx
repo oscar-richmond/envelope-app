@@ -57,45 +57,36 @@ export function SignInForm() {
         }
     };
 
-    return (
-        <div className="w-full max-w-sm space-y-6">
-            <div className="space-y-4">
-                <button
-                    onClick={handleGoogle}
-                    disabled={!!loading}
-                    className="w-full flex items-center justify-center gap-2 bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 font-medium py-2.5 px-4 rounded-lg transition-colors"
-                >
-                    {loading === 'google' ? <Loader2 className="animate-spin w-5 h-5" /> : (
-                        // Simple G logo or icon
-                        <span className="font-bold">G</span>
-                    )}
-                    Continue with Google
-                </button>
 
-                <button
-                    onClick={handlePasskey}
-                    disabled={!!loading}
-                    className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white hover:bg-gray-800 font-medium py-2.5 px-4 rounded-lg transition-colors"
-                >
-                    {loading === 'passkey' ? <Loader2 className="animate-spin w-5 h-5" /> : (
-                        <span className="text-xl leading-none">🔑</span>
-                    )}
-                    Sign in with Passkey
-                </button>
-            </div>
+    return (
+        <div className="w-full space-y-4">
+            <button
+                onClick={handleGoogle}
+                disabled={!!loading}
+                className="w-full relative flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 font-medium py-3 px-4 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+            >
+                {loading === 'google' ? <Loader2 className="animate-spin w-5 h-5 text-gray-400" /> : (
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="" />
+                )}
+                Continue with Google
+            </button>
+
+            <button
+                onClick={handlePasskey}
+                disabled={!!loading}
+                className="w-full relative flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 font-medium py-3 px-4 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+            >
+                {loading === 'passkey' ? <Loader2 className="animate-spin w-5 h-5 text-gray-400" /> : (
+                    <span className="text-lg">🔑</span>
+                )}
+                Continue with Passkey
+            </button>
 
             {error && (
-                <div className="text-red-500 text-sm text-center bg-red-50 p-2 rounded">
+                <div className="text-red-500 text-xs text-center p-2">
                     {error}
                 </div>
             )}
-
-            <div className="text-center text-sm text-gray-500">
-                Don&apos;t have access?{' '}
-                <Link href="/auth/request-access" className="text-blue-600 hover:underline">
-                    Request access
-                </Link>
-            </div>
         </div>
     );
 }

@@ -17,7 +17,6 @@ export const metadata: Metadata = {
   description: "Modern Lead Generation & Outreach",
 };
 
-import Sidebar from "@/components/Sidebar";
 
 import { Providers } from "@/components/providers/Providers";
 
@@ -32,12 +31,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}
       >
         <Providers>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <main className="flex-1 overflow-auto">
-              {children}
-            </main>
-          </div>
+          {children}
         </Providers>
       </body>
     </html>
