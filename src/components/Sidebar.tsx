@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Home, List, Settings, PlusCircle, Send, Users, Upload, LayoutDashboard, ChevronLeft, ChevronRight, Mail, LogOut, User as UserIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from "next-auth/react";
@@ -10,6 +11,7 @@ const Sidebar = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
     const { data: session } = useSession();
+    const pathname = usePathname();
 
     useEffect(() => {
         setMounted(true);
@@ -54,12 +56,12 @@ const Sidebar = () => {
 
             {/* Nav */}
             <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-                <NavItem href="/" icon={<List size={20} />} label="Lead Board" collapsed={isCollapsed} />
-                <NavItem href="/prospects" icon={<Users size={20} />} label="Prospect Search" collapsed={isCollapsed} />
-                <NavItem href="/outreach/sent" icon={<Mail size={20} />} label="Inbox" collapsed={isCollapsed} />
-                <NavItem href="/outreach" icon={<Send size={20} />} label="Outreach Queue" collapsed={isCollapsed} />
-                <NavItem href="/import" icon={<PlusCircle size={20} />} label="Import Leads" collapsed={isCollapsed} />
-                <NavItem href="/settings" icon={<Settings size={20} />} label="Settings" collapsed={isCollapsed} />
+                <NavItem href="/" icon={<List size={20} />} label="Lead Board" collapsed={isCollapsed} isActive={pathname === '/'} />
+                <NavItem href="/prospects" icon={<Users size={20} />} label="Prospect Search" collapsed={isCollapsed} isActive={pathname === '/prospects'} />
+                <NavItem href="/outreach/sent" icon={<Mail size={20} />} label="Inbox" collapsed={isCollapsed} isActive={pathname === '/outreach/sent'} />
+                <NavItem href="/outreach" icon={<Send size={20} />} label="Outreach Queue" collapsed={isCollapsed} isActive={pathname === '/outreach' && !pathname.includes('/sent')} />
+                <NavItem href="/import" icon={<PlusCircle size={20} />} label="Import Leads" collapsed={isCollapsed} isActive={pathname === '/import'} />
+                <NavItem href="/settings" icon={<Settings size={20} />} label="Settings" collapsed={isCollapsed} isActive={pathname === '/settings'} />
             </nav>
 
             {/* User Profile / Sign Out */}
@@ -103,11 +105,15 @@ const Sidebar = () => {
     );
 };
 
-const NavItem = ({ href, icon, label, collapsed }: { href: string, icon: any, label: string, collapsed: boolean }) => (
+const NavItem = ({ href, icon, label, collapsed, isActive }: { href: string, icon: any, label: string, collapsed: boolean, isActive: boolean }) => (
     <Link
         href={href}
-        className={`flex items-center gap-3 px-3 py-3 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors group relative
+        className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors group relative
             ${collapsed ? 'justify-center' : ''}
+            ${isActive
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            }
         `}
         title={collapsed ? label : undefined}
     >
