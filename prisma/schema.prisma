@@ -95,6 +95,42 @@ model CompanyProspect {
   contactPriorityBand     String?   // "High", "Medium", "Low"
   contactPriorityLastCalculatedAt DateTime?
 
+  // Google Places Data
+  placeId                   String?
+  placesDisplayName         String?
+  placesCategory            String?
+  placesSecondaryCategories String?   // JSON array
+  placesFormattedAddress    String?
+  placesPhoneE164           String?
+  placesMapsUrl             String?
+  placesLat                 Float?
+  placesLng                 Float?
+  placesBusinessStatus      String?   // OPERATIONAL, CLOSED_TEMPORARILY, etc.
+  placesOpeningHours        String?   // JSON
+  placesPriceLevel          Int?
+  placesRating              Float?
+  placesReviewCount         Int?
+  placesDetailsRawJson      String?
+  placesDetailsFetchedAt    DateTime?
+
+  // Website Metadata (cached)
+  websiteMetaTitle          String?
+  websiteMetaDescription    String?
+  websiteMetaRawJson        String?
+  websiteMetaFetchedAt      DateTime?
+
+  // AI-Generated Content
+  aiOneLiner                String?
+  aiOverview                String?
+  aiReputationSummary       String?
+  aiGeneratedAt             DateTime?
+  aiInputsSnapshot          String?   // JSON
+  aiModelVersion            String?
+
+  // Display Name Resolution
+  displayBrandName          String?
+  displayBrandNameSource    String?   // brandOverride, websiteBrand, places, domain, legal
+
   // Relations
   leads                   Lead[]
   

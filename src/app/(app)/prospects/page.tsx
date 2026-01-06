@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import ExplainButton from '@/components/ExplainButton';
 import IndustrySelect from '@/components/industry-select';
 import OutreachComposer from '@/components/outreach/composer';
+import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 
 export default function ProspectSearch() {
     const router = useRouter();
@@ -979,7 +980,12 @@ export default function ProspectSearch() {
                                         <tr key={c.companyNumber || i} className="hover:bg-gray-50/80 group transition-colors border-b border-gray-50 last:border-0">
                                             <td className="px-3 py-5 align-middle">
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="font-semibold text-gray-900 text-sm">{c.companyName}</span>
+                                                    <CompanyNameLink
+                                                        prospectId={c.id}
+                                                        name={c.displayBrandName || c.websiteBrandName || c.companyName}
+                                                        className="font-semibold text-gray-900 text-sm"
+                                                        onCompose={() => handleGenerateDraft(c)}
+                                                    />
                                                     <div className="flex items-center gap-2 text-xs text-gray-400">
                                                         <span>{c.companyNumber}</span>
                                                         <span>&bull;</span>
