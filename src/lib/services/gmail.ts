@@ -80,7 +80,8 @@ export class GmailService {
 
     private makeBody(from: string, to: string, subject: string, body: string, htmlBody?: string) {
         const boundary = "__boundary__";
-        // Header - IMPORTANT: From header must match the authenticated account to avoid Gmail warnings
+        // Header - IMPORTANT: RFC 5322 requires CRLF line endings
+        const CRLF = '\r\n';
         const str = [
             `MIME-Version: 1.0`,
             `From: ${from}`,
@@ -101,7 +102,7 @@ export class GmailService {
             htmlBody || body,
             ``,
             `--${boundary}--`
-        ].join('\n');
+        ].join(CRLF);
 
         return Buffer.from(str)
             .toString('base64')
@@ -130,6 +131,8 @@ export class GmailService {
             raw = this.makeBody(conn.email, to, subject, body, htmlBody);
         } else {
             // Fallback legacy simple text - also include From header
+            // Use CRLF per RFC 5322
+            const CRLF = '\r\n';
             const str = [
                 `From: ${conn.email}`,
                 `To: ${to}`,
@@ -137,7 +140,7 @@ export class GmailService {
                 `Content-Type: text/plain; charset=utf-8`,
                 ``,
                 body
-            ].join('\n');
+            ].join(CRLF);
             raw = Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
@@ -168,6 +171,8 @@ export class GmailService {
             raw = this.makeBody(conn.email, to, subject, body, htmlBody);
         } else {
             // Include From header to ensure sender verification passes
+            // Use CRLF per RFC 5322
+            const CRLF = '\r\n';
             const str = [
                 `From: ${conn.email}`,
                 `To: ${to}`,
@@ -175,7 +180,7 @@ export class GmailService {
                 `Content-Type: text/plain; charset=utf-8`,
                 ``,
                 body
-            ].join('\n');
+            ].join(CRLF);
             raw = Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
