@@ -78,11 +78,12 @@ export class GmailService {
         return user.email;
     }
 
-    private makeBody(to: string, subject: string, body: string, htmlBody?: string) {
+    private makeBody(from: string, to: string, subject: string, body: string, htmlBody?: string) {
         const boundary = "__boundary__";
-        // Header
+        // Header - IMPORTANT: From header must match the authenticated account to avoid Gmail warnings
         const str = [
             `MIME-Version: 1.0`,
+            `From: ${from}`,
             `To: ${to}`,
             `Subject: ${subject}`,
             `Content-Type: multipart/alternative; boundary="${boundary}"`,
@@ -97,7 +98,7 @@ export class GmailService {
             `Content-Type: text/html; charset=utf-8`,
             `Content-Transfer-Encoding: 7bit`,
             ``,
-            htmlBody || body, // Fallback to body if no HTML, though caller should handle
+            htmlBody || body,
             ``,
             `--${boundary}--`
         ].join('\n');
@@ -126,10 +127,11 @@ export class GmailService {
         // Use HTML body if provided, otherwise simple text
         let raw = '';
         if (htmlBody) {
-            raw = this.makeBody(to, subject, body, htmlBody);
+            raw = this.makeBody(conn.email, to, subject, body, htmlBody);
         } else {
-            // Fallback legacy simple text
+            // Fallback legacy simple text - also include From header
             const str = [
+                `From: ${conn.email}`,
                 `To: ${to}`,
                 `Subject: ${subject}`,
                 `Content-Type: text/plain; charset=utf-8`,
@@ -163,9 +165,11 @@ export class GmailService {
 
         let raw = '';
         if (htmlBody) {
-            raw = this.makeBody(to, subject, body, htmlBody);
+            raw = this.makeBody(conn.email, to, subject, body, htmlBody);
         } else {
+            // Include From header to ensure sender verification passes
             const str = [
+                `From: ${conn.email}`,
                 `To: ${to}`,
                 `Subject: ${subject}`,
                 `Content-Type: text/plain; charset=utf-8`,
