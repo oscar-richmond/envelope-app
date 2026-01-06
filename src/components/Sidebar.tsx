@@ -59,6 +59,7 @@ const Sidebar = () => {
                 <NavItem href="/" icon={<List size={20} />} label="Lead Board" collapsed={isCollapsed} isActive={pathname === '/'} />
                 <NavItem href="/prospects" icon={<Users size={20} />} label="Prospect Search" collapsed={isCollapsed} isActive={pathname === '/prospects'} />
                 <NavItem href="/outreach/sent" icon={<Mail size={20} />} label="Inbox" collapsed={isCollapsed} isActive={pathname === '/outreach/sent'} />
+                <NavItem href="/conversations" icon={<LayoutDashboard size={20} />} label="Conversations" collapsed={isCollapsed} isActive={pathname === '/conversations'} />
                 <NavItem href="/outreach/follow-ups" icon={<RefreshCw size={20} />} label="Follow-Ups" collapsed={isCollapsed} isActive={pathname === '/outreach/follow-ups'} />
                 <NavItem href="/outreach" icon={<Send size={20} />} label="Outreach Queue" collapsed={isCollapsed} isActive={pathname === '/outreach' && !pathname.includes('/sent') && !pathname.includes('/follow-ups')} />
                 <NavItem href="/import" icon={<PlusCircle size={20} />} label="Import Leads" collapsed={isCollapsed} isActive={pathname === '/import'} />

@@ -255,6 +255,11 @@ model SentEmail {
   suggestedOutcomeConfidence    Int?      // 0-100 confidence
   manualOutcomeOverride         Boolean   @default(false) // User manually set/changed
   
+  // Kanban Board (Post-Intent)
+  // Columns: INTERESTED, CALL_PROPOSED, CALL_COMPLETED, PAUSED, CLOSED
+  kanbanColumn      String?   // Current column on board
+  lastActivityAt    DateTime? // For ordering within columns
+  
   // Follow Up Logic
   followUpCount         Int       @default(0) // 0 = Initial, 1 = First FU sent, 2 = Second FU sent
   nextFollowUpAt        DateTime? // When the next follow-up is due
