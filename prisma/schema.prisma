@@ -241,7 +241,8 @@ model SentEmail {
   lastCheckedAt   DateTime?
 
   // Analysis
-  replySentiment  String?   // INTERESTED, NOT_INTERESTED, OOO, OTHER
+  replySentiment  String?   // Legacy: INTERESTED, NOT_INTERESTED, OOO, OTHER
+  replyIntent     String?   // New: INTERESTED, NOT_NOW, NOT_INTERESTED, REFERRAL, AUTO_REPLY, UNCLEAR
   replySummary    String?   
   replyConfidence Int?      // 0-100
   

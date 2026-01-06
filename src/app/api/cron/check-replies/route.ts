@@ -64,59 +64,103 @@ export async function GET(req: NextRequest) {
 
                 if (reply) {
                     debug.push(`!! REPLY DETECTED from id ${reply.id}`);
-                    // Extract body snippet for analysis (simplistic)
+                    // Extract body snippet for analysis
                     const snippet = reply.snippet || "";
 
-                    // Task 11: Sentiment Analysis
-                    let sentimentData = {};
+                    // NEW: Intent-based classification
+                    let sentimentData: any = {};
                     try {
-                        const analysis = await sentimentService.analyzeReply(snippet, email.subject);
+                        const analysis = await sentimentService.classifyReplyIntent(snippet, email.subject);
                         sentimentData = {
-                            replySentiment: analysis.sentiment,
+                            replyIntent: analysis.intent,
+                            replySentiment: analysis.intent, // Keep backward compat
                             replySummary: analysis.summary,
-                            replyConfidence: analysis.confidence
+                            replyConfidence: analysis.confidence,
+                            returnDate: analysis.returnDate
                         };
-                        debug.push(`!! Analysis: ${analysis.sentiment}`);
+                        debug.push(`!! Intent: ${analysis.intent} (${analysis.confidence}% confidence)`);
                     } catch (err) {
-                        console.error("Sentiment analysis failed during cron", err);
+                        console.error("Intent classification failed during cron", err);
                         debug.push(`!! Analysis Failed: ${err}`);
+                    }
+
+                    // Determine status based on intent
+                    let newStatus = 'REPLIED';
+                    let intentData: any = {};
+
+                    if (sentimentData['replyIntent']) {
+                        intentData = {
+                            replyIntent: sentimentData['replyIntent'],
+                            replyConfidenceScore: sentimentData['replyConfidence'] || 0
+                        };
+
+                        // Intent-specific status mapping
+                        switch (sentimentData['replyIntent']) {
+                            case 'NOT_INTERESTED':
+                                // Clear rejection - close and suppress future follow-ups
+                                newStatus = 'CLOSED';
+                                intentData.followUpSkipped = true;
+                                debug.push(`-- Intent: NOT_INTERESTED -> Closing and suppressing`);
+                                break;
+
+                            case 'AUTO_REPLY':
+                                // OOO - keep in waiting, auto-schedule
+                                newStatus = 'WAITING';
+                                // Schedule follow-up for return date or +5 business days
+                                const returnDate = sentimentData['returnDate'];
+                                const nextFollowUp = returnDate
+                                    ? new Date(returnDate)
+                                    : new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+                                intentData.nextFollowUpAt = nextFollowUp;
+                                debug.push(`-- Intent: AUTO_REPLY -> Rescheduling to ${nextFollowUp.toISOString().split('T')[0]}`);
+                                break;
+
+                            case 'UNCLEAR':
+                                // Needs manual review
+                                newStatus = 'ACTION_NEEDED';
+                                debug.push(`-- Intent: UNCLEAR -> Flagging for review`);
+                                break;
+
+                            case 'INTERESTED':
+                            case 'NOT_NOW':
+                            case 'REFERRAL':
+                            default:
+                                // Standard reply handling
+                                newStatus = 'REPLIED';
+                                debug.push(`-- Intent: ${sentimentData['replyIntent']} -> Standard reply`);
+                                break;
+                        }
                     }
 
                     await prisma.sentEmail.update({
                         where: { id: email.id },
                         data: {
-                            status: 'REPLIED',
+                            status: newStatus,
                             replyDetectedAt: new Date(),
                             lastCheckedAt: new Date(),
-                            ...sentimentData
+                            replySentiment: sentimentData['replySentiment'],
+                            replySummary: sentimentData['replySummary'],
+                            replyConfidence: sentimentData['replyConfidence'],
+                            ...intentData
                         }
                     });
-
-                    // Auto-Actions (Optional: Could start simple, just tagging)
-                    // If OOO -> Update nextFollowUpAt
-                    if (sentimentData['replySentiment'] === 'OOO') {
-                        await prisma.sentEmail.update({
-                            where: { id: email.id },
-                            data: {
-                                nextFollowUpAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // +3 Days
-                            }
-                        });
-                    }
 
                     // AUTO-EXIT: Remove any queued follow-up items for this email
-                    // Replies always stop automation immediately
-                    const removedItems = await prisma.followUpQueueItem.updateMany({
-                        where: {
-                            sentEmailId: email.id,
-                            status: 'QUEUED'
-                        },
-                        data: {
-                            status: 'SKIPPED' // Mark as skipped (auto-cancelled due to reply)
-                        }
-                    });
+                    // Replies always stop automation immediately (except AUTO_REPLY which reschedules)
+                    if (sentimentData['replyIntent'] !== 'AUTO_REPLY') {
+                        const removedItems = await prisma.followUpQueueItem.updateMany({
+                            where: {
+                                sentEmailId: email.id,
+                                status: 'QUEUED'
+                            },
+                            data: {
+                                status: 'SKIPPED' // Mark as skipped (auto-cancelled due to reply)
+                            }
+                        });
 
-                    if (removedItems.count > 0) {
-                        debug.push(`-- Auto-removed ${removedItems.count} queued follow-up(s)`);
+                        if (removedItems.count > 0) {
+                            debug.push(`-- Auto-removed ${removedItems.count} queued follow-up(s)`);
+                        }
                     }
 
                     replied++;

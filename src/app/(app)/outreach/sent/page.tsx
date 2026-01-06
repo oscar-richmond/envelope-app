@@ -93,8 +93,8 @@ export default function InboxPage() {
                         key={tab.key}
                         onClick={() => setFilter(tab.key)}
                         className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2 ${filter === tab.key
-                                ? 'bg-white text-gray-900 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         {tab.label}
@@ -202,28 +202,46 @@ function AISummary({ summary, status }: { summary: string | null; status: string
 
 /**
  * Status Badge with contextual hints
+ * Updated to use new 6-category intent classification
  */
 function StatusBadge({
     status,
     nextFollowUpAt,
-    replySentiment
+    replySentiment,
+    replyIntent
 }: {
     status: string;
     nextFollowUpAt?: string | null;
     replySentiment?: string | null;
+    replyIntent?: string | null;
 }) {
+    // Intent-aware hint labels
+    const getIntentLabel = (): string | null => {
+        const intent = replyIntent || replySentiment;
+        if (!intent) return null;
+
+        switch (intent) {
+            case 'INTERESTED': return 'Interested';
+            case 'NOT_NOW': return 'Not now';
+            case 'NOT_INTERESTED': return 'Not interested';
+            case 'REFERRAL': return 'Referral received';
+            case 'AUTO_REPLY': case 'OOO': return 'Out of office';
+            case 'UNCLEAR': return 'Needs review';
+            default: return null;
+        }
+    };
+
     // Calculate contextual hint
     const getContextHint = () => {
-        if (status === 'FOLLOW_UP_DUE') {
+        if (status === 'FOLLOW_UP_DUE' || status === 'ACTION_NEEDED') {
             return 'Follow-up due';
         }
-        if (status === 'REPLIED') {
-            if (replySentiment === 'INTERESTED') return 'Positive reply';
-            if (replySentiment === 'NOT_INTERESTED') return 'Not interested';
-            if (replySentiment === 'OOO') return 'Out of office';
+        if (status === 'REPLIED' || status === 'CLOSED') {
+            const intentLabel = getIntentLabel();
+            if (intentLabel) return intentLabel;
             return 'Review needed';
         }
-        if ((status === 'SENT' || status === 'FOLLOWED_UP') && nextFollowUpAt) {
+        if ((status === 'SENT' || status === 'FOLLOWED_UP' || status === 'WAITING') && nextFollowUpAt) {
             const days = Math.ceil((new Date(nextFollowUpAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
             if (days === 0) return 'Follow-up today';
             if (days === 1) return 'Follow-up tomorrow';
@@ -245,7 +263,7 @@ function StatusBadge({
                 Reply received
             </span>
         );
-    } else if (status === 'FOLLOW_UP_DUE') {
+    } else if (status === 'FOLLOW_UP_DUE' || status === 'ACTION_NEEDED') {
         badge = (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 uppercase tracking-wider">
                 <AlertCircle size={10} />
@@ -260,7 +278,7 @@ function StatusBadge({
             </span>
         );
     } else {
-        // SENT, FOLLOWED_UP → Waiting
+        // SENT, FOLLOWED_UP, WAITING → Waiting
         badge = (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 uppercase tracking-wider">
                 <Clock size={10} />
