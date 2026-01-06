@@ -260,6 +260,10 @@ model SentEmail {
   kanbanColumn      String?   // Current column on board
   lastActivityAt    DateTime? // For ordering within columns
   
+  // Private Notes (Optional, Minimal)
+  notesText         String?   // Private notes, max ~800 chars
+  notesUpdatedAt    DateTime? // Last edit timestamp
+  
   // Follow Up Logic
   followUpCount         Int       @default(0) // 0 = Initial, 1 = First FU sent, 2 = Second FU sent
   nextFollowUpAt        DateTime? // When the next follow-up is due

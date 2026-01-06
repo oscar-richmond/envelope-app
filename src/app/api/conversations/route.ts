@@ -104,7 +104,8 @@ export async function GET(req: NextRequest) {
                     financialHealth: prospect?.financialHealth || null
                 },
                 outcome: conv.conversationOutcome,
-                column
+                column,
+                hasNotes: !!(conv as any).notesText && (conv as any).notesText.length > 0
             });
         }
 

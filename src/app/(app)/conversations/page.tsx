@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     MessageSquare, Clock, Building2,
-    TrendingUp, DollarSign, GripVertical
+    TrendingUp, DollarSign, GripVertical, StickyNote
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -20,6 +20,7 @@ interface ConversationCard {
     };
     outcome: string;
     column: string;
+    hasNotes?: boolean;
 }
 
 interface ColumnData {
@@ -187,8 +188,8 @@ export default function ConversationsPage() {
                         <div
                             key={columnKey}
                             className={`w-72 flex-shrink-0 rounded-xl border-2 ${dragOverColumn === columnKey
-                                    ? 'border-indigo-400 bg-indigo-50'
-                                    : COLUMN_INFO[columnKey].color
+                                ? 'border-indigo-400 bg-indigo-50'
+                                : COLUMN_INFO[columnKey].color
                                 } transition-colors`}
                             onDragOver={(e) => handleDragOver(e, columnKey)}
                             onDragLeave={handleDragLeave}
@@ -239,8 +240,8 @@ export default function ConversationsPage() {
                                                 <div className="flex gap-1.5 mt-2">
                                                     {card.badges.opportunity && (
                                                         <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 ${card.badges.opportunity === 'High' ? 'bg-indigo-100 text-indigo-700' :
-                                                                card.badges.opportunity === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                                                                    'bg-gray-100 text-gray-600'
+                                                            card.badges.opportunity === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                                                                'bg-gray-100 text-gray-600'
                                                             }`}>
                                                             <TrendingUp size={8} />
                                                             {card.badges.opportunity}
@@ -248,10 +249,15 @@ export default function ConversationsPage() {
                                                     )}
                                                     {card.badges.financialHealth && (
                                                         <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 ${card.badges.financialHealth === 'excellent' ? 'bg-green-100 text-green-700' :
-                                                                'bg-gray-100 text-gray-600'
+                                                            'bg-gray-100 text-gray-600'
                                                             }`}>
                                                             <DollarSign size={8} />
                                                             {card.badges.financialHealth}
+                                                        </span>
+                                                    )}
+                                                    {card.hasNotes && (
+                                                        <span className="text-gray-400" title="Has notes">
+                                                            <StickyNote size={10} />
                                                         </span>
                                                     )}
                                                 </div>
