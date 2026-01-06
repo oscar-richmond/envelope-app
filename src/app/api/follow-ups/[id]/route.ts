@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
                 const days = snoozeDays || 4; // Default to 4 business days
                 const snoozedUntil = addBusinessDays(now, days);
 
-                // Update queue item
+                // Update queue item - remove from queue immediately
                 await prisma.followUpQueueItem.update({
                     where: { id },
                     data: {
@@ -46,14 +46,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
                     }
                 });
 
-                // Update sent email
+                // Update sent email - transition to WAITING
+                // Per lifecycle rules: snooze → state = WAITING
                 await prisma.sentEmail.update({
                     where: { id: queueItem.sentEmailId },
                     data: {
+                        status: 'SENT', // WAITING state (before follow-up due)
                         followUpSnoozedUntil: snoozedUntil,
                         nextFollowUpAt: snoozedUntil
                     }
                 });
+
+                console.log(`[SNOOZE] Email ${queueItem.sentEmailId} snoozed until ${snoozedUntil.toISOString()}`);
 
                 return NextResponse.json({
                     success: true,
