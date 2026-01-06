@@ -1,15 +1,20 @@
 
 'use client';
 
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 export function SignInForm() {
+    const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const handleGoogle = async () => {
         setLoading('google');
@@ -30,12 +35,10 @@ export function SignInForm() {
             try {
                 asseResp = await startAuthentication(options);
             } catch (error) {
-                // Format cleaner error?
                 throw error;
             }
 
             // 3. Submit to NextAuth
-            // We pass the structure to our custom Credentials provider
             const result = await signIn('passkey', {
                 redirect: true,
                 callbackUrl: '/',
@@ -57,6 +60,14 @@ export function SignInForm() {
         }
     };
 
+    if (!mounted) {
+        return (
+            <div className="w-full space-y-4 animate-pulse">
+                <div className="h-12 bg-gray-50 border border-gray-100 rounded-xl w-full"></div>
+                <div className="h-12 bg-gray-50 border border-gray-100 rounded-xl w-full"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full space-y-4">

@@ -1,12 +1,10 @@
+
 'use client';
 
 import Link from 'next/link';
-import { Home, List, Settings, PlusCircle, Send, Users, Upload, LayoutDashboard, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, List, Settings, PlusCircle, Send, Users, Upload, LayoutDashboard, ChevronLeft, ChevronRight, Mail, LogOut, User as UserIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
-
-
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User as UserIcon } from "lucide-react";
 
 const Sidebar = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -58,7 +56,7 @@ const Sidebar = () => {
             <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
                 <NavItem href="/" icon={<List size={20} />} label="Lead Board" collapsed={isCollapsed} />
                 <NavItem href="/prospects" icon={<Users size={20} />} label="Prospect Search" collapsed={isCollapsed} />
-                <NavItem href="/outreach/sent" icon={<Upload size={20} className="rotate-90" />} label="Outbox" collapsed={isCollapsed} />
+                <NavItem href="/outreach/sent" icon={<Mail size={20} />} label="Inbox" collapsed={isCollapsed} />
                 <NavItem href="/outreach" icon={<Send size={20} />} label="Outreach Queue" collapsed={isCollapsed} />
                 <NavItem href="/import" icon={<PlusCircle size={20} />} label="Import Leads" collapsed={isCollapsed} />
                 <NavItem href="/settings" icon={<Settings size={20} />} label="Settings" collapsed={isCollapsed} />
