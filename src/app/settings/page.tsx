@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { Mail, CheckCircle, XCircle, LogOut } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, LogOut, Lock } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
 function SettingsContent() {
@@ -22,6 +22,46 @@ function SettingsContent() {
         if (!confirm("Disconnect Gmail?")) return;
         await fetch('/api/settings/gmail', { method: 'DELETE' });
         setConnection(null);
+    };
+
+    const handleAddPasskey = async () => {
+        try {
+            // 1. Get options
+            const res = await fetch('/api/auth/passkey/register-start', { method: 'POST' });
+            if (!res.ok) throw new Error('Failed to init passkey registration');
+            const options = await res.json();
+
+            // 2. Start ceremony
+            // Dynamic import to avoid SSR issues if not handled by component structure, but client component is fine usually.
+            const { startRegistration } = await import('@simplewebauthn/browser');
+
+            let attResp;
+            try {
+                attResp = await startRegistration(options);
+            } catch (error: any) {
+                if (error.name === 'InvalidStateError') {
+                    throw new Error('Authenticator was probably already registered by this user');
+                }
+                throw error;
+            }
+
+            // 3. Verify
+            const verRes = await fetch('/api/auth/passkey/register-finish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(attResp),
+            });
+
+            if (verRes.ok) {
+                alert('Passkey added successfully!');
+            } else {
+                const data = await verRes.json();
+                throw new Error(data.error || 'Verification failed');
+            }
+        } catch (e: any) {
+            console.error(e);
+            alert(e.message || "Failed to add passkey");
+        }
     };
 
     return (
@@ -98,15 +138,22 @@ function SettingsContent() {
                 </div>
             </div>
 
-            {/* General Settings */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold mb-4">LLM Configuration</h2>
-                <div className="space-y-4">
+            {/* Security Settings */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Lock size={18} className="text-gray-500" /> Security
+                </h2>
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 flex items-center justify-between">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">OpenAI API Key</label>
-                        <input type="password" placeholder="sk-..." className="w-full border rounded-md px-3 py-2 text-sm" />
+                        <h3 className="font-medium text-gray-900">Passkeys</h3>
+                        <p className="text-sm text-gray-500">Sign in securely with Touch ID, Face ID, or device PIN.</p>
                     </div>
-                    <button className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm">Save Changes</button>
+                    <button
+                        onClick={handleAddPasskey}
+                        className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md shadow-sm text-sm transition"
+                    >
+                        Add Passkey
+                    </button>
                 </div>
             </div>
         </div>

@@ -19,6 +19,8 @@ export const metadata: Metadata = {
 
 import Sidebar from "@/components/Sidebar";
 
+import { Providers } from "@/components/providers/Providers";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,12 +31,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}
       >
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 overflow-auto">
-            {children}
-          </main>
-        </div>
+        <Providers>
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <main className="flex-1 overflow-auto">
+              {children}
+            </main>
+          </div>
+        </Providers>
       </body>
     </html>
   );
