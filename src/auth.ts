@@ -81,7 +81,6 @@ const fullConfig = {
         async createUser({ user }) {
             const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
             if (adminEmail && user.email === adminEmail) {
-                console.log(`Bootstrapping Initial Admin: ${user.email}`);
                 await prisma.user.update({
                     where: { id: user.id },
                     data: {
@@ -91,6 +90,24 @@ const fullConfig = {
                         approvedByUserId: 'system'
                     }
                 });
+            }
+        },
+        async signIn({ user }) {
+            // Redundant check for existing users who missed the createUser event
+            const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
+            if (adminEmail && user.email === adminEmail && !user.isAdmin) {
+                console.log(`Promoting existing user to Admin: ${user.email}`);
+                try {
+                    await prisma.user.update({
+                        where: { email: user.email },
+                        data: {
+                            isAdmin: true,
+                            accessStatus: 'approved',
+                            approvedAt: new Date(),
+                            approvedByUserId: 'system'
+                        }
+                    });
+                } catch (e) { console.error("Admin promotion failed", e); }
             }
         }
     },
