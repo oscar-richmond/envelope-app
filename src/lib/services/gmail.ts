@@ -157,11 +157,30 @@ export class GmailService {
         const conn = await prisma.gmailAccount.findFirst();
         if (!conn) throw new Error("No Gmail connection found");
 
-        // 2. Refresh Token
+        // 2. Set credentials and refresh token if needed
         this.client.setCredentials({
             access_token: conn.accessToken,
-            refresh_token: conn.refreshToken
+            refresh_token: conn.refreshToken,
+            expiry_date: Number(conn.expiryDate)
         });
+
+        // Force token refresh if expired or close to expiry
+        try {
+            const { credentials } = await this.client.refreshAccessToken();
+            if (credentials.access_token && credentials.access_token !== conn.accessToken) {
+                // Update stored token
+                await prisma.gmailAccount.update({
+                    where: { id: conn.id },
+                    data: {
+                        accessToken: credentials.access_token,
+                        expiryDate: BigInt(credentials.expiry_date || 0)
+                    }
+                });
+                this.client.setCredentials(credentials);
+            }
+        } catch (refreshError) {
+            console.error('Token refresh failed, trying with existing token:', refreshError);
+        }
 
         // 3. Create & Send
         const gmail = google.gmail({ version: 'v1', auth: this.client });
@@ -189,10 +208,14 @@ export class GmailService {
             requestBody.threadId = threadId;
         }
 
+        console.log(`Sending email to: ${to}, subject: ${subject.substring(0, 50)}...`);
+
         const res = await gmail.users.messages.send({
             userId: 'me',
             requestBody
         });
+
+        console.log(`Email sent successfully, messageId: ${res.data.id}`);
 
         // Update stats
         await prisma.gmailAccount.update({
