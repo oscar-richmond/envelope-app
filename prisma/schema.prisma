@@ -324,6 +324,13 @@ model GmailAccount {
   dailyLimit      Int      @default(20)
   sentToday       Int      @default(0)
   lastSentAt      DateTime?
+  
+  // Sender Protection
+  totalSent30d          Int       @default(0)  // Rolling 30-day total
+  totalBounces30d       Int       @default(0)  // Rolling 30-day bounces
+  totalReplies30d       Int       @default(0)  // Rolling 30-day replies
+  lastSpamComplaintAt   DateTime?              // Triggers COOLING_DOWN
+  senderStatus          String    @default("WARMING") // WARMING, WARM, COOLING_DOWN
 }
 
 model SuppressionEntry {
