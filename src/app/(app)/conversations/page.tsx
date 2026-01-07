@@ -150,21 +150,64 @@ export default function ConversationsPage() {
     }
 
     if (!columns || activeCount === 0) {
+        // Check if all conversations are just closed (vs truly empty)
+        const hasAnyConversations = columns && Object.values(columns).some(col => col.length > 0);
+
         return (
-            <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
-                <div className="bg-gray-100 text-gray-400 w-20 h-20 rounded-full flex items-center justify-center mb-8">
-                    <MessageSquare size={40} strokeWidth={1.5} />
+            <div className="min-h-screen bg-gray-50">
+                {/* Header */}
+                <header className="bg-white border-b border-gray-200 px-6 py-4">
+                    <div className="text-center">
+                        <h1 className="text-xl font-semibold text-gray-900">Conversations</h1>
+                        <p className="text-sm text-gray-500 mt-1">
+                            This is where active conversations live once someone replies or shows interest.
+                        </p>
+                    </div>
+                </header>
+
+                <div className="max-w-4xl mx-auto px-6 py-12">
+                    {/* Static Column Preview */}
+                    <div className="mb-12">
+                        <div className="flex gap-3 overflow-x-auto pb-4">
+                            {(Object.keys(COLUMN_INFO) as ColumnKey[]).map(columnKey => (
+                                <div
+                                    key={columnKey}
+                                    className="w-44 flex-shrink-0 rounded-lg border border-gray-200 bg-gray-50/50 opacity-60"
+                                >
+                                    <div className="px-3 py-2.5 border-b border-gray-100">
+                                        <h3 className="text-sm font-medium text-gray-400">
+                                            {COLUMN_INFO[columnKey].title}
+                                        </h3>
+                                    </div>
+                                    <div className="h-24 flex items-center justify-center">
+                                        <div className="w-3/4 h-3 bg-gray-100 rounded" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Explanation */}
+                    <div className="text-center max-w-lg mx-auto">
+                        <p className="text-gray-600 mb-6">
+                            When someone replies to an email or shows interest, the conversation will appear here
+                            so you can track progress without needing a CRM.
+                        </p>
+
+                        {/* How this gets filled hint */}
+                        <p className="text-sm text-gray-400 mb-8">
+                            Conversations appear here after a reply, referral, or when someone asks to talk.
+                        </p>
+
+                        {/* Soft secondary CTA */}
+                        <Link
+                            href="/outreach/sent"
+                            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                            View Inbox →
+                        </Link>
+                    </div>
                 </div>
-                <h1 className="text-2xl font-semibold text-gray-900 mb-3">No active conversations</h1>
-                <p className="text-gray-500 mb-8 text-center max-w-md">
-                    When someone replies to your outreach with interest, they'll appear here.
-                </p>
-                <Link
-                    href="/outreach/sent"
-                    className="text-indigo-600 hover:text-indigo-700 font-medium"
-                >
-                    View Inbox →
-                </Link>
             </div>
         );
     }
