@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Mail, ArrowRight, Clock, AlertCircle, CheckCircle, MessageSquare, RefreshCw, XCircle } from 'lucide-react';
+import ThreadViewer from '@/components/ThreadViewer';
 
 interface StatusCounts {
     actionNeeded: number;
@@ -20,6 +21,7 @@ export default function InboxPage() {
     const [filter, setFilter] = useState('ACTION_NEEDED'); // Default to ACTION NEEDED
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
+    const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchEmails();
@@ -159,11 +161,12 @@ export default function InboxPage() {
                                         />
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="text-gray-400 hover:text-indigo-600 text-xs font-medium border border-gray-200 rounded px-2 py-1">
-                                                View Thread
-                                            </button>
-                                        </div>
+                                        <button
+                                            onClick={() => setSelectedThreadId(email.id)}
+                                            className="text-gray-500 hover:text-indigo-600 text-xs font-medium border border-gray-200 hover:border-indigo-200 rounded px-3 py-1.5 transition-colors"
+                                        >
+                                            View Thread
+                                        </button>
                                     </td>
                                 </tr>
                             ))
@@ -171,6 +174,15 @@ export default function InboxPage() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Thread Viewer Modal */}
+            {selectedThreadId && (
+                <ThreadViewer
+                    emailId={selectedThreadId}
+                    onClose={() => setSelectedThreadId(null)}
+                    onReplySent={() => fetchEmails()}
+                />
+            )}
         </div>
     );
 }
