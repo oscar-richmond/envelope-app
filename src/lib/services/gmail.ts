@@ -242,21 +242,57 @@ export class GmailService {
         const conn = await prisma.gmailAccount.findFirst();
         if (!conn) throw new Error("No Gmail connection found");
 
-        // 2. Refresh Token
+        // 2. Set credentials with expiry for proper refresh
         this.client.setCredentials({
             access_token: conn.accessToken,
-            refresh_token: conn.refreshToken
+            refresh_token: conn.refreshToken,
+            expiry_date: Number(conn.expiryDate)
         });
+
+        // 3. Refresh token if needed
+        try {
+            const { credentials } = await this.client.refreshAccessToken();
+            if (credentials.access_token && credentials.access_token !== conn.accessToken) {
+                await prisma.gmailAccount.update({
+                    where: { id: conn.id },
+                    data: {
+                        accessToken: credentials.access_token,
+                        expiryDate: BigInt(credentials.expiry_date || 0)
+                    }
+                });
+                this.client.setCredentials(credentials);
+            }
+        } catch (refreshError) {
+            console.error('[GMAIL] Token refresh failed for thread fetch:', refreshError);
+            // Continue with existing token
+        }
 
         const gmail = google.gmail({ version: 'v1', auth: this.client });
 
-        // 3. Fetch
+        // 4. Fetch thread with FULL format to get message payloads
         const res = await gmail.users.threads.get({
             userId: 'me',
-            id: threadId
+            id: threadId,
+            format: 'full'  // Critical: Get full message payloads with headers and body
         });
 
+        console.log(`[GMAIL] Thread ${threadId} fetched, ${res.data.messages?.length || 0} messages`);
+
         return res.data;
+    }
+
+    /**
+     * Send email as reply in existing thread
+     */
+    async sendEmailInThread(from: string, to: string, subject: string, body: string, htmlBody?: string, threadId?: string) {
+        return this.sendEmail(to, subject, body, htmlBody, threadId);
+    }
+
+    /**
+     * Set credentials externally (used by API routes)
+     */
+    setCredentials(credentials: { access_token: string; refresh_token: string; expiry_date: number }) {
+        this.client.setCredentials(credentials);
     }
 }
 
