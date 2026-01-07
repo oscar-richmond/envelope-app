@@ -28,7 +28,10 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
         company: { name: string; domain?: string };
         contact: { name: string; email: string };
         messages: ThreadMessage[];
-        threadId: string;
+        threadId: string | null;
+        partial?: boolean;
+        partialReason?: string;
+        retryable?: boolean;
     } | null>(null);
 
     // Composer state
@@ -57,19 +60,20 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
             const res = await fetch(`/api/outreach/sent/${emailId}/thread`);
             const data = await res.json();
 
-            if (!res.ok) {
-                setError(data.error || 'Could not load thread');
+            // API now always returns success with at least cached data
+            if (data.success === false || res.status === 404) {
+                setError(data.error || 'Email not found');
                 return;
             }
 
             setThread(data);
 
             // Try to load AI draft if reply is expected
-            if (data.email.replyIntent && ['INTERESTED', 'NOT_NOW', 'REFERRAL'].includes(data.email.replyIntent)) {
+            if (data.email?.replyIntent && ['INTERESTED', 'NOT_NOW', 'REFERRAL'].includes(data.email.replyIntent)) {
                 loadDraft();
             }
         } catch (e) {
-            setError('This conversation couldn\'t be loaded right now.');
+            setError('We\'re having trouble loading this thread. Please try again shortly.');
         } finally {
             setLoading(false);
         }
@@ -183,8 +187,8 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                     <div className="flex items-center gap-3">
                         {thread?.email.conversationOutcome && (
                             <span className={`text-xs px-2 py-1 rounded ${thread.email.conversationOutcome === 'INTERESTED' ? 'bg-green-100 text-green-700' :
-                                    thread.email.conversationOutcome === 'NOT_NOW' ? 'bg-amber-100 text-amber-700' :
-                                        'bg-gray-100 text-gray-600'
+                                thread.email.conversationOutcome === 'NOT_NOW' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-gray-100 text-gray-600'
                                 }`}>
                                 {thread.email.conversationOutcome.replace('_', ' ')}
                             </span>
@@ -214,44 +218,64 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                                 Try again
                             </button>
                         </div>
-                    ) : thread?.messages.map((msg, idx) => (
-                        <div
-                            key={msg.id}
-                            className={`${msg.isOutbound ? 'pl-8' : 'pr-8'}`}
-                        >
-                            <div className={`rounded-lg p-4 ${msg.isOutbound
-                                    ? 'bg-indigo-50 border border-indigo-100'
-                                    : 'bg-gray-50 border border-gray-200'
-                                }`}>
-                                {/* Message header */}
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${msg.isOutbound
-                                                ? 'bg-indigo-200 text-indigo-700'
-                                                : 'bg-gray-200 text-gray-600'
-                                            }`}>
-                                            {msg.fromName[0]?.toUpperCase() || '?'}
-                                        </div>
-                                        <span className={`text-sm font-medium ${msg.isOutbound ? 'text-indigo-700' : 'text-gray-700'
-                                            }`}>
-                                            {msg.isOutbound ? 'You' : msg.fromName}
-                                        </span>
-                                    </div>
-                                    <span
-                                        className="text-xs text-gray-400"
-                                        title={new Date(msg.timestamp).toLocaleString()}
-                                    >
-                                        {formatTimestamp(msg.timestamp)}
-                                    </span>
+                    ) : (
+                        <>
+                            {/* Partial data warning */}
+                            {thread?.partial && thread?.partialReason && (
+                                <div className="text-center py-2 px-4 bg-amber-50 border border-amber-100 rounded-lg">
+                                    <p className="text-xs text-amber-600">{thread.partialReason}</p>
+                                    {thread.retryable && (
+                                        <button
+                                            onClick={fetchThread}
+                                            className="text-xs text-amber-700 underline mt-1"
+                                        >
+                                            Retry
+                                        </button>
+                                    )}
                                 </div>
+                            )}
 
-                                {/* Message body */}
-                                <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                                    {msg.body}
+                            {/* Messages */}
+                            {thread?.messages.map((msg, idx) => (
+                                <div
+                                    key={msg.id}
+                                    className={`${msg.isOutbound ? 'pl-8' : 'pr-8'}`}
+                                >
+                                    <div className={`rounded-lg p-4 ${msg.isOutbound
+                                        ? 'bg-indigo-50 border border-indigo-100'
+                                        : 'bg-gray-50 border border-gray-200'
+                                        }`}>
+                                        {/* Message header */}
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${msg.isOutbound
+                                                    ? 'bg-indigo-200 text-indigo-700'
+                                                    : 'bg-gray-200 text-gray-600'
+                                                    }`}>
+                                                    {msg.fromName[0]?.toUpperCase() || '?'}
+                                                </div>
+                                                <span className={`text-sm font-medium ${msg.isOutbound ? 'text-indigo-700' : 'text-gray-700'
+                                                    }`}>
+                                                    {msg.isOutbound ? 'You' : msg.fromName}
+                                                </span>
+                                            </div>
+                                            <span
+                                                className="text-xs text-gray-400"
+                                                title={new Date(msg.timestamp).toLocaleString()}
+                                            >
+                                                {formatTimestamp(msg.timestamp)}
+                                            </span>
+                                        </div>
+
+                                        {/* Message body */}
+                                        <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                                            {msg.body}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    ))}
+                            ))}
+                        </>
+                    )}
                 </div>
 
                 {/* Divider */}

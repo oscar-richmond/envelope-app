@@ -20,36 +20,103 @@ interface ThreadMessage {
 /**
  * GET /api/outreach/sent/[id]/thread
  * Fetch the full Gmail thread for a sent email
+ * 
+ * Read-only operation - never modifies Gmail state
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
-    try {
-        const { id } = await params;
-        const emailId = parseInt(id);
+    const { id } = await params;
+    const emailId = parseInt(id);
 
-        // Get the sent email with lead info
-        const sentEmail = await prisma.sentEmail.findUnique({
-            where: { id: emailId },
-            include: {
-                lead: {
-                    include: { companyProspect: true }
-                }
+    // Get the sent email with lead info
+    const sentEmail = await prisma.sentEmail.findUnique({
+        where: { id: emailId },
+        include: {
+            lead: {
+                include: { companyProspect: true }
             }
+        }
+    });
+
+    if (!sentEmail) {
+        return NextResponse.json({ error: 'Email not found' }, { status: 404 });
+    }
+
+    // Build base response (always available)
+    const prospect = sentEmail.lead.companyProspect;
+    const companyName = prospect?.name || sentEmail.lead.companyName;
+    const contactEmail = sentEmail.formattedTo.match(/<(.+)>/)?.[1] || sentEmail.formattedTo;
+    const contactName = sentEmail.formattedTo.match(/^([^<]+)/)?.[1]?.trim() || contactEmail.split('@')[0];
+
+    const baseResponse = {
+        email: {
+            id: sentEmail.id,
+            status: sentEmail.status,
+            subject: sentEmail.subject,
+            conversationOutcome: sentEmail.conversationOutcome,
+            replyIntent: sentEmail.replyIntent,
+            bodyText: sentEmail.bodyText
+        },
+        company: {
+            name: companyName,
+            domain: prospect?.domain
+        },
+        contact: {
+            name: contactName,
+            email: contactEmail
+        },
+        threadId: sentEmail.sentThreadId
+    };
+
+    // Case A: No thread ID - return fallback with cached outbound message
+    if (!sentEmail.sentThreadId) {
+        console.log(`[THREAD] Email ${emailId}: No thread ID, using cached data`);
+
+        const cachedMessage: ThreadMessage = {
+            id: `local-${emailId}`,
+            from: 'You',
+            fromName: 'You',
+            to: sentEmail.formattedTo,
+            subject: sentEmail.subject,
+            body: sentEmail.bodyText,
+            timestamp: sentEmail.sentAt?.toISOString() || new Date().toISOString(),
+            isOutbound: true
+        };
+
+        return NextResponse.json({
+            success: true,
+            ...baseResponse,
+            messages: [cachedMessage],
+            partial: true,
+            partialReason: 'Thread ID not yet synced'
         });
+    }
 
-        if (!sentEmail) {
-            return NextResponse.json({ error: 'Email not found' }, { status: 404 });
-        }
+    // Get Gmail account
+    const account = await prisma.gmailAccount.findFirst();
+    if (!account) {
+        console.log(`[THREAD] Email ${emailId}: Gmail not connected, using cached data`);
 
-        if (!sentEmail.sentThreadId) {
-            return NextResponse.json({ error: 'No thread ID found' }, { status: 400 });
-        }
+        const cachedMessage: ThreadMessage = {
+            id: `local-${emailId}`,
+            from: 'You',
+            fromName: 'You',
+            to: sentEmail.formattedTo,
+            subject: sentEmail.subject,
+            body: sentEmail.bodyText,
+            timestamp: sentEmail.sentAt?.toISOString() || new Date().toISOString(),
+            isOutbound: true
+        };
 
-        // Get Gmail account
-        const account = await prisma.gmailAccount.findFirst();
-        if (!account) {
-            return NextResponse.json({ error: 'Gmail not connected' }, { status: 400 });
-        }
+        return NextResponse.json({
+            success: true,
+            ...baseResponse,
+            messages: [cachedMessage],
+            partial: true,
+            partialReason: 'Gmail connection required'
+        });
+    }
 
+    try {
         // Set credentials
         gmailService.setCredentials({
             access_token: account.accessToken,
@@ -57,106 +124,220 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
             expiry_date: Number(account.expiryDate)
         });
 
-        // Fetch thread from Gmail
+        // Fetch thread from Gmail (read-only)
         const thread = await gmailService.getThread(sentEmail.sentThreadId);
 
-        if (!thread || !thread.messages) {
+        // Case B: Gmail API returned empty/null
+        if (!thread || !thread.messages || thread.messages.length === 0) {
+            console.log(`[THREAD] Email ${emailId}: Gmail returned empty thread, using cached data`);
+
+            const cachedMessage: ThreadMessage = {
+                id: `local-${emailId}`,
+                from: 'You',
+                fromName: 'You',
+                to: sentEmail.formattedTo,
+                subject: sentEmail.subject,
+                body: sentEmail.bodyText,
+                timestamp: sentEmail.sentAt?.toISOString() || new Date().toISOString(),
+                isOutbound: true
+            };
+
             return NextResponse.json({
-                error: 'Could not load thread',
-                messages: [],
-                email: sentEmail
+                success: true,
+                ...baseResponse,
+                messages: [cachedMessage],
+                partial: true,
+                partialReason: 'Some earlier messages may not be visible yet'
             });
         }
 
-        // Parse messages
+        // Parse messages (tolerate malformed individual messages)
         const senderEmail = account.email.toLowerCase();
-        const messages: ThreadMessage[] = thread.messages.map((msg: any) => {
-            const headers = msg.payload?.headers || [];
-            const getHeader = (name: string) =>
-                headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+        const messages: ThreadMessage[] = [];
 
-            const from = getHeader('From');
-            const to = getHeader('To');
-            const subject = getHeader('Subject');
-            const date = getHeader('Date');
-
-            // Extract body
-            let body = '';
-            if (msg.payload?.body?.data) {
-                body = Buffer.from(msg.payload.body.data, 'base64').toString('utf-8');
-            } else if (msg.payload?.parts) {
-                const textPart = msg.payload.parts.find((p: any) =>
-                    p.mimeType === 'text/plain' && p.body?.data
-                );
-                if (textPart?.body?.data) {
-                    body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+        for (const msg of thread.messages) {
+            try {
+                const parsed = parseGmailMessage(msg, senderEmail);
+                if (parsed) {
+                    messages.push(parsed);
                 }
+            } catch (parseError) {
+                console.log(`[THREAD] Email ${emailId}: Failed to parse message ${msg.id}`, parseError);
+                // Continue with other messages - one malformed message doesn't fail the thread
             }
-
-            // Determine if outbound
-            const fromEmail = from.match(/<(.+)>/)?.[1] || from;
-            const isOutbound = fromEmail.toLowerCase() === senderEmail;
-
-            // Extract name from "Name <email>" format
-            const fromName = from.match(/^([^<]+)/)?.[1]?.trim() || from.split('@')[0];
-
-            return {
-                id: msg.id,
-                from,
-                fromName,
-                to,
-                subject,
-                body: cleanEmailBody(body),
-                timestamp: date,
-                isOutbound
-            };
-        });
+        }
 
         // Sort chronologically
         messages.sort((a, b) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
-        // Get company/contact info
-        const prospect = sentEmail.lead.companyProspect;
-        const companyName = prospect?.name || sentEmail.lead.companyName;
-        const contactEmail = sentEmail.formattedTo.match(/<(.+)>/)?.[1] || sentEmail.formattedTo;
-        const contactName = sentEmail.formattedTo.match(/^([^<]+)/)?.[1]?.trim() || contactEmail.split('@')[0];
+        // If parsing failed for all messages, use cached
+        if (messages.length === 0) {
+            console.log(`[THREAD] Email ${emailId}: All message parsing failed, using cached data`);
+
+            const cachedMessage: ThreadMessage = {
+                id: `local-${emailId}`,
+                from: 'You',
+                fromName: 'You',
+                to: sentEmail.formattedTo,
+                subject: sentEmail.subject,
+                body: sentEmail.bodyText,
+                timestamp: sentEmail.sentAt?.toISOString() || new Date().toISOString(),
+                isOutbound: true
+            };
+
+            return NextResponse.json({
+                success: true,
+                ...baseResponse,
+                messages: [cachedMessage],
+                partial: true,
+                partialReason: 'Some messages could not be displayed'
+            });
+        }
 
         return NextResponse.json({
             success: true,
-            email: {
-                id: sentEmail.id,
-                status: sentEmail.status,
-                subject: sentEmail.subject,
-                conversationOutcome: sentEmail.conversationOutcome,
-                replyIntent: sentEmail.replyIntent
-            },
-            company: {
-                name: companyName,
-                domain: prospect?.domain
-            },
-            contact: {
-                name: contactName,
-                email: contactEmail
-            },
+            ...baseResponse,
             messages,
-            threadId: sentEmail.sentThreadId
+            partial: false
         });
 
     } catch (e: any) {
-        console.error('Thread fetch error:', e);
+        // Case C: Gmail API error - return cached data with warning
+        console.error(`[THREAD] Email ${emailId}: Gmail API error:`, e.message);
+
+        const cachedMessage: ThreadMessage = {
+            id: `local-${emailId}`,
+            from: 'You',
+            fromName: 'You',
+            to: sentEmail.formattedTo,
+            subject: sentEmail.subject,
+            body: sentEmail.bodyText,
+            timestamp: sentEmail.sentAt?.toISOString() || new Date().toISOString(),
+            isOutbound: true
+        };
+
         return NextResponse.json({
-            error: 'This conversation couldn\'t be loaded right now.',
-            detail: e.message
-        }, { status: 500 });
+            success: true,
+            ...baseResponse,
+            messages: [cachedMessage],
+            partial: true,
+            partialReason: 'We\'re having trouble loading the full thread. Please try again shortly.',
+            retryable: true
+        });
     }
+}
+
+/**
+ * Parse a single Gmail message into our format
+ * Returns null if message is malformed
+ */
+function parseGmailMessage(msg: any, senderEmail: string): ThreadMessage | null {
+    const headers = msg.payload?.headers || [];
+    const getHeader = (name: string) =>
+        headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+
+    const from = getHeader('From');
+    const to = getHeader('To');
+    const subject = getHeader('Subject');
+    const date = getHeader('Date');
+
+    // Extract body - try multiple sources
+    let body = '';
+
+    // Try direct body data
+    if (msg.payload?.body?.data) {
+        try {
+            body = Buffer.from(msg.payload.body.data, 'base64').toString('utf-8');
+        } catch (e) {
+            // Ignore decode error
+        }
+    }
+
+    // Try multipart parts
+    if (!body && msg.payload?.parts) {
+        // First try text/plain
+        const textPart = msg.payload.parts.find((p: any) =>
+            p.mimeType === 'text/plain' && p.body?.data
+        );
+        if (textPart?.body?.data) {
+            try {
+                body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+            } catch (e) {
+                // Ignore decode error
+            }
+        }
+
+        // Fallback to text/html if no plain text
+        if (!body) {
+            const htmlPart = msg.payload.parts.find((p: any) =>
+                p.mimeType === 'text/html' && p.body?.data
+            );
+            if (htmlPart?.body?.data) {
+                try {
+                    let html = Buffer.from(htmlPart.body.data, 'base64').toString('utf-8');
+                    // Basic HTML to text conversion
+                    body = html
+                        .replace(/<br\s*\/?>/gi, '\n')
+                        .replace(/<\/p>/gi, '\n\n')
+                        .replace(/<[^>]+>/g, '')
+                        .replace(/&nbsp;/g, ' ')
+                        .replace(/&amp;/g, '&')
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>')
+                        .trim();
+                } catch (e) {
+                    // Ignore decode error
+                }
+            }
+        }
+
+        // Try nested parts (multipart/alternative inside multipart/mixed)
+        if (!body) {
+            for (const part of msg.payload.parts) {
+                if (part.parts) {
+                    const nestedText = part.parts.find((p: any) =>
+                        p.mimeType === 'text/plain' && p.body?.data
+                    );
+                    if (nestedText?.body?.data) {
+                        try {
+                            body = Buffer.from(nestedText.body.data, 'base64').toString('utf-8');
+                            break;
+                        } catch (e) {
+                            // Ignore
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Determine if outbound
+    const fromEmail = from.match(/<(.+)>/)?.[1] || from;
+    const isOutbound = fromEmail.toLowerCase() === senderEmail;
+
+    // Extract name from "Name <email>" format
+    const fromName = from.match(/^([^<]+)/)?.[1]?.trim() || from.split('@')[0] || 'Unknown';
+
+    return {
+        id: msg.id || `msg-${Date.now()}`,
+        from: from || 'Unknown',
+        fromName: isOutbound ? 'You' : fromName,
+        to: to || 'Unknown',
+        subject: subject || '(No subject)',
+        body: cleanEmailBody(body) || '(No content)',
+        timestamp: date || new Date().toISOString(),
+        isOutbound
+    };
 }
 
 /**
  * Clean up email body (remove signatures, quoted text, etc.)
  */
 function cleanEmailBody(body: string): string {
+    if (!body) return '';
+
     // Remove common signature markers
     const signaturePatterns = [
         /^--\s*$/m,
