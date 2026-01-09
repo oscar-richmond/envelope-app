@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Loader2, User, ArrowUpRight, RefreshCw } from 'lucide-react';
+import { X, Loader2, ChevronDown, ChevronUp, Paperclip, XCircle } from 'lucide-react';
+import RichComposer from './RichComposer';
 
 interface ThreadMessage {
     id: string;
@@ -31,26 +32,27 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
         threadId: string | null;
         partial?: boolean;
         partialReason?: string;
-        retryable?: boolean;
     } | null>(null);
 
-    // Composer state
-    const [replyBody, setReplyBody] = useState('');
-    const [sending, setSending] = useState(false);
-    const [draftLoading, setDraftLoading] = useState(false);
-
-    const composerRef = useRef<HTMLTextAreaElement>(null);
+    const [draftContent, setDraftContent] = useState('');
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         fetchThread();
 
-        // Handle escape key
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
         };
         document.addEventListener('keydown', handleEscape);
         return () => document.removeEventListener('keydown', handleEscape);
     }, [emailId]);
+
+    // Auto-scroll to bottom when messages load
+    useEffect(() => {
+        if (thread?.messages && messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [thread?.messages]);
 
     async function fetchThread() {
         try {
@@ -60,150 +62,99 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
             const res = await fetch(`/api/outreach/sent/${emailId}/thread`);
             const data = await res.json();
 
-            // API now always returns success with at least cached data
             if (data.success === false || res.status === 404) {
                 setError(data.error || 'Email not found');
                 return;
             }
 
             setThread(data);
-
-            // Try to load AI draft if reply is expected
-            if (data.email?.replyIntent && ['INTERESTED', 'NOT_NOW', 'REFERRAL'].includes(data.email.replyIntent)) {
-                loadDraft();
-            }
         } catch (e) {
-            setError('We\'re having trouble loading this thread. Please try again shortly.');
+            setError('We\'re having trouble loading this thread.');
         } finally {
             setLoading(false);
         }
     }
 
-    async function loadDraft() {
-        try {
-            setDraftLoading(true);
-            const res = await fetch(`/api/outreach/sent/${emailId}/reply-draft`);
+    async function handleSend(html: string, plainText: string) {
+        if (!thread) return;
+
+        const res = await fetch(`/api/outreach/sent/${emailId}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                body: plainText,
+                htmlBody: html,
+                threadId: thread.threadId
+            })
+        });
+
+        if (!res.ok) {
             const data = await res.json();
+            throw new Error(data.error || 'Failed to send');
+        }
 
-            if (data.draft?.body && !replyBody) {
-                setReplyBody(data.draft.body);
-            }
-        } catch (e) {
-            // Silently fail - draft is optional
-        } finally {
-            setDraftLoading(false);
+        // Refresh thread to show new message
+        await fetchThread();
+        setDraftContent('');
+
+        if (onReplySent) {
+            onReplySent();
         }
     }
 
-    async function regenerateDraft() {
-        try {
-            setDraftLoading(true);
-            const res = await fetch(`/api/outreach/sent/${emailId}/reply-draft?regenerate=true`);
-            const data = await res.json();
-
-            if (data.draft?.body) {
-                setReplyBody(data.draft.body);
-            }
-        } catch (e) {
-            // Silently fail
-        } finally {
-            setDraftLoading(false);
-        }
+    function handleSaveDraft(html: string) {
+        setDraftContent(html);
+        // Store in localStorage for persistence
+        localStorage.setItem(`draft-${emailId}`, html);
     }
 
-    async function handleSend() {
-        if (!replyBody.trim() || !thread) return;
-
-        try {
-            setSending(true);
-
-            const res = await fetch(`/api/outreach/sent/${emailId}/reply`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    body: replyBody,
-                    threadId: thread.threadId
-                })
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to send');
-            }
-
-            // Refresh thread to show new message
-            await fetchThread();
-            setReplyBody('');
-
-            if (onReplySent) {
-                onReplySent();
-            }
-        } catch (e: any) {
-            setError(e.message);
-        } finally {
-            setSending(false);
+    // Load saved draft on mount
+    useEffect(() => {
+        const saved = localStorage.getItem(`draft-${emailId}`);
+        if (saved) {
+            setDraftContent(saved);
         }
-    }
-
-    function formatTimestamp(timestamp: string): string {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 0) {
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else if (diffDays === 1) {
-            return 'Yesterday';
-        } else if (diffDays < 7) {
-            return `${diffDays} days ago`;
-        } else {
-            return date.toLocaleDateString();
-        }
-    }
+    }, [emailId]);
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
             {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/30"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-black/20" onClick={onClose} />
 
-            {/* Slide-over panel */}
-            <div className="relative w-full max-w-2xl bg-white shadow-xl flex flex-col animate-slide-in-right">
+            {/* Panel */}
+            <div className="relative w-full max-w-2xl bg-white shadow-2xl flex flex-col animate-slide-in">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                    <div>
-                        {thread && (
-                            <>
-                                <h2 className="font-semibold text-gray-900">{thread.company.name}</h2>
-                                <p className="text-sm text-gray-500">
-                                    {thread.contact.name} • {thread.contact.email}
+                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+                    <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                            <h2 className="font-semibold text-gray-900 truncate">
+                                {thread?.company.name || 'Loading...'}
+                            </h2>
+                            <p className="text-sm text-gray-500 truncate mt-0.5">
+                                {thread?.contact.name} • {thread?.contact.email}
+                            </p>
+                            {thread?.email?.subject && (
+                                <p className="text-xs text-gray-400 truncate mt-1">
+                                    {thread.email.subject}
                                 </p>
-                            </>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {thread?.email.conversationOutcome && (
-                            <span className={`text-xs px-2 py-1 rounded ${thread.email.conversationOutcome === 'INTERESTED' ? 'bg-green-100 text-green-700' :
-                                thread.email.conversationOutcome === 'NOT_NOW' ? 'bg-amber-100 text-amber-700' :
-                                    'bg-gray-100 text-gray-600'
-                                }`}>
-                                {thread.email.conversationOutcome.replace('_', ' ')}
-                            </span>
-                        )}
-                        <button
-                            onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 p-1"
-                        >
-                            <X size={20} />
-                        </button>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                            {thread?.email?.status && (
+                                <StatusBadge status={thread.email.status} />
+                            )}
+                            <button
+                                onClick={onClose}
+                                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Thread content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                     {loading ? (
                         <div className="flex items-center justify-center h-40">
                             <Loader2 className="animate-spin text-gray-400" size={24} />
@@ -213,130 +164,196 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                             <p className="text-gray-500">{error}</p>
                             <button
                                 onClick={fetchThread}
-                                className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm"
+                                className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                             >
                                 Try again
                             </button>
                         </div>
                     ) : (
                         <>
-                            {/* Partial data warning */}
                             {thread?.partial && thread?.partialReason && (
-                                <div className="text-center py-2 px-4 bg-amber-50 border border-amber-100 rounded-lg">
+                                <div className="text-center py-2 px-3 bg-amber-50 border border-amber-100 rounded-lg">
                                     <p className="text-xs text-amber-600">{thread.partialReason}</p>
-                                    {thread.retryable && (
-                                        <button
-                                            onClick={fetchThread}
-                                            className="text-xs text-amber-700 underline mt-1"
-                                        >
-                                            Retry
-                                        </button>
-                                    )}
                                 </div>
                             )}
 
-                            {/* Messages */}
-                            {thread?.messages.map((msg, idx) => (
-                                <div
-                                    key={msg.id}
-                                    className={`${msg.isOutbound ? 'pl-8' : 'pr-8'}`}
-                                >
-                                    <div className={`rounded-lg p-4 ${msg.isOutbound
-                                        ? 'bg-indigo-50 border border-indigo-100'
-                                        : 'bg-gray-50 border border-gray-200'
-                                        }`}>
-                                        {/* Message header */}
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${msg.isOutbound
-                                                    ? 'bg-indigo-200 text-indigo-700'
-                                                    : 'bg-gray-200 text-gray-600'
-                                                    }`}>
-                                                    {msg.fromName[0]?.toUpperCase() || '?'}
-                                                </div>
-                                                <span className={`text-sm font-medium ${msg.isOutbound ? 'text-indigo-700' : 'text-gray-700'
-                                                    }`}>
-                                                    {msg.isOutbound ? 'You' : msg.fromName}
-                                                </span>
-                                            </div>
-                                            <span
-                                                className="text-xs text-gray-400"
-                                                title={new Date(msg.timestamp).toLocaleString()}
-                                            >
-                                                {formatTimestamp(msg.timestamp)}
-                                            </span>
-                                        </div>
-
-                                        {/* Message body */}
-                                        <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                                            {msg.body}
-                                        </div>
-                                    </div>
-                                </div>
+                            {thread?.messages.map((msg) => (
+                                <MessageCard key={msg.id} message={msg} />
                             ))}
+
+                            <div ref={messagesEndRef} />
                         </>
                     )}
                 </div>
 
-                {/* Divider */}
-                <div className="border-t border-gray-200" />
-
-                {/* Composer */}
-                <div className="p-4 bg-gray-50">
-                    <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">
-                            Reply to {thread?.contact.email}
-                        </span>
-                        {replyBody && (
-                            <button
-                                onClick={regenerateDraft}
-                                disabled={draftLoading}
-                                className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
-                            >
-                                <RefreshCw size={10} className={draftLoading ? 'animate-spin' : ''} />
-                                Regenerate
-                            </button>
-                        )}
-                    </div>
-                    <textarea
-                        ref={composerRef}
-                        value={replyBody}
-                        onChange={(e) => setReplyBody(e.target.value)}
-                        placeholder="Write your reply..."
-                        className="w-full h-32 p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                        disabled={sending}
+                {/* Composer (sticky at bottom) */}
+                {thread && !error && (
+                    <RichComposer
+                        to={thread.contact.email}
+                        subject={thread.email?.subject || ''}
+                        initialValue={draftContent}
+                        onSend={handleSend}
+                        onSaveDraft={handleSaveDraft}
+                        disabled={loading}
                     />
-                    <div className="flex justify-end mt-3">
-                        <button
-                            onClick={handleSend}
-                            disabled={!replyBody.trim() || sending}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            {sending ? (
-                                <>
-                                    <Loader2 size={14} className="animate-spin" />
-                                    Sending...
-                                </>
-                            ) : (
-                                <>
-                                    <Send size={14} />
-                                    Send Reply
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </div>
+                )}
             </div>
 
             <style jsx>{`
-                @keyframes slide-in-right {
-                    from { transform: translateX(100%); }
-                    to { transform: translateX(0); }
+                @keyframes slide-in {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
                 }
-                .animate-slide-in-right {
-                    animation: slide-in-right 0.2s ease-out;
+                .animate-slide-in {
+                    animation: slide-in 0.2s ease-out;
                 }
             `}</style>
         </div>
     );
+}
+
+/**
+ * Individual message card with clean rendering
+ */
+function MessageCard({ message }: { message: ThreadMessage }) {
+    const [showQuoted, setShowQuoted] = useState(false);
+
+    // Clean up the message body
+    const { mainBody, quotedText } = parseMessageBody(message.body);
+    const hasQuoted = quotedText.length > 0;
+
+    return (
+        <div className={`${message.isOutbound ? 'ml-6' : 'mr-6'}`}>
+            <div className={`rounded-xl p-4 ${message.isOutbound
+                    ? 'bg-indigo-50 border border-indigo-100'
+                    : 'bg-white border border-gray-200 shadow-sm'
+                }`}>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${message.isOutbound
+                                ? 'bg-indigo-200 text-indigo-700'
+                                : 'bg-gray-200 text-gray-600'
+                            }`}>
+                            {message.fromName[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div>
+                            <span className={`text-sm font-medium ${message.isOutbound ? 'text-indigo-700' : 'text-gray-900'
+                                }`}>
+                                {message.isOutbound ? 'You' : message.fromName}
+                            </span>
+                        </div>
+                    </div>
+                    <span
+                        className="text-xs text-gray-400"
+                        title={formatFullDate(message.timestamp)}
+                    >
+                        {formatRelativeTime(message.timestamp)}
+                    </span>
+                </div>
+
+                {/* Body */}
+                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {mainBody || '(No content)'}
+                </div>
+
+                {/* Quoted text toggle */}
+                {hasQuoted && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                        <button
+                            onClick={() => setShowQuoted(!showQuoted)}
+                            className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
+                        >
+                            {showQuoted ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            {showQuoted ? 'Hide' : 'Show'} quoted text
+                        </button>
+                        {showQuoted && (
+                            <div className="mt-2 pl-3 border-l-2 border-gray-200 text-xs text-gray-500 whitespace-pre-wrap">
+                                {quotedText}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Parse message body to separate main content from quoted text
+ */
+function parseMessageBody(body: string): { mainBody: string; quotedText: string } {
+    if (!body) return { mainBody: '', quotedText: '' };
+
+    // Remove raw header blocks from body
+    let cleaned = body
+        .replace(/^From:.*$/gm, '')
+        .replace(/^Sent:.*$/gm, '')
+        .replace(/^To:.*$/gm, '')
+        .replace(/^Subject:.*$/gm, '')
+        .replace(/^Cc:.*$/gm, '')
+        .replace(/^Date:.*$/gm, '')
+        .trim();
+
+    // Detect quoted text patterns
+    const quotePatterns = [
+        /On .+wrote:[\s\S]*/i,
+        /^>.*$/gm,
+        /_{10,}/,
+        /-{10,}/
+    ];
+
+    let mainBody = cleaned;
+    let quotedText = '';
+
+    for (const pattern of quotePatterns) {
+        const match = mainBody.match(pattern);
+        if (match && match.index) {
+            quotedText = mainBody.substring(match.index);
+            mainBody = mainBody.substring(0, match.index).trim();
+            break;
+        }
+    }
+
+    // Clean up extra newlines
+    mainBody = mainBody.replace(/\n{3,}/g, '\n\n').trim();
+
+    return { mainBody, quotedText };
+}
+
+function StatusBadge({ status }: { status: string }) {
+    const config: Record<string, { label: string; className: string }> = {
+        SENT: { label: 'Waiting', className: 'bg-gray-100 text-gray-600' },
+        FOLLOW_UP_DUE: { label: 'Action Needed', className: 'bg-amber-100 text-amber-700' },
+        REPLIED: { label: 'Replied', className: 'bg-green-100 text-green-700' },
+        CLOSED: { label: 'Closed', className: 'bg-gray-100 text-gray-500' },
+    };
+
+    const { label, className } = config[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
+
+    return (
+        <span className={`text-[10px] font-medium px-2 py-1 rounded ${className}`}>
+            {label}
+        </span>
+    );
+}
+
+function formatRelativeTime(timestamp: string): string {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
+
+function formatFullDate(timestamp: string): string {
+    return new Date(timestamp).toLocaleString();
 }
