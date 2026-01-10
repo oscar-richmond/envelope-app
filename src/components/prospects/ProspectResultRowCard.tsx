@@ -195,7 +195,7 @@ export default function ProspectResultRowCard({
                         scoreColor={matchColor}
                         subtext={matchHelper}
                         onDetails={isMatched ? onMatchEvidence : undefined}
-                        action={!isMatched ? (
+                        action={!isMatched && !isMatchLoading ? (
                             <button onClick={onFindWebsite} className="text-xs text-blue-600 hover:underline font-medium">Find Website</button>
                         ) : undefined}
                     />
