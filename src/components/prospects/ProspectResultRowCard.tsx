@@ -85,8 +85,8 @@ export default function ProspectResultRowCard({
     return (
         <div
             className={`
-                group bg-white rounded-2xl border border-gray-200 p-4 transition-all duration-150
-                hover:shadow-md hover:border-gray-300 hover:bg-slate-50/40 relative
+                group bg-white rounded-2xl border border-gray-200 p-2 pl-4 pr-2 transition-all duration-150
+                hover:shadow-md hover:border-gray-300 hover:bg-slate-50/20 relative
                 ${status === 'ADDED' ? 'bg-green-50/30 border-green-200' : ''}
             `}
         >
@@ -99,10 +99,10 @@ export default function ProspectResultRowCard({
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_220px] gap-6 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_220px] gap-4 items-center h-full">
 
                 {/* 1. Company Identity (Fixed 320px) */}
-                <div className="flex flex-col gap-1 pr-6 border-r border-gray-100 lg:border-none min-w-0 max-w-[340px]">
+                <div className="flex flex-col gap-1 pr-6 min-w-0 max-w-[340px] py-1">
                     <CompanyNameLink
                         prospectId={c.id}
                         name={c.companyName}
@@ -141,7 +141,7 @@ export default function ProspectResultRowCard({
                 </div>
 
                 {/* 2. Metrics Grid (Flex 1 - Tight) */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 border-l border-gray-100 h-full items-center py-1">
 
                     {/* B. Lead Opportunity (Priority) - 1st */}
                     <MetricTile
@@ -202,49 +202,49 @@ export default function ProspectResultRowCard({
 
                 </div>
 
-                {/* 3. Actions (Fixed 220px) */}
-                <div className="flex flex-col items-end gap-3 justify-center pl-4 border-l border-gray-100/50 h-full">
+                {/* 3. Actions (Control Panel) */}
+                <div className="flex flex-col items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 h-full">
 
                     {/* Primary CTA */}
-                    {status !== 'ADDED' && (
+                    {status !== 'ADDED' ? (
                         <button
                             onClick={onCheckAddLead}
-                            className="bg-gray-900 text-white hover:bg-black transition shadow-sm hover:shadow-md text-sm font-semibold px-6 py-2 rounded-full flex items-center justify-center gap-2 w-[160px]"
+                            className="bg-gray-900 text-white hover:bg-black transition shadow-sm hover:shadow-md text-sm font-semibold px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-full"
                         >
                             <Plus size={16} /> Add
                         </button>
+                    ) : (
+                        <div className="w-full h-9"></div> // Spacer
                     )}
 
-                    {/* Quick Actions Label + Icons */}
-                    <div className="flex flex-col items-end gap-1 w-full">
-                        <div className="flex items-center gap-2 justify-end">
+                    {/* Quick Actions Grid */}
+                    <div className="flex items-center gap-2 justify-between w-full">
+                        <TooltipButton
+                            icon={Maximize2}
+                            onClick={() => document.getElementById(`company-link-${c.id}`)?.click()}
+                            label="Inspect"
+                            baseColor="blue"
+                        />
+                        <TooltipButton
+                            icon={PenTool}
+                            onClick={onDraftEmail}
+                            label="Compose"
+                            baseColor="purple"
+                        />
+                        <TooltipButton
+                            icon={Database}
+                            onClick={onFindEmails}
+                            label="Find Emails"
+                            baseColor="teal"
+                        />
+                        {status !== 'ADDED' && (
                             <TooltipButton
-                                icon={Maximize2}
-                                onClick={() => document.getElementById(`company-link-${c.id}`)?.click()}
-                                label="Inspect"
-                                baseColor="blue"
+                                icon={X}
+                                onClick={() => onAction('REJECT')}
+                                label="Remove"
+                                baseColor="rose"
                             />
-                            <TooltipButton
-                                icon={PenTool}
-                                onClick={onDraftEmail}
-                                label="Compose"
-                                baseColor="purple"
-                            />
-                            <TooltipButton
-                                icon={Database}
-                                onClick={onFindEmails}
-                                label="Find Emails"
-                                baseColor="teal"
-                            />
-                            {status !== 'ADDED' && (
-                                <TooltipButton
-                                    icon={X}
-                                    onClick={() => onAction('REJECT')}
-                                    label="Remove"
-                                    baseColor="rose"
-                                />
-                            )}
-                        </div>
+                        )}
                     </div>
 
                 </div>
@@ -256,20 +256,20 @@ export default function ProspectResultRowCard({
 
 function TooltipButton({ icon: Icon, onClick, label, baseColor = "gray" }: any) {
     const colorStyles: any = {
-        gray: "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-700",
-        blue: "bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-700",
-        purple: "bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100 hover:border-purple-300 hover:text-purple-700",
-        teal: "bg-teal-50 border-teal-200 text-teal-600 hover:bg-teal-100 hover:border-teal-300 hover:text-teal-700",
-        rose: "bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100 hover:border-rose-300 hover:text-rose-700"
+        gray: "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700",
+        blue: "bg-white border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700",
+        purple: "bg-white border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700",
+        teal: "bg-white border-teal-200 text-teal-600 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700",
+        rose: "bg-white border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700"
     };
 
     return (
         <button
             onClick={onClick}
-            className={`p-2 rounded-lg transition-all border ${colorStyles[baseColor]}`}
+            className={`p-2 rounded-lg transition-all border shadow-sm ${colorStyles[baseColor]}`}
             title={label}
         >
-            <Icon size={18} />
+            <Icon size={16} />
         </button>
     );
 }

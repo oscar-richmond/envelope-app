@@ -34,9 +34,9 @@ export default function MetricTile({
 
     if (action) {
         return (
-            <div className={`flex flex-col h-full justify-between p-3 rounded-xl bg-gray-50 border border-gray-100/60 ${className}`}>
+            <div className={`flex flex-col h-full justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 ${className}`}>
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
                 </div>
                 <div className="mt-auto">{action}</div>
             </div>
@@ -44,31 +44,33 @@ export default function MetricTile({
     }
 
     return (
-        <div className={`flex flex-col h-full p-3 rounded-xl bg-gray-50 border border-gray-100/60 hover:bg-white hover:border-gray-200 hover:shadow-sm transition-all group/tile relative ${className}`}>
-            <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</span>
+        <div
+            className={`flex flex-col h-full p-3 rounded-xl bg-gray-50 border border-gray-100 transition-all group/tile relative ${className} hover:bg-white hover:border-gray-200 hover:shadow-sm`}
+        >
+            <div className="flex items-center justify-between mb-1.5 h-4">
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
                 {onDetails && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onDetails(); }}
-                        className="text-gray-300 hover:text-indigo-600 transition-colors -mr-1 p-0.5 rounded-full hover:bg-indigo-50"
+                        className="text-gray-300 hover:text-indigo-600 transition-colors -mr-1 p-0.5 rounded hover:bg-indigo-50"
                         title="View details"
                     >
-                        <ChevronRight size={14} />
+                        <ChevronRight size={14} strokeWidth={2.5} />
                     </button>
                 )}
             </div>
 
             <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-bold text-gray-900 truncate">{value}</span>
+                <span className="text-sm font-bold text-gray-900 truncate tracking-tight">{value}</span>
                 {score !== undefined && (
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${pillColors[scoreColor]}`}>
+                    <span className={`px-1.5 py-0.5 rounded-lg text-[10px] font-bold ${pillColors[scoreColor]}`}>
                         {score}
                     </span>
                 )}
             </div>
 
             {subtext && (
-                <div className="text-[10px] text-gray-500 truncate w-full" title={subtext}>
+                <div className="text-[10px] text-gray-500 truncate w-full mt-auto" title={subtext}>
                     {subtext}
                 </div>
             )}
