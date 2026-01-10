@@ -845,7 +845,7 @@ export default function ProspectSearch() {
                             <input
                                 type="text"
                                 placeholder="e.g. Tesla"
-                                className="input pl-12"
+                                className="input !pl-11"
                                 value={filters.query}
                                 onChange={(e) => setFilters({ ...filters, query: e.target.value })}
                             />
