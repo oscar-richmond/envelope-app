@@ -117,6 +117,7 @@
   /* ─────────────────────────────────────────
      SPACING (4px base grid)
      ───────────────────────────────────────── */
+  --space-0: 0;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -126,6 +127,18 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
+  --space-16: 64px;
+
+  /* ─────────────────────────────────────────
+     MOTION (Apple-style smooth)
+     ───────────────────────────────────────── */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 120ms;
+  --duration-med: 200ms;
+  --duration-slow: 300ms;
 
   /* ─────────────────────────────────────────
      TYPOGRAPHY (Unified DM Sans)
@@ -135,22 +148,57 @@
   --font-body: var(--font-sans);
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
 
-  /* Legacy mappings for compatibility */
-  --background: var(--bg-page);
-  --background-subtle: #f5f4f2;
-  --foreground: var(--text-primary);
-  --foreground-muted: var(--text-secondary);
-  --surface: var(--bg-card);
+  /* ─────────────────────────────────────────
+     SURFACE ALIASES (Semantic layering)
+     ───────────────────────────────────────── */
+  --surface-1: var(--bg-card);
+  --surface-2: var(--bg-card-muted);
+  --surface-3: #f0f0f0;
   --surface-hover: #fafafa;
   --surface-active: #f3f4f6;
+
+  /* ─────────────────────────────────────────
+     CHIP / BADGE TOKENS (Status colours)
+     ───────────────────────────────────────── */
+  --chip-success-bg: var(--success-light);
+  --chip-success-text: var(--success-text);
+  --chip-success-border: rgba(16, 185, 129, 0.25);
+
+  --chip-warning-bg: var(--warning-light);
+  --chip-warning-text: var(--warning-text);
+  --chip-warning-border: rgba(245, 158, 11, 0.25);
+
+  --chip-danger-bg: var(--error-light);
+  --chip-danger-text: var(--error-text);
+  --chip-danger-border: rgba(239, 68, 68, 0.25);
+
+  --chip-info-bg: var(--info-light);
+  --chip-info-text: var(--info-text);
+  --chip-info-border: rgba(59, 130, 246, 0.25);
+
+  --chip-neutral-bg: var(--bg-card-muted);
+  --chip-neutral-text: var(--text-secondary);
+  --chip-neutral-border: var(--border-soft);
+
+  --chip-accent-bg: var(--accent-lilac-bg);
+  --chip-accent-text: var(--accent-lilac-text);
+  --chip-accent-border: rgba(184, 166, 255, 0.25);
+
+  /* ─────────────────────────────────────────
+     BRAND TOKENS (Primary action)
+     ───────────────────────────────────────── */
+  --brand-primary: var(--accent-blue);
+  --brand-primary-hover: var(--accent-blue-hover);
+  --brand-accent: var(--accent-lilac);
+  --brand-accent-hover: #a08aff;
+
+  /* Legacy mappings for compatibility */
+  --background: var(--bg-page);
+  --foreground: var(--text-primary);
   --accent: var(--accent-blue);
   --accent-hover: var(--accent-blue-hover);
-  --accent-light: var(--accent-blue-light);
-  --accent-text: var(--accent-blue-text);
   --border: var(--border-default);
-  --border-subtle: #f3f4f6;
   --radius: var(--radius-default);
-  --font-sans: var(--font-body);
 }
 
 @theme inline {
