@@ -22,9 +22,9 @@ export default async function AppLayout({
     }
 
     return (
-        <div className="flex min-h-screen">
+        <div className="flex min-h-screen bg-[var(--background)]">
             <Sidebar />
-            <main className="flex-1 overflow-auto bg-gray-50/50">
+            <main className="flex-1 overflow-auto">
                 {children}
             </main>
         </div>
