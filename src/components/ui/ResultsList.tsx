@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { ChevronDown, Search, ArrowUpDown } from 'lucide-react';
+import { ArrowUpDown } from 'lucide-react';
 
 interface ResultsListContainerProps {
     children: ReactNode;
@@ -23,18 +23,27 @@ interface ResultsListHeaderProps {
 
 export function ResultsListHeader({ columns, currentSort, onSort, totalCount }: ResultsListHeaderProps) {
     return (
-        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 py-3 px-4 flex items-center shadow-sm mb-4 rounded-xl">
-            <div className="w-full grid grid-cols-1 md:grid-cols-[320px_1fr_260px] gap-4 items-center">
+        <div
+            className="sticky top-0 z-10 py-4 px-5 flex items-center mb-4 rounded-[var(--radius-xl)]"
+            style={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid var(--border-soft)',
+                boxShadow: 'var(--shadow-card)'
+            }}
+        >
+            <div className="w-full grid grid-cols-1 md:grid-cols-[360px_1fr_260px] gap-6 items-center">
                 {columns.map((col, i) => (
                     <div
                         key={i}
-                        className={`text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1 ${col.className || ''}`}
+                        className={`text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5 ${col.className || ''}`}
+                        style={{ color: 'var(--text-muted)' }}
                     >
                         {col.label}
                         {col.sortable && onSort && (
                             <button
                                 onClick={() => col.sortKey && onSort(col.sortKey)}
-                                className={`p-1 hover:bg-gray-100 rounded ${currentSort === col.sortKey ? 'text-indigo-600' : 'text-gray-400'}`}
+                                className={`p-1 rounded-[var(--radius-sm)] transition-colors ${currentSort === col.sortKey ? 'text-[var(--accent-blue)] bg-[var(--accent-blue-light)]' : 'hover:bg-[var(--bg-card-muted)]'}`}
                             >
                                 <ArrowUpDown size={12} />
                             </button>
@@ -43,7 +52,10 @@ export function ResultsListHeader({ columns, currentSort, onSort, totalCount }: 
                 ))}
             </div>
             {totalCount !== undefined && (
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">
+                <div
+                    className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-medium"
+                    style={{ color: 'var(--text-muted)' }}
+                >
                     {totalCount} Results
                 </div>
             )}
@@ -63,15 +75,35 @@ export function ResultsListEmptyState({
     action?: ReactNode
 }) {
     return (
-        <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-300">
+        <div
+            className="text-center py-20 rounded-[var(--radius-card)]"
+            style={{
+                background: 'var(--bg-card)',
+                border: '1px dashed var(--border-default)'
+            }}
+        >
             {Icon && (
-                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Icon className="h-6 w-6 text-gray-400" />
+                <div
+                    className="w-14 h-14 rounded-[var(--radius-lg)] flex items-center justify-center mx-auto mb-5"
+                    style={{ background: 'var(--bg-card-muted)', color: 'var(--text-muted)' }}
+                >
+                    <Icon className="h-7 w-7" />
                 </div>
             )}
-            <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-            <p className="mt-1 text-sm text-gray-500 max-w-sm mx-auto">{description}</p>
+            <h3
+                className="text-lg font-semibold mb-2"
+                style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
+            >
+                {title}
+            </h3>
+            <p
+                className="text-sm max-w-sm mx-auto"
+                style={{ color: 'var(--text-secondary)' }}
+            >
+                {description}
+            </p>
             {action && <div className="mt-6">{action}</div>}
         </div>
     );
 }
+

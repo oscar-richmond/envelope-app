@@ -5,30 +5,65 @@ interface StatsCardProps {
     value: string | number | React.ReactNode;
     icon?: React.ReactNode;
     trend?: string;
-    color?: 'default' | 'indigo' | 'green' | 'amber' | 'rose';
-    compact?: boolean; // New prop for sidebar usage
+    color?: 'default' | 'indigo' | 'green' | 'amber' | 'rose' | 'mint' | 'lilac';
+    compact?: boolean;
+    dark?: boolean;
 }
 
-export function StatsCard({ label, value, icon, trend, color = 'default', compact = false }: StatsCardProps) {
-    const colorStyles = {
-        default: 'border-l-4 border-gray-200',
-        indigo: 'border-l-4 border-indigo-400',
-        green: 'border-l-4 border-green-400',
-        amber: 'border-l-4 border-amber-400',
-        rose: 'border-l-4 border-rose-400',
+export function StatsCard({ label, value, icon, trend, color = 'default', compact = false, dark = false }: StatsCardProps) {
+    const colorStyles: Record<string, string> = {
+        default: 'border-l-4 border-[var(--border-default)]',
+        indigo: 'border-l-4 border-[var(--accent-blue)]',
+        green: 'border-l-4 border-[var(--success)]',
+        amber: 'border-l-4 border-[var(--warning)]',
+        rose: 'border-l-4 border-[var(--error)]',
+        mint: 'border-l-4 border-[var(--accent-mint)]',
+        lilac: 'border-l-4 border-[var(--accent-lilac)]',
     };
 
+    const bgClass = dark
+        ? 'bg-[var(--bg-dark-card)] text-[var(--text-on-dark-primary)]'
+        : 'bg-[var(--bg-card)]';
+
     return (
-        <div className={`card ${compact ? 'p-3' : 'p-4'} flex items-start justify-between ${colorStyles[color]} hover:shadow-md transition-shadow h-full`}>
+        <div
+            className={`
+                ${compact ? 'p-4' : 'p-5'} 
+                flex items-start justify-between 
+                ${colorStyles[color]} 
+                ${bgClass}
+                rounded-[var(--radius-xl)]
+                border border-[var(--border-soft)]
+                shadow-[var(--shadow-card)]
+                hover:shadow-[var(--shadow-card-hover)]
+                transition-all duration-200
+                h-full
+            `}
+        >
             <div className="min-w-0">
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 opacity-80">{label}</p>
-                <div className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-gray-900 truncate pr-1`}>{value}</div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-muted)]" style={dark ? { color: 'var(--text-on-dark-secondary)' } : {}}>
+                    {label}
+                </p>
+                <div
+                    className={`${compact ? 'text-2xl' : 'text-3xl'} font-bold truncate pr-1`}
+                    style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
+                >
+                    {value}
+                </div>
                 {trend && (
-                    <p className="text-xs text-gray-400 mt-1">{trend}</p>
+                    <p className="text-xs mt-1.5 text-[var(--text-muted)]" style={dark ? { color: 'var(--text-on-dark-secondary)' } : {}}>
+                        {trend}
+                    </p>
                 )}
             </div>
             {icon && (
-                <div className={`p-1.5 bg-gray-50 rounded-lg text-gray-400 shrink-0 ${compact ? 'scale-90' : ''}`}>
+                <div
+                    className={`p-2 rounded-[var(--radius-md)] shrink-0 ${compact ? 'scale-90' : ''}`}
+                    style={{
+                        background: dark ? 'rgba(255,255,255,0.08)' : 'var(--bg-card-muted)',
+                        color: dark ? 'var(--text-on-dark-secondary)' : 'var(--text-muted)'
+                    }}
+                >
                     {icon}
                 </div>
             )}
@@ -38,8 +73,9 @@ export function StatsCard({ label, value, icon, trend, color = 'default', compac
 
 export function StatsGrid({ children, className }: { children: React.ReactNode, className?: string }) {
     return (
-        <div className={`grid grid-cols-1 gap-3 mb-6 ${className || 'sm:grid-cols-2 lg:grid-cols-4'}`}>
+        <div className={`grid grid-cols-1 gap-4 mb-6 ${className || 'sm:grid-cols-2 lg:grid-cols-4'}`}>
             {children}
         </div>
     );
 }
+
