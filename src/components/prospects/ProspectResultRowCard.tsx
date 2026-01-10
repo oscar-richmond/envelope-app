@@ -53,7 +53,7 @@ export default function ProspectResultRowCard({
     const matchConfidence = c.websiteConfidence || 'LOW';
     const isMatched = matchStatus === 'MATCHED' || (matchStatus === 'NEW' && c.websiteUrl);
 
-    let matchLabel = isMatched ? (matchConfidence === 'HIGH' ? 'High Match' : matchConfidence === 'MEDIUM' ? 'Medium Match' : 'Low Match') : 'No Match';
+    let matchLabel = isMatched ? (matchConfidence === 'HIGH' ? 'High' : matchConfidence === 'MEDIUM' ? 'Medium' : 'Low') : 'No Match';
     let matchColor: any = isMatched ? (matchConfidence === 'HIGH' ? 'green' : matchConfidence === 'MEDIUM' ? 'amber' : 'red') : 'gray';
     let matchHelper = isMatched ? c.websiteUrl?.replace(/^https?:\/\/(www\.)?/, '') : 'No URL found';
 
@@ -79,15 +79,14 @@ export default function ProspectResultRowCard({
     let priorityColor: any = priorityBand === 'High' ? 'purple' : priorityBand === 'Medium' ? 'blue' : 'gray';
     const priorityScore = c.contactPriorityScore;
 
-    // --- Interaction Wrappers ---
-    // const handleMatchClick = (e: any) => { e.stopPropagation(); if (isMatched) onMatchEvidence(); else onFindWebsite(); };
-    const formatLocation = (loc: string) => loc ? loc.split(',')[0] : 'Unknown Location';
+    // --- Formatting ---
+    const formatLocation = (loc: string) => loc ? loc.split(',')[0] : 'Unknown';
 
     return (
         <div
             className={`
-                group bg-white rounded-2xl border border-gray-200 py-3 px-4 transition-all duration-200
-                hover:shadow-md hover:border-gray-300 relative
+                group bg-white rounded-2xl border border-gray-200 p-4 transition-all duration-150
+                hover:shadow-md hover:border-gray-300 hover:bg-slate-50/40 relative
                 ${status === 'ADDED' ? 'bg-green-50/30 border-green-200' : ''}
             `}
         >
@@ -100,61 +99,61 @@ export default function ProspectResultRowCard({
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_180px] gap-4 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_220px] gap-6 items-center">
 
-                {/* 1. Company Identity (Fixed 280px) */}
-                <div className="flex flex-col gap-0.5 pr-4 border-r border-gray-100 lg:border-none min-w-0">
+                {/* 1. Company Identity (Fixed 320px) */}
+                <div className="flex flex-col gap-1 pr-6 border-r border-gray-100 lg:border-none min-w-0 max-w-[340px]">
                     <CompanyNameLink
                         prospectId={c.id}
                         name={c.companyName}
-                        className="font-semibold text-gray-900 text-base hover:text-indigo-600 transition truncate leading-tight block w-full"
+                        className="font-bold text-gray-900 text-base hover:text-indigo-600 transition truncate leading-tight block w-full cursor-pointer"
                         onCompose={onDraftEmail}
                     />
 
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500 truncate w-full">
-                        <span className="font-mono text-gray-400">{c.companyNumber}</span>
+                    {/* Compact One-Line Meta */}
+                    <div className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                        <span className="font-mono text-gray-400 text-xs">{c.companyNumber}</span>
                         <span className="text-gray-300">•</span>
-                        {c.location && (
-                            <button onClick={onViewLocation} className="hover:text-indigo-600 hover:underline truncate">
+                        {c.location ? (
+                            <button onClick={onViewLocation} className="hover:text-indigo-600 hover:underline truncate max-w-[100px]" title={c.location}>
                                 {formatLocation(c.location)}
                             </button>
-                        )}
+                        ) : 'Unknown'}
                         <span className="text-gray-300">•</span>
-                        <span className={`px-1 rounded text-[10px] ${c.companyStatus === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
-                            {c.companyStatus || 'active'}
+                        <span className={`${c.companyStatus === 'active' ? 'text-green-600' : 'text-gray-500'} capitalize`}>
+                            {c.companyStatus || 'Active'}
                         </span>
                     </div>
 
+                    {/* Compact Pills (Max 1 + overflow) */}
                     <div className="flex flex-wrap gap-1 mt-1.5 h-6 overflow-hidden">
-                        {c.sicCodes?.slice(0, 2).map((code: string) => (
-                            <span key={code} className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-[10px] font-medium border border-gray-200">
+                        {c.sicCodes?.slice(0, 1).map((code: string) => (
+                            <span key={code} className="bg-gray-50 text-gray-500 px-2 py-0.5 rounded-md text-xs border border-gray-100 truncate max-w-[180px]">
                                 {code}
                             </span>
                         ))}
-                        {c.sicCodes?.length > 2 && (
-                            <span className="bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full text-[10px] font-medium border border-gray-200">
-                                +{c.sicCodes.length - 2}
+                        {c.sicCodes?.length > 1 && (
+                            <span className="bg-gray-50 text-gray-400 px-2 py-0.5 rounded-md text-xs border border-gray-100">
+                                +{c.sicCodes.length - 1}
                             </span>
                         )}
                     </div>
                 </div>
 
-                {/* 2. Metrics Strip (Flex 1) */}
-                <div className="flex items-center justify-between gap-6 px-4 border-l border-gray-50 lg:border-none overflow-x-auto no-scrollbar">
+                {/* 2. Metrics Grid (Flex 1 - Tight) */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-                    {/* A. Website Match */}
+                    {/* B. Lead Opportunity (Priority) - 1st */}
                     <MetricTile
-                        label="Website Match"
-                        value={isMatched ? matchLabel : (isMatchLoading ? 'Searching...' : 'Not Matched')}
-                        scoreColor={matchColor}
-                        subtext={matchHelper}
-                        onDetails={isMatched ? onMatchEvidence : undefined}
-                        action={!isMatched ? (
-                            <button onClick={onFindWebsite} className="text-xs text-blue-600 hover:underline font-medium">Find Website</button>
-                        ) : undefined}
+                        label="Lead Opportunity"
+                        value={priorityBand}
+                        score={priorityScore || undefined}
+                        scoreColor={priorityColor}
+                        subtext="Based on signals"
+                        onDetails={onPriorityEvidence}
                     />
 
-                    {/* B. Website Health */}
+                    {/* C. Website Health - 2nd */}
                     <MetricTile
                         label="Website Health"
                         value={c.websiteUrl ? staleLabel : '-'}
@@ -164,7 +163,7 @@ export default function ProspectResultRowCard({
                         onDetails={c.scoreReasons ? onPriorityEvidence : undefined}
                     />
 
-                    {/* C. Financials */}
+                    {/* D. Financials - 3rd */}
                     {finBand === 'Unknown' && !isFinancialLoading ? (
                         <MetricTile
                             label="Financial Health"
@@ -172,7 +171,7 @@ export default function ProspectResultRowCard({
                             action={
                                 <button
                                     onClick={onCheckFinancials}
-                                    className="text-[10px] whitespace-nowrap bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600 hover:bg-white hover:text-indigo-600 transition"
+                                    className="w-full text-xs font-medium bg-white border border-gray-200 rounded px-2 py-1.5 text-gray-600 hover:text-indigo-600 hover:border-indigo-200 transition"
                                 >
                                     Check Info
                                 </button>
@@ -189,26 +188,28 @@ export default function ProspectResultRowCard({
                         />
                     )}
 
-                    {/* D. Lead Opportunity */}
+                    {/* A. Website Match - 4th */}
                     <MetricTile
-                        label="Lead Opportunity"
-                        value={priorityBand}
-                        score={priorityScore || undefined}
-                        scoreColor={priorityColor}
-                        subtext="Based on signals"
-                        onDetails={onPriorityEvidence}
+                        label="Website Match"
+                        value={isMatched ? matchLabel : (isMatchLoading ? 'Searching...' : 'Not Matched')}
+                        scoreColor={matchColor}
+                        subtext={matchHelper}
+                        onDetails={isMatched ? onMatchEvidence : undefined}
+                        action={!isMatched ? (
+                            <button onClick={onFindWebsite} className="text-xs text-blue-600 hover:underline font-medium">Find Website</button>
+                        ) : undefined}
                     />
 
                 </div>
 
-                {/* 3. Actions (Fixed 180px) */}
-                <div className="flex flex-col items-end gap-2 justify-center pl-4 border-l border-gray-100 h-full">
+                {/* 3. Actions (Fixed 220px) */}
+                <div className="flex flex-col items-end gap-3 justify-center pl-4 border-l border-gray-100/50 h-full">
 
                     {/* Primary CTA */}
                     {status !== 'ADDED' && (
                         <button
                             onClick={onCheckAddLead}
-                            className="bg-gray-900 text-white hover:bg-black transition shadow-sm hover:shadow-md text-sm font-semibold px-5 py-2 rounded-full flex items-center justify-center gap-1.5 w-full"
+                            className="bg-gray-900 text-white hover:bg-black transition shadow-sm hover:shadow-md text-sm font-semibold px-6 py-2 rounded-full flex items-center justify-center gap-2 w-[160px]"
                         >
                             <Plus size={16} /> Add
                         </button>
@@ -216,7 +217,6 @@ export default function ProspectResultRowCard({
 
                     {/* Quick Actions Label + Icons */}
                     <div className="flex flex-col items-end gap-1 w-full">
-                        <span className="text-[9px] text-gray-300 uppercase tracking-widest font-bold pr-1">Quick Actions</span>
                         <div className="flex items-center gap-2 justify-end">
                             <TooltipButton
                                 icon={Maximize2}
@@ -266,10 +266,10 @@ function TooltipButton({ icon: Icon, onClick, label, baseColor = "gray" }: any) 
     return (
         <button
             onClick={onClick}
-            className={`p-2 rounded-xl transition-all border ${colorStyles[baseColor]}`}
+            className={`p-2 rounded-lg transition-all border ${colorStyles[baseColor]}`}
             title={label}
         >
-            <Icon size={16} />
+            <Icon size={18} />
         </button>
     );
 }
