@@ -16,57 +16,18 @@ import WebsiteEvidenceModal from '@/components/modals/WebsiteEvidenceModal';
 import FinancialReportModal from '@/components/modals/FinancialReportModal';
 
 export default function CompanyInspector() {
-    const { activeLeadId, close, togglePin, pinnedWidth, resize } = useCompanyViewer();
+    const { activeLeadId, close, togglePin, pinnedWidth, resize, viewerMode } = useCompanyViewer();
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'Overview' | 'Contacts' | 'Thread'>('Overview');
 
-    // Modal State
-    const [isWebsiteModalOpen, setIsWebsiteModalOpen] = useState(false);
-    const [isFinancialModalOpen, setIsFinancialModalOpen] = useState(false);
+    // ... (Modal State)
 
-    // Resizing Logic
-    const isResizing = useRef(false);
+    // ... (Resizing Logic)
 
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            if (!isResizing.current) return;
-            // Calculate new width: Window Width - Mouse X
-            const newWidth = window.innerWidth - e.clientX;
-            resize(newWidth);
-        };
+    // ... (Data Fetching)
 
-        const handleMouseUp = () => {
-            isResizing.current = false;
-            document.body.style.cursor = 'default';
-        };
-
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [resize]);
-
-    // Data Fetching
-    useEffect(() => {
-        if (!activeLeadId) return;
-        async function fetchData() {
-            setLoading(true);
-            try {
-                const res = await fetch(`/api/company/${activeLeadId}/overview`);
-                if (res.ok) setData(await res.json());
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchData();
-    }, [activeLeadId]);
-
-    if (!activeLeadId) return null;
+    if (!activeLeadId || viewerMode !== 'pinned') return null;
 
     return (
         <div
