@@ -188,8 +188,8 @@ body {
   background: var(--bg-page);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -200,7 +200,8 @@ body {
 
 /* Display (Big dashboard numbers) */
 .text-display {
-  font-size: 2.75rem;
+  font-size: 3rem;
+  /* 48px - hero numbers */
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.03em;
@@ -209,8 +210,8 @@ body {
 /* Page titles */
 h1,
 .h1 {
-  font-size: 1.75rem;
-  /* 28px */
+  font-size: 1.875rem;
+  /* 30px */
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.02em;
@@ -219,8 +220,8 @@ h1,
 /* Modal / Section titles */
 h2,
 .h2 {
-  font-size: 1.375rem;
-  /* 22px */
+  font-size: 1.5rem;
+  /* 24px */
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.015em;
@@ -229,8 +230,8 @@ h2,
 /* Section headers */
 h3,
 .h3 {
-  font-size: 1.125rem;
-  /* 18px */
+  font-size: 1.25rem;
+  /* 20px */
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.01em;
@@ -239,58 +240,58 @@ h3,
 /* Card titles / table primary */
 h4,
 .h4 {
-  font-size: 1rem;
-  /* 16px */
+  font-size: 1.125rem;
+  /* 18px */
   font-weight: 600;
   line-height: 1.35;
 }
 
 /* Meta / helper text */
 .text-xs {
-  font-size: 0.75rem;
-  /* 12px */
+  font-size: 0.8125rem;
+  /* 13px */
   line-height: 1.35;
 }
 
 /* UI body (default for tables) */
 .text-sm {
-  font-size: 0.875rem;
-  /* 14px */
+  font-size: 0.9375rem;
+  /* 15px */
   line-height: 1.5;
 }
 
 /* Card titles / emphasized */
 .text-base {
-  font-size: 1rem;
-  /* 16px */
+  font-size: 1.0625rem;
+  /* 17px */
   line-height: 1.5;
 }
 
 /* Section headers */
 .text-lg {
-  font-size: 1.125rem;
-  /* 18px */
+  font-size: 1.25rem;
+  /* 20px */
   line-height: 1.35;
 }
 
 /* Page titles */
 .text-xl {
-  font-size: 1.375rem;
-  /* 22px */
+  font-size: 1.5rem;
+  /* 24px */
   line-height: 1.15;
 }
 
 /* Hero titles */
 .text-2xl {
-  font-size: 1.75rem;
-  /* 28px */
+  font-size: 1.875rem;
+  /* 30px */
   line-height: 1.15;
 }
 
 /* Section label (uppercase meta) */
 .text-label {
-  font-size: 0.6875rem;
-  /* 11px */
+  font-size: 0.75rem;
+  /* 12px */
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
