@@ -108,7 +108,18 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                 <div className="space-y-8 xl:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <ContactsCard leadId={lead.id} contacts={lead.contacts} />
-                        <ThreadPreview sentEmails={lead.sentEmails} />
+                        <ThreadPreview sentEmails={lead.sentEmails.map(e => ({
+                            ...e,
+                            sentAt: e.sentAt, // Pass as Date? No, MUST be string for client comp. But ThreadPreview expects what?
+                            // Wait, ThreadPreview uses `new Date(latestEmail.sentAt)`.
+                            // If I pass string, new Date(string) works.
+                            // If I pass Date object, Client Comp crash?
+                            // YES. Server->Client prop must be JSON serializable.
+                            // So I must convert to string.
+                            sentAt: e.sentAt.toISOString(),
+                            createdAt: e.createdAt.toISOString(),
+                            updatedAt: e.updatedAt.toISOString()
+                        }))} />
                     </div>
 
                     {/* Composer Area */}
