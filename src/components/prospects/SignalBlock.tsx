@@ -37,10 +37,10 @@ export default function SignalBlock({
                 {onExplain && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onExplain(); }}
-                        className="text-gray-300 hover:text-indigo-600 transition-colors p-0.5 rounded-full hover:bg-indigo-50"
-                        title="View evidence/details"
+                        className="text-[10px] font-medium text-gray-500 hover:text-indigo-600 bg-white border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 px-2 py-0.5 rounded transition-all shadow-sm"
+                        title="View details"
                     >
-                        <Info size={12} />
+                        Details
                     </button>
                 )}
             </div>

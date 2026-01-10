@@ -202,25 +202,45 @@ export default function ProspectResultRowCard({
                 </div>
 
                 {/* 3. Actions (2 cols) - Stacked / Aligned */}
-                <div className="lg:col-span-2 flex flex-col sm:flex-row lg:flex-col lg:items-end gap-2 justify-center pl-2 border-l border-gray-100 lg:border-none">
+                <div className="lg:col-span-2 flex flex-col sm:flex-row lg:flex-col lg:items-end gap-3 justify-center pl-2 border-l border-gray-100 lg:border-none">
 
                     {/* Primary CTA */}
                     {status !== 'ADDED' && (
                         <button
                             onClick={onCheckAddLead}
-                            className="bg-gray-900 text-white hover:bg-black transition shadow-lg shadow-gray-200 text-sm font-semibold px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-full sm:w-auto lg:w-full"
+                            className="bg-gray-900 text-white hover:bg-black transition shadow-lg shadow-gray-200 text-sm font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 w-full sm:w-auto lg:w-full"
                         >
                             <Plus size={16} /> Add
                         </button>
                     )}
 
                     {/* Secondary Icon Row */}
-                    <div className="flex items-center gap-1 mt-1 justify-end w-full">
-                        <TooltipButton icon={Maximize2} onClick={() => document.getElementById(`company-link-${c.id}`)?.click()} label="Inspect" />
-                        <TooltipButton icon={PenTool} onClick={onDraftEmail} label="Compose" />
-                        <TooltipButton icon={Database} onClick={onFindEmails} label="Find Emails" />
+                    <div className="flex items-center gap-2 mt-1 justify-end w-full">
+                        <TooltipButton
+                            icon={Maximize2}
+                            onClick={() => document.getElementById(`company-link-${c.id}`)?.click()}
+                            label="Inspect"
+                            baseColor="blue"
+                        />
+                        <TooltipButton
+                            icon={PenTool}
+                            onClick={onDraftEmail}
+                            label="Compose"
+                            baseColor="purple"
+                        />
+                        <TooltipButton
+                            icon={Database}
+                            onClick={onFindEmails}
+                            label="Find Emails"
+                            baseColor="teal"
+                        />
                         {status !== 'ADDED' && (
-                            <TooltipButton icon={X} onClick={() => onAction('REJECT')} label="Remove" color="text-gray-400 hover:text-rose-600 hover:bg-rose-50" />
+                            <TooltipButton
+                                icon={X}
+                                onClick={() => onAction('REJECT')}
+                                label="Remove"
+                                baseColor="rose"
+                            />
                         )}
                     </div>
 
@@ -231,11 +251,19 @@ export default function ProspectResultRowCard({
     );
 }
 
-function TooltipButton({ icon: Icon, onClick, label, color = "text-gray-400 hover:text-indigo-600 hover:bg-gray-50" }: any) {
+function TooltipButton({ icon: Icon, onClick, label, baseColor = "gray" }: any) {
+    const colorStyles: any = {
+        gray: "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-700",
+        blue: "bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-700",
+        purple: "bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100 hover:border-purple-300 hover:text-purple-700",
+        teal: "bg-teal-50 border-teal-200 text-teal-600 hover:bg-teal-100 hover:border-teal-300 hover:text-teal-700",
+        rose: "bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100 hover:border-rose-300 hover:text-rose-700"
+    };
+
     return (
         <button
             onClick={onClick}
-            className={`p-2 rounded-lg transition-colors border border-transparent hover:border-gray-200 ${color}`}
+            className={`p-2.5 rounded-xl transition-all border ${colorStyles[baseColor]}`}
             title={label}
         >
             <Icon size={18} />
