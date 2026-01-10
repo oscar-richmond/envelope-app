@@ -165,78 +165,123 @@ body {
 }
 
 /* ========================================
-   TYPOGRAPHY SCALE
+   TYPOGRAPHY SCALE (Premium Hierarchy)
    ======================================== */
 
 /* Display (Big dashboard numbers) */
 .text-display {
-  font-family: var(--font-display);
   font-size: 2.75rem;
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.03em;
 }
 
+/* Page titles */
 h1,
 .h1 {
-  font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 1.75rem;
+  /* 28px */
   font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-}
-
-h2,
-.h2 {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.15;
   letter-spacing: -0.02em;
 }
 
+/* Modal / Section titles */
+h2,
+.h2 {
+  font-size: 1.375rem;
+  /* 22px */
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+/* Section headers */
 h3,
 .h3 {
-  font-family: var(--font-display);
   font-size: 1.125rem;
+  /* 18px */
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.25;
   letter-spacing: -0.01em;
 }
 
+/* Card titles / table primary */
 h4,
 .h4 {
   font-size: 1rem;
+  /* 16px */
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
+/* Meta / helper text */
 .text-xs {
   font-size: 0.75rem;
-  line-height: 1.5;
+  /* 12px */
+  line-height: 1.35;
 }
 
+/* UI body (default for tables) */
 .text-sm {
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
-.text-base {
   font-size: 0.875rem;
-  line-height: 1.6;
-}
-
-.text-lg {
-  font-size: 1rem;
+  /* 14px */
   line-height: 1.5;
 }
 
+/* Card titles / emphasized */
+.text-base {
+  font-size: 1rem;
+  /* 16px */
+  line-height: 1.5;
+}
+
+/* Section headers */
+.text-lg {
+  font-size: 1.125rem;
+  /* 18px */
+  line-height: 1.35;
+}
+
+/* Page titles */
+.text-xl {
+  font-size: 1.375rem;
+  /* 22px */
+  line-height: 1.15;
+}
+
+/* Hero titles */
+.text-2xl {
+  font-size: 1.75rem;
+  /* 28px */
+  line-height: 1.15;
+}
+
+/* Section label (uppercase meta) */
 .text-label {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
+  /* 11px */
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+/* Line height utilities */
+.leading-tight {
+  line-height: 1.15;
+}
+
+.leading-snug {
+  line-height: 1.35;
+}
+
+.leading-relaxed {
+  line-height: 1.55;
+}
+
+.leading-normal {
+  line-height: 1.5;
 }
 
 /* ========================================
