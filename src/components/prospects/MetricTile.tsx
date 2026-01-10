@@ -43,7 +43,7 @@ export default function MetricTile({
                 className={`flex flex-col h-full justify-between p-4 rounded-[var(--radius-lg)] bg-[var(--bg-card-muted)] border border-[var(--border-soft)] ${className}`}
             >
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">{label}</span>
+                    <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{label}</span>
                 </div>
                 <div className="mt-auto">{action}</div>
             </div>
@@ -73,7 +73,7 @@ export default function MetricTile({
             `}
         >
             <div className="flex items-center justify-between mb-2 h-4 w-full">
-                <span className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">{label}</span>
+                <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{label}</span>
                 {isInteractive && (
                     <div className="text-[var(--text-muted)] group-hover/tile:text-[var(--accent-blue)] transition-colors">
                         <ChevronRight size={14} strokeWidth={2.5} />
@@ -83,20 +83,20 @@ export default function MetricTile({
 
             <div className="flex items-center gap-2 mb-1">
                 <span
-                    className="text-sm font-bold text-[var(--text-primary)] truncate tracking-tight"
+                    className="text-base font-bold text-[var(--text-primary)] truncate tracking-tight"
                     style={{ fontFamily: 'var(--font-display)' }}
                 >
                     {value}
                 </span>
                 {score !== undefined && (
-                    <span className={`px-2 py-0.5 rounded-[var(--radius-badge)] text-[10px] font-bold ${pillColors[scoreColor]}`}>
+                    <span className={`px-2 py-0.5 rounded-[var(--radius-badge)] text-[12px] font-bold ${pillColors[scoreColor]}`}>
                         {score}
                     </span>
                 )}
             </div>
 
             {subtext && (
-                <div className="text-[10px] text-[var(--text-muted)] truncate w-full mt-auto" title={subtext}>
+                <div className="text-[11px] text-[var(--text-muted)] truncate w-full mt-auto" title={subtext}>
                     {subtext}
                 </div>
             )}

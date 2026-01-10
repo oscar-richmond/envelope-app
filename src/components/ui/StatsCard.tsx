@@ -41,17 +41,17 @@ export function StatsCard({ label, value, icon, trend, color = 'default', compac
             `}
         >
             <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-muted)]" style={dark ? { color: 'var(--text-on-dark-secondary)' } : {}}>
+                <p className="text-[12px] font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-muted)]" style={dark ? { color: 'var(--text-on-dark-secondary)' } : {}}>
                     {label}
                 </p>
                 <div
-                    className={`${compact ? 'text-2xl' : 'text-3xl'} font-bold truncate pr-1`}
+                    className={`${compact ? 'text-3xl' : 'text-4xl'} font-bold truncate pr-1`}
                     style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
                 >
                     {value}
                 </div>
                 {trend && (
-                    <p className="text-xs mt-1.5 text-[var(--text-muted)]" style={dark ? { color: 'var(--text-on-dark-secondary)' } : {}}>
+                    <p className="text-sm mt-1.5 text-[var(--text-muted)]" style={dark ? { color: 'var(--text-on-dark-secondary)' } : {}}>
                         {trend}
                     </p>
                 )}
