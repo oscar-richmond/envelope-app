@@ -1,6 +1,4 @@
-'use client';
-
-import { useCompanyOverviewModal } from '@/components/modals/CompanyOverviewModalProvider';
+import { useCompanyViewer } from '@/components/modals/CompanyViewerProvider';
 import { ExternalLink } from 'lucide-react';
 
 interface CompanyNameLinkProps {
@@ -10,7 +8,7 @@ interface CompanyNameLinkProps {
 }
 
 export default function CompanyNameLink({ leadId, companyName, className = '' }: CompanyNameLinkProps) {
-    const { openCompanyOverview } = useCompanyOverviewModal();
+    const { openOrUpdate } = useCompanyViewer();
 
     const handleClick = (e: React.MouseEvent) => {
         // If CMD/CTRL click, let it bubble to default behavior (if strictly a link) or open in new tab
@@ -22,7 +20,7 @@ export default function CompanyNameLink({ leadId, companyName, className = '' }:
 
         e.preventDefault();
         e.stopPropagation(); // Stop propagation to prevent row clicks (e.g. in Inbox)
-        openCompanyOverview(leadId);
+        openOrUpdate(leadId);
     };
 
     return (

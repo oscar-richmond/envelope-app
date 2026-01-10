@@ -2,7 +2,8 @@
 import Sidebar from "@/components/Sidebar";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { CompanyOverviewModalProvider } from "@/components/modals/CompanyOverviewModalProvider";
+import { CompanyViewerProvider } from "@/components/modals/CompanyViewerProvider";
+import CompanyInspectorWrapper from "@/components/CompanyInspectorWrapper";
 
 export default async function AppLayout({
     children,
@@ -25,10 +26,12 @@ export default async function AppLayout({
     return (
         <div className="flex min-h-screen bg-[var(--background)]">
             <Sidebar />
-            <main className="flex-1 overflow-auto">
-                <CompanyOverviewModalProvider>
-                    {children}
-                </CompanyOverviewModalProvider>
+            <main className="flex-1 overflow-auto flex flex-col">
+                <CompanyViewerProvider>
+                    <CompanyInspectorWrapper>
+                        {children}
+                    </CompanyInspectorWrapper>
+                </CompanyViewerProvider>
             </main>
         </div>
     );
