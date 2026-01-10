@@ -91,16 +91,26 @@ export default function ProspectResultRowCard({
 
     return (
         <div
-            className={`
-                group bg-white rounded-2xl border border-gray-200 py-4 px-5 transition-all duration-150
-                hover:shadow-md hover:border-gray-300 hover:bg-slate-50/20 relative
-                ${status === 'ADDED' ? 'bg-green-50/30 border-green-200' : ''}
-            `}
+            className="group relative transition-all duration-200"
+            style={{
+                background: status === 'ADDED' ? 'rgba(166, 244, 179, 0.08)' : 'var(--bg-card)',
+                borderRadius: 'var(--radius-card)',
+                border: status === 'ADDED' ? '1px solid rgba(166, 244, 179, 0.3)' : '1px solid var(--border-soft)',
+                boxShadow: 'var(--shadow-card)',
+                padding: '20px 24px'
+            }}
         >
             {/* Status Overlay (Added) */}
             {status === 'ADDED' && (
-                <div className="absolute top-3 right-3 z-10 pointer-events-none">
-                    <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-200 flex items-center gap-1 shadow-sm">
+                <div className="absolute top-4 right-4 z-10 pointer-events-none">
+                    <span
+                        className="px-2.5 py-1 rounded-[var(--radius-badge)] text-[10px] font-bold flex items-center gap-1"
+                        style={{
+                            background: 'var(--accent-mint-bg)',
+                            color: 'var(--accent-mint-text)',
+                            border: '1px solid rgba(166, 244, 179, 0.3)'
+                        }}
+                    >
                         ✓ Added
                     </span>
                 </div>
@@ -113,21 +123,37 @@ export default function ProspectResultRowCard({
                     <CompanyNameLink
                         prospectId={c.id}
                         name={c.companyName}
-                        className="font-bold text-gray-900 text-lg hover:text-indigo-600 transition truncate leading-snug block w-full cursor-pointer"
+                        className="font-bold text-lg transition truncate leading-snug block w-full cursor-pointer"
+                        style={{
+                            fontFamily: 'var(--font-display)',
+                            color: 'var(--text-primary)',
+                            letterSpacing: '-0.01em'
+                        }}
                         onCompose={onDraftEmail}
                     />
 
                     {/* Compact One-Line Meta */}
-                    <div className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis leading-relaxed">
-                        <span className="font-mono text-gray-400 text-xs">{c.companyNumber}</span>
-                        <span className="text-gray-300">•</span>
+                    <div
+                        className="flex items-center gap-2 text-sm whitespace-nowrap overflow-hidden text-ellipsis leading-relaxed"
+                        style={{ color: 'var(--text-secondary)' }}
+                    >
+                        <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{c.companyNumber}</span>
+                        <span style={{ color: 'var(--border-default)' }}>•</span>
                         {c.location ? (
-                            <button onClick={onViewLocation} className="hover:text-indigo-600 hover:underline truncate max-w-[120px]" title={c.location}>
+                            <button
+                                onClick={onViewLocation}
+                                className="hover:underline truncate max-w-[120px] transition-colors"
+                                style={{ color: 'var(--text-secondary)' }}
+                                title={c.location}
+                            >
                                 {formatLocation(c.location)}
                             </button>
                         ) : 'Unknown'}
-                        <span className="text-gray-300">•</span>
-                        <span className={`${c.companyStatus === 'active' ? 'text-green-600' : 'text-gray-500'} capitalize`}>
+                        <span style={{ color: 'var(--border-default)' }}>•</span>
+                        <span
+                            className="capitalize"
+                            style={{ color: c.companyStatus === 'active' ? 'var(--success)' : 'var(--text-muted)' }}
+                        >
                             {c.companyStatus || 'Active'}
                         </span>
                     </div>
@@ -135,12 +161,27 @@ export default function ProspectResultRowCard({
                     {/* Compact Pills (Max 1 + overflow) */}
                     <div className="flex flex-wrap gap-1.5 mt-1 h-6 overflow-hidden">
                         {c.sicCodes?.slice(0, 1).map((code: string) => (
-                            <span key={code} className="bg-gray-50 text-gray-500 px-2.5 py-0.5 rounded-md text-xs border border-gray-100 truncate max-w-[200px]">
+                            <span
+                                key={code}
+                                className="px-2.5 py-0.5 rounded-[var(--radius-badge)] text-xs truncate max-w-[200px]"
+                                style={{
+                                    background: 'var(--bg-card-muted)',
+                                    color: 'var(--text-secondary)',
+                                    border: '1px solid var(--border-soft)'
+                                }}
+                            >
                                 {code}
                             </span>
                         ))}
                         {c.sicCodes?.length > 1 && (
-                            <span className="bg-gray-50 text-gray-400 px-2 py-0.5 rounded-md text-xs border border-gray-100">
+                            <span
+                                className="px-2 py-0.5 rounded-[var(--radius-badge)] text-xs"
+                                style={{
+                                    background: 'var(--bg-card-muted)',
+                                    color: 'var(--text-muted)',
+                                    border: '1px solid var(--border-soft)'
+                                }}
+                            >
                                 +{c.sicCodes.length - 1}
                             </span>
                         )}
@@ -148,7 +189,10 @@ export default function ProspectResultRowCard({
                 </div>
 
                 {/* 2. Metrics Grid (Flex 1 - Breathable) */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 px-6 border-l border-gray-100 h-full items-center py-1">
+                <div
+                    className="grid grid-cols-2 lg:grid-cols-4 gap-5 px-6 h-full items-center py-1"
+                    style={{ borderLeft: '1px solid var(--border-soft)' }}
+                >
 
                     {/* B. Lead Opportunity (Priority) - 1st */}
                     <MetricTile
@@ -178,7 +222,12 @@ export default function ProspectResultRowCard({
                             action={
                                 <button
                                     onClick={onCheckFinancials}
-                                    className="w-full text-xs font-medium bg-white border border-gray-200 rounded px-2 py-1.5 text-gray-600 hover:text-indigo-600 hover:border-indigo-200 transition"
+                                    className="w-full text-xs font-semibold px-3 py-2 rounded-[var(--radius-button)] transition-all"
+                                    style={{
+                                        background: 'var(--bg-card)',
+                                        border: '1px solid var(--border-default)',
+                                        color: 'var(--text-primary)'
+                                    }}
                                 >
                                     Check Info
                                 </button>
@@ -203,25 +252,52 @@ export default function ProspectResultRowCard({
                         subtext={matchHelper}
                         href={websiteLink}
                         action={!isMatched && !isMatchLoading ? (
-                            <button onClick={onFindWebsite} className="text-xs text-blue-600 hover:underline font-medium">Find Website</button>
+                            <button
+                                onClick={onFindWebsite}
+                                className="text-xs font-semibold hover:underline transition-colors"
+                                style={{ color: 'var(--accent-blue)' }}
+                            >
+                                Find Website
+                            </button>
                         ) : undefined}
                     />
 
                 </div>
 
                 {/* 3. Actions (Control Panel) */}
-                <div className="flex flex-col items-center justify-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 h-full">
+                <div
+                    className="flex flex-col items-center justify-center gap-3 p-4 h-full"
+                    style={{
+                        background: 'var(--bg-card-muted)',
+                        borderRadius: 'var(--radius-xl)',
+                        border: '1px solid var(--border-soft)'
+                    }}
+                >
 
                     {/* Primary CTA */}
                     {status !== 'ADDED' ? (
                         <button
                             onClick={onCheckAddLead}
-                            className="bg-gray-900 text-white hover:bg-black transition shadow-sm hover:shadow-md text-sm font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 w-full"
+                            className="text-sm font-semibold px-4 py-2.5 flex items-center justify-center gap-2 w-full transition-all"
+                            style={{
+                                background: 'var(--text-primary)',
+                                color: 'white',
+                                borderRadius: 'var(--radius-button)',
+                                boxShadow: 'var(--shadow-card)'
+                            }}
                         >
                             <Plus size={16} /> Add
                         </button>
                     ) : (
-                        <div className="w-full h-10 flex items-center justify-center text-xs text-green-600 font-medium bg-green-50 rounded-lg border border-green-100">
+                        <div
+                            className="w-full h-10 flex items-center justify-center text-xs font-semibold"
+                            style={{
+                                background: 'var(--accent-mint-bg)',
+                                color: 'var(--accent-mint-text)',
+                                borderRadius: 'var(--radius-button)',
+                                border: '1px solid rgba(166, 244, 179, 0.3)'
+                            }}
+                        >
                             Added
                         </div>
                     )}
@@ -264,18 +340,53 @@ export default function ProspectResultRowCard({
 }
 
 function TooltipButton({ icon: Icon, onClick, label, baseColor = "gray" }: any) {
-    const colorStyles: any = {
-        gray: "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700",
-        blue: "bg-white border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700",
-        purple: "bg-white border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700",
-        teal: "bg-white border-teal-200 text-teal-600 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700",
-        rose: "bg-white border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700"
+    // V2 Color styles with token-based values and always-visible accent colors
+    const colorStyles: Record<string, { bg: string; border: string; color: string; hoverBg: string }> = {
+        gray: {
+            bg: 'var(--bg-card)',
+            border: 'var(--border-default)',
+            color: 'var(--text-muted)',
+            hoverBg: 'var(--bg-card-muted)'
+        },
+        blue: {
+            bg: 'var(--accent-blue-light)',
+            border: 'rgba(99, 102, 241, 0.3)',
+            color: 'var(--accent-blue)',
+            hoverBg: 'rgba(99, 102, 241, 0.15)'
+        },
+        purple: {
+            bg: 'var(--accent-lilac-bg)',
+            border: 'rgba(184, 166, 255, 0.3)',
+            color: 'var(--accent-lilac-text)',
+            hoverBg: 'rgba(184, 166, 255, 0.2)'
+        },
+        teal: {
+            bg: 'var(--accent-mint-bg)',
+            border: 'rgba(166, 244, 179, 0.3)',
+            color: 'var(--accent-mint-text)',
+            hoverBg: 'rgba(166, 244, 179, 0.2)'
+        },
+        rose: {
+            bg: 'var(--error-light)',
+            border: 'rgba(255, 77, 77, 0.3)',
+            color: 'var(--error-text)',
+            hoverBg: 'rgba(255, 77, 77, 0.15)'
+        }
     };
+
+    const style = colorStyles[baseColor] || colorStyles.gray;
 
     return (
         <button
             onClick={onClick}
-            className={`p-2 rounded-lg transition-all border shadow-sm ${colorStyles[baseColor]}`}
+            className="p-2.5 transition-all"
+            style={{
+                background: style.bg,
+                border: `1px solid ${style.border}`,
+                color: style.color,
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-sm)'
+            }}
             title={label}
         >
             <Icon size={16} />
