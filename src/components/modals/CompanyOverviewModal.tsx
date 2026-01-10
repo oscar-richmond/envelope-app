@@ -99,44 +99,44 @@ export default function CompanyOverviewModal({ leadId, onClose }: CompanyOvervie
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-3">
-                            {/* Pin Button */}
-                            <button onClick={togglePin} className="btn btn-secondary text-xs" title="Pin to side">
-                                <GalleryHorizontalEnd size={14} className="mr-2" /> Pin Inspector
-                            </button>
 
-                            <Link href={`/leads/${leadId}`} className="btn btn-secondary text-xs" onClick={onClose}>
-                                <Maximize2 size={14} className="mr-2" /> Open Full Page
-                            </Link>
-                            <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition">
-                                <X size={20} />
-                            </button>
-                        </div>
+                        {/* Pin Button */}
+                        <button onClick={togglePin} className="btn btn-secondary text-xs" title="Pin to side">
+                            <GalleryHorizontalEnd size={14} className="mr-2" /> Pin Inspector
+                        </button>
+
+                        <Link href={`/leads/${leadId}`} className="btn btn-secondary text-xs" onClick={onClose}>
+                            <Maximize2 size={14} className="mr-2" /> Open Full Page
+                        </Link>
+                        <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition">
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Scrollable Body */}
+                <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+                    <div className="mb-6">
+                        <KPIGrid
+                            opportunityScore={data.kpis.opportunityScore}
+                            financialScore={data.kpis.financialScore}
+                            financialBand={data.kpis.financialBand}
+                            websiteScore={data.kpis.websiteScore}
+                            outreachStatus={data.outreach.status}
+                        />
                     </div>
 
-                    {/* Scrollable Body */}
-                    <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
-                        <div className="mb-6">
-                            <KPIGrid
-                                opportunityScore={data.kpis.opportunityScore}
-                                financialScore={data.kpis.financialScore}
-                                financialBand={data.kpis.financialBand}
-                                websiteScore={data.kpis.websiteScore}
-                                outreachStatus={data.outreach.status}
-                            />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Analysis Column */}
+                        <div className="space-y-6">
+                            <WebsitePreview url={data.websiteUrl} />
+                            <WebsiteAudit signals={data.websiteSignals} websiteUrl={data.websiteUrl} />
+                            <FinancialHealth score={data.kpis.financialScore} band={data.kpis.financialBand} signals={data.financialSignals} />
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Analysis Column */}
-                            <div className="space-y-6">
-                                <WebsitePreview url={data.websiteUrl} />
-                                <WebsiteAudit signals={data.websiteSignals} websiteUrl={data.websiteUrl} />
-                                <FinancialHealth score={data.kpis.financialScore} band={data.kpis.financialBand} signals={data.financialSignals} />
-                            </div>
-
-                            {/* Execution Column */}
-                            <div className="space-y-6">
-                                {/* Note: ContactsCard and ThreadPreview usually need richer data (lists of objects). 
+                        {/* Execution Column */}
+                        <div className="space-y-6">
+                            {/* Note: ContactsCard and ThreadPreview usually need richer data (lists of objects). 
                                  The Overview API currently returns summarized data. 
                                  For a "perfect" modal, we might want to fetch full contacts/threads in the modal or expand the overview API.
                                  For now, we will render what we can or create lightweight versions.
@@ -148,18 +148,18 @@ export default function CompanyOverviewModal({ leadId, onClose }: CompanyOvervie
                                  
                                  Correction: I will fetch contacts/threads client side in this modal to keep it clean.
                              */}
-                                <ContactsLoader leadId={leadId} />
-                                <ThreadLoader leadId={leadId} />
-                            </div>
+                            <ContactsLoader leadId={leadId} />
+                            <ThreadLoader leadId={leadId} />
                         </div>
                     </div>
                 </div>
             </div>
-            );
+        </div>
+    );
 }
 
-            // Helper Loaders to keep the main modal clean and fetch parallel data if needed
-            function ContactsLoader({leadId}: {leadId: number }) {
+// Helper Loaders to keep the main modal clean and fetch parallel data if needed
+function ContactsLoader({ leadId }: { leadId: number }) {
     // In a real implementation this would fetch. For now we just use the API we built which generates mocks
     // We can POST to /api/company/:id/contacts to get them.
     // However, ContactsCard expects a list. 
@@ -167,31 +167,31 @@ export default function CompanyOverviewModal({ leadId, onClose }: CompanyOvervie
     // Better: Fetch them. 
     const [contacts, setContacts] = useState([]);
     useEffect(() => {
-                fetch(`/api/company/${leadId}/contacts`, { method: 'POST' }).then(r => r.json()).then(d => setContacts(d.contacts || []));
+        fetch(`/api/company/${leadId}/contacts`, { method: 'POST' }).then(r => r.json()).then(d => setContacts(d.contacts || []));
     }, [leadId]);
 
-            return <ContactsCard leadId={leadId} contacts={contacts} />;
+    return <ContactsCard leadId={leadId} contacts={contacts} />;
 }
 
-            function ThreadLoader({leadId}: {leadId: number }) {
+function ThreadLoader({ leadId }: { leadId: number }) {
     // We need to fetch the thread. We can add an endpoint or include it in overview.
     // Overview included `lastSentEmail` but ThreadPreview expects array.
     // Let's wrap it.
     const [emails, setEmails] = useState<any[]>([]);
     useEffect(() => {
-                // Quick fetch or re-use overview data if we passed it down better.
-                // For speed, I'll just use the overview API which I know returns `lead.sentEmails` (array of 1).
-                // Wait, overview returns synthesized `outreach` object, not the raw array.
-                // Let's modify overview API or just make a quick call.
-                // Actually, let's just use what we have in the modal data first? 
-                // The modal data `data` in parent component *could* have it if I requested it.
-                // I will update the Overview API to return the raw `sentEmails` array for this prop.
+        // Quick fetch or re-use overview data if we passed it down better.
+        // For speed, I'll just use the overview API which I know returns `lead.sentEmails` (array of 1).
+        // Wait, overview returns synthesized `outreach` object, not the raw array.
+        // Let's modify overview API or just make a quick call.
+        // Actually, let's just use what we have in the modal data first? 
+        // The modal data `data` in parent component *could* have it if I requested it.
+        // I will update the Overview API to return the raw `sentEmails` array for this prop.
 
-                fetch(`/api/company/${leadId}/overview`).then(r => r.json()).then(d => {
-                    // Use the raw sentEmails array from the API
-                    if (d.sentEmails) setEmails(d.sentEmails);
-                });
+        fetch(`/api/company/${leadId}/overview`).then(r => r.json()).then(d => {
+            // Use the raw sentEmails array from the API
+            if (d.sentEmails) setEmails(d.sentEmails);
+        });
     }, [leadId]);
 
-            return <ThreadPreview sentEmails={emails} />;
+    return <ThreadPreview sentEmails={emails} />;
 }
