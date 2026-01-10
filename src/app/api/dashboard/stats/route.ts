@@ -29,7 +29,9 @@ export async function GET() {
         const actionNeeded = await prisma.sentEmail.count({
             where: { status: 'ACTION_NEEDED' }
         });
-        const queuedOutreach = await prisma.generatedDraft.count(); // Drafts in the separate table if any
+        const queuedOutreach = await prisma.outreachMessage.count({
+            where: { status: 'QUEUED' }
+        }); // Fixed: Used OutreachMessage instead of non-existent GeneratedDraft
 
         return NextResponse.json({
             prospectsFound,

@@ -22,8 +22,15 @@ export default function DashboardPage() {
                     fetch('/api/dashboard/activity')
                 ]);
 
-                if (statsRes.ok) setStats(await statsRes.json());
-                if (activityRes.ok) setActivity(await activityRes.json());
+                if (statsRes.ok) {
+                    setStats(await statsRes.json());
+                } else {
+                    console.error('Stats API failed', statsRes.status);
+                }
+
+                if (activityRes.ok) {
+                    setActivity(await activityRes.json());
+                }
 
             } catch (e) {
                 console.error('Dashboard load failed:', e);
@@ -33,6 +40,16 @@ export default function DashboardPage() {
         }
         loadData();
     }, []);
+
+    if (!loading && !stats) {
+        return (
+            <div className="p-8 max-w-7xl mx-auto text-center py-20">
+                <h2 className="text-lg font-semibold text-gray-900">Unable to load dashboard</h2>
+                <p className="text-gray-500 mb-4">We couldn't fetch your latest stats.</p>
+                <button onClick={() => window.location.reload()} className="btn btn-primary">Retry</button>
+            </div>
+        );
+    }
 
     return (
         <div className="p-8 max-w-7xl mx-auto">

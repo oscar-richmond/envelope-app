@@ -1,11 +1,18 @@
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, RefreshCw } from 'lucide-react';
 import prisma from '@/lib/prisma';
-import AnalysisCard from '@/components/AnalysisCard';
-import AnalysisButton from '@/components/AnalysisButton';
-import StatusBadge from '@/components/StatusBadge';
+
+// New HQ Components
+import KPIGrid from '@/components/company-hq/KPIGrid';
+import WebsitePreview from '@/components/company-hq/WebsitePreview';
+import WebsiteAudit from '@/components/company-hq/WebsiteAudit';
+import FinancialHealth from '@/components/company-hq/FinancialHealth';
+import ContactsCard from '@/components/company-hq/ContactsCard';
+import ThreadPreview from '@/components/company-hq/ThreadPreview';
+
+// Legacy / Shared Components
 import DraftEditor from '@/components/DraftEditor';
-import ContactList from '@/components/ContactList';
+import StatusBadge from '@/components/StatusBadge';
 
 // FORCE DYNAMIC for fetching fresh data
 export const dynamic = 'force-dynamic';
@@ -13,11 +20,15 @@ export const dynamic = 'force-dynamic';
 export default async function LeadDetail({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const leadId = parseInt(id);
+
+    // Expanded Fetch
     const lead = await prisma.lead.findUnique({
         where: { id: leadId },
         include: {
+            companyProspect: true,
             drafts: { orderBy: { version: 'desc' } },
-            contacts: { orderBy: { confidence: 'desc' } }
+            contacts: { orderBy: { confidence: 'desc' } },
+            sentEmails: { orderBy: { sentAt: 'desc' }, take: 1 } // Latest thread
         }
     });
 
@@ -25,38 +36,84 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
         return <div className="p-8">Lead not found</div>;
     }
 
-    return (
-        <div className="p-8 max-w-5xl mx-auto">
-            <Link href="/" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 mb-6 transition">
-                <ArrowLeft size={16} className="mr-1" /> Back to List
-            </Link>
+    // Data Parsing
+    const financialScore = lead.companyProspect?.financialActivityScore || 0;
+    const financialBand = lead.companyProspect?.financialActivityBand || 'Unknown';
+    const websiteScore = lead.companyProspect?.stalenessScore || 0; // Fallback
+    const outreachStatus = lead.emailStatus;
 
-            <header className="flex justify-between items-start mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{lead.companyName}</h1>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <a href={lead.websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-blue-600 transition">
-                            {lead.websiteUrl} <ExternalLink size={14} />
-                        </a>
-                        <span>•</span>
-                        <span>{lead.industry || 'Unknown Industry'}</span>
-                        <span>•</span>
-                        <span>{lead.location || 'Unknown Location'}</span>
+    let websiteSignals: string[] = [];
+    if (lead.companyProspect?.signals) {
+        try { websiteSignals = JSON.parse(lead.companyProspect.signals); } catch (e) { }
+    }
+
+    let financialSignals: string[] = [];
+    if (lead.companyProspect?.financialSignals) {
+        try { financialSignals = JSON.parse(lead.companyProspect.financialSignals); } catch (e) { }
+    }
+
+    return (
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+            {/* 1. Header & Meta */}
+            <div>
+                <Link href="/" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 mb-6 transition">
+                    <ArrowLeft size={16} className="mr-1" /> Back to Dashboard
+                </Link>
+
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2 items-center flex gap-3">
+                            {lead.companyName}
+                            <StatusBadge status={lead.emailStatus} />
+                        </h1>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <a href={lead.websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-600 transition font-medium">
+                                {new URL(lead.websiteUrl).hostname} <ExternalLink size={14} />
+                            </a>
+                            <span>•</span>
+                            <span>{lead.industry || 'Unknown Industry'}</span>
+                            <span>•</span>
+                            <span>{lead.location || 'Unknown Location'}</span>
+                        </div>
+                    </div>
+                    {/* Primary Actions */}
+                    <div className="flex gap-3">
+                        <button className="btn btn-secondary">
+                            <RefreshCw size={16} className="mr-2" /> Refresh Data
+                        </button>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <StatusBadge status={lead.emailStatus} />
-                    <AnalysisButton leadId={lead.id} />
+            </div>
+
+            {/* 2. KPI Grid */}
+            <KPIGrid
+                opportunityScore={lead.stalenessScore}
+                financialScore={financialScore}
+                financialBand={financialBand}
+                websiteScore={websiteScore}
+                outreachStatus={outreachStatus}
+            />
+
+            {/* 3. Main Dashboard Grid (2 Columns) */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+
+                {/* Left Column: Analysis (1 col) */}
+                <div className="space-y-8 xl:col-span-1">
+                    <WebsitePreview url={lead.websiteUrl} />
+                    <WebsiteAudit signals={websiteSignals} websiteUrl={lead.websiteUrl} />
+                    <FinancialHealth score={financialScore} band={financialBand} signals={financialSignals} />
                 </div>
-            </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <section>
-                        <AnalysisCard lead={lead} />
-                    </section>
+                {/* Right Column: Execution (2 cols) */}
+                <div className="space-y-8 xl:col-span-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <ContactsCard leadId={lead.id} contacts={lead.contacts} />
+                        <ThreadPreview sentEmails={lead.sentEmails} />
+                    </div>
 
-                    <section>
+                    {/* Composer Area */}
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-4">Outreach Composer</h3>
                         <DraftEditor
                             leadId={lead.id}
                             initialDraft={lead.emailDraft}
@@ -65,11 +122,7 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                                 createdAt: d.createdAt.toISOString()
                             }))}
                         />
-                    </section>
-                </div>
-
-                <div className="lg:col-span-1">
-                    <ContactList leadId={lead.id} initialContacts={lead.contacts} />
+                    </div>
                 </div>
             </div>
         </div>

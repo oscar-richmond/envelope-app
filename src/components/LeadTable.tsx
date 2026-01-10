@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ExternalLink, ChevronRight, Trash2, Search, Building2 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import CompanyNameLink from './ui/CompanyNameLink';
 
 type Lead = {
     id: number;
@@ -29,14 +30,14 @@ export default function LeadTable({ initialLeads }: { initialLeads: Lead[] }) {
             {/* Filter Bar */}
             <div className="flex items-center justify-between">
                 <div className="relative">
-                    <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
                     <input
                         type="text"
                         placeholder="Filter by company or industry..."
-                        className="input pl-9 w-64"
+                        className="input pl-10 w-64"
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                     />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                 </div>
                 <div className="text-sm font-medium text-gray-500">
                     <span className="text-gray-900 font-bold">{filteredLeads.length}</span> active leads
@@ -77,7 +78,7 @@ export default function LeadTable({ initialLeads }: { initialLeads: Lead[] }) {
                                                 <Building2 size={18} />
                                             </div>
                                             <div>
-                                                <div className="font-semibold text-gray-900 text-sm mb-0.5">{lead.companyName}</div>
+                                                <CompanyNameLink leadId={lead.id} companyName={lead.companyName} className="text-sm mb-0.5" />
                                                 <a
                                                     href={lead.websiteUrl}
                                                     target="_blank"
