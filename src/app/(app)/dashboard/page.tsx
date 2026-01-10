@@ -5,18 +5,18 @@ import DashboardKPIs from '@/components/dashboard/DashboardKPIs';
 import NeedsAttention from '@/components/dashboard/NeedsAttention';
 import QuickActions from '@/components/dashboard/QuickActions';
 import RecentActivity from '@/components/dashboard/RecentActivity';
-import { Calendar } from 'lucide-react';
+import { Calendar, ChevronDown } from 'lucide-react';
 
 export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<any>(null);
     const [activity, setActivity] = useState<{ outbound: any[], replies: any[] }>({ outbound: [], replies: [] });
+    const [dateRange, setDateRange] = useState('14');
 
     useEffect(() => {
         async function loadData() {
             setLoading(true);
             try {
-                // Parallel fetch
                 const [statsRes, activityRes] = await Promise.all([
                     fetch('/api/dashboard/stats'),
                     fetch('/api/dashboard/activity')
@@ -43,25 +43,68 @@ export default function DashboardPage() {
 
     if (!loading && !stats) {
         return (
-            <div className="p-8 max-w-7xl mx-auto text-center py-20">
-                <h2 className="text-lg font-semibold text-gray-900">Unable to load dashboard</h2>
-                <p className="text-gray-500 mb-4">We couldn't fetch your latest stats.</p>
-                <button onClick={() => window.location.reload()} className="btn btn-primary">Retry</button>
+            <div
+                className="p-8 max-w-[1600px] mx-auto text-center py-20"
+                style={{
+                    background: 'var(--bg-card)',
+                    borderRadius: 'var(--radius-card)',
+                    margin: '2rem auto'
+                }}
+            >
+                <h2
+                    className="text-lg font-semibold mb-2"
+                    style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                >
+                    Unable to load dashboard
+                </h2>
+                <p style={{ color: 'var(--text-secondary)' }} className="mb-4">
+                    We couldn't fetch your latest stats.
+                </p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="px-5 py-2.5 rounded-[var(--radius-button)] font-semibold text-sm transition-all"
+                    style={{
+                        background: 'var(--text-primary)',
+                        color: 'white'
+                    }}
+                >
+                    Retry
+                </button>
             </div>
         );
     }
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 w-full max-w-[1600px] mx-auto">
             {/* Header */}
             <header className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                    <p className="text-gray-500 text-sm mt-1">Overview of outreach, replies, and next actions</p>
+                    <h1
+                        className="text-2xl font-bold"
+                        style={{
+                            fontFamily: 'var(--font-display)',
+                            color: 'var(--text-primary)',
+                            letterSpacing: '-0.025em'
+                        }}
+                    >
+                        Dashboard
+                    </h1>
+                    <p style={{ color: 'var(--text-secondary)' }} className="text-sm mt-1">
+                        Overview of outreach, replies, and next actions
+                    </p>
                 </div>
-                <button className="btn btn-secondary text-xs">
-                    <Calendar size={14} />
-                    Last 14 Days
+                <button
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-button)] text-sm font-medium transition-all"
+                    style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-primary)',
+                        boxShadow: 'var(--shadow-card)'
+                    }}
+                >
+                    <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+                    Last {dateRange} Days
+                    <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
                 </button>
             </header>
 
@@ -87,3 +130,4 @@ export default function DashboardPage() {
         </div>
     );
 }
+

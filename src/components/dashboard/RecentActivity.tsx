@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, ChevronRight } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
 
 interface RecentActivityProps {
@@ -11,27 +11,80 @@ interface RecentActivityProps {
 }
 
 export default function RecentActivity({ outbound, replies, loading }: RecentActivityProps) {
-    if (loading) return <div className="h-40 animate-pulse bg-gray-100 rounded-xl mt-6" />;
+    if (loading) {
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+                <div
+                    className="h-48 animate-pulse rounded-[var(--radius-card)]"
+                    style={{ background: 'var(--bg-card-muted)' }}
+                />
+                <div
+                    className="h-48 animate-pulse rounded-[var(--radius-card)]"
+                    style={{ background: 'var(--bg-card-muted)' }}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
             {/* Recent Outbound */}
-            <div className="card">
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <ArrowUpRight size={16} className="text-gray-400" />
-                        <h3 className="font-semibold text-gray-900 text-sm">Recent Outbound</h3>
+            <div
+                style={{
+                    background: 'var(--bg-card)',
+                    borderRadius: 'var(--radius-card)',
+                    border: '1px solid var(--border-soft)',
+                    boxShadow: 'var(--shadow-card)',
+                    overflow: 'hidden'
+                }}
+            >
+                <div
+                    className="px-6 py-4 flex items-center gap-3"
+                    style={{ borderBottom: '1px solid var(--border-soft)' }}
+                >
+                    <div
+                        className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center"
+                        style={{ background: 'var(--bg-card-muted)', color: 'var(--text-muted)' }}
+                    >
+                        <ArrowUpRight size={16} />
                     </div>
+                    <h3
+                        className="font-semibold text-sm"
+                        style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                    >
+                        Recent Outbound
+                    </h3>
                 </div>
-                <div className="divide-y divide-gray-50">
+                <div>
                     {outbound.length === 0 ? (
-                        <p className="p-4 text-sm text-gray-400 text-center">No recent emails sent.</p>
+                        <p
+                            className="p-6 text-sm text-center"
+                            style={{ color: 'var(--text-muted)' }}
+                        >
+                            No recent emails sent.
+                        </p>
                     ) : (
-                        outbound.map((item) => (
-                            <div key={item.id} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        outbound.map((item, i) => (
+                            <div
+                                key={item.id}
+                                className="px-6 py-4 flex items-center justify-between transition-colors hover:bg-[var(--bg-card-muted)]"
+                                style={{
+                                    borderBottom: i < outbound.length - 1 ? '1px solid var(--border-soft)' : 'none'
+                                }}
+                            >
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">{item.lead.companyName}</p>
-                                    <p className="text-xs text-gray-500">{new Date(item.sentAt).toLocaleDateString()}</p>
+                                    <p
+                                        className="text-sm font-medium"
+                                        style={{ color: 'var(--text-primary)' }}
+                                    >
+                                        {item.lead.companyName}
+                                    </p>
+                                    <p
+                                        className="text-xs"
+                                        style={{ color: 'var(--text-muted)' }}
+                                    >
+                                        {new Date(item.sentAt).toLocaleDateString()}
+                                    </p>
                                 </div>
                                 <StatusBadge status={item.status} />
                             </div>
@@ -41,28 +94,73 @@ export default function RecentActivity({ outbound, replies, loading }: RecentAct
             </div>
 
             {/* Recent Replies */}
-            <div className="card">
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <ArrowDownLeft size={16} className="text-indigo-500" />
-                        <h3 className="font-semibold text-gray-900 text-sm">Recent Replies</h3>
+            <div
+                style={{
+                    background: 'var(--bg-card)',
+                    borderRadius: 'var(--radius-card)',
+                    border: '1px solid var(--border-soft)',
+                    boxShadow: 'var(--shadow-card)',
+                    overflow: 'hidden'
+                }}
+            >
+                <div
+                    className="px-6 py-4 flex items-center gap-3"
+                    style={{ borderBottom: '1px solid var(--border-soft)' }}
+                >
+                    <div
+                        className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center"
+                        style={{ background: 'var(--accent-mint-bg)', color: 'var(--accent-mint-text)' }}
+                    >
+                        <ArrowDownLeft size={16} />
                     </div>
+                    <h3
+                        className="font-semibold text-sm"
+                        style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                    >
+                        Recent Replies
+                    </h3>
                 </div>
-                <div className="divide-y divide-gray-50">
+                <div>
                     {replies.length === 0 ? (
-                        <p className="p-4 text-sm text-gray-400 text-center">No replies yet.</p>
+                        <p
+                            className="p-6 text-sm text-center"
+                            style={{ color: 'var(--text-muted)' }}
+                        >
+                            No replies yet.
+                        </p>
                     ) : (
-                        replies.map((item) => (
-                            <div key={item.id} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        replies.map((item, i) => (
+                            <div
+                                key={item.id}
+                                className="px-6 py-4 flex items-center justify-between transition-colors hover:bg-[var(--bg-card-muted)]"
+                                style={{
+                                    borderBottom: i < replies.length - 1 ? '1px solid var(--border-soft)' : 'none'
+                                }}
+                            >
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">{item.lead.companyName}</p>
-                                    <p className="text-xs text-gray-500">{item.subject}</p>
+                                    <p
+                                        className="text-sm font-medium"
+                                        style={{ color: 'var(--text-primary)' }}
+                                    >
+                                        {item.lead.companyName}
+                                    </p>
+                                    <p
+                                        className="text-xs truncate max-w-[200px]"
+                                        style={{ color: 'var(--text-muted)' }}
+                                    >
+                                        {item.subject}
+                                    </p>
                                 </div>
                                 <Link
-                                    href={`/outreach/sent?thread=${item.id}`} // Assuming logic will handle this param later
-                                    className="btn btn-ghost text-xs px-2 h-7"
+                                    href={`/outreach/sent?thread=${item.id}`}
+                                    className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-[var(--radius-button)] transition-all"
+                                    style={{
+                                        background: 'var(--bg-card-muted)',
+                                        color: 'var(--text-secondary)'
+                                    }}
                                 >
                                     View
+                                    <ChevronRight size={12} />
                                 </Link>
                             </div>
                         ))
@@ -72,3 +170,4 @@ export default function RecentActivity({ outbound, replies, loading }: RecentAct
         </div>
     );
 }
+
