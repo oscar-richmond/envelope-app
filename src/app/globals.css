@@ -1,115 +1,85 @@
 @import "tailwindcss";
 
 /* ========================================
-   ENVELOPE DESIGN SYSTEM V3
-   Bold Lime + Lilac Premium Palette
+   ENVELOPE DESIGN SYSTEM V2
+   Soft-fintech aesthetic with premium polish
    ======================================== */
 
 :root {
   /* ─────────────────────────────────────────
-     BASE NEUTRALS (Warm Premium Canvas)
+     NEUTRALS (Background & Text)
      ───────────────────────────────────────── */
-  --bg-page: #faf9f7;
-  /* Warm off-white */
+  --bg-page: #fafafa;
   --bg-card: #ffffff;
-  --bg-card-muted: #f5f4f2;
-  /* Soft warm grey */
+  --bg-card-muted: #f7f7f7;
 
-  --text-primary: #0f172a;
-  /* Rich charcoal */
-  --text-secondary: #64748b;
-  /* Muted slate */
-  --text-muted: #94a3b8;
-  /* Lighter slate */
+  --text-primary: #0b1220;
+  --text-secondary: #5b6678;
+  --text-muted: #8b95a7;
 
-  --border-soft: rgba(15, 23, 42, 0.06);
-  --border-default: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --border-soft: rgba(15, 23, 42, 0.08);
+  --border-default: #e5e7eb;
+  --border-strong: #d1d5db;
 
   /* ─────────────────────────────────────────
-     INK (Brand Anchor - Dark Surfaces & CTAs)
+     DARK CARD (Hero/Feature Cards)
      ───────────────────────────────────────── */
-  --ink: #0e111a;
-  /* Rich near-black */
-  --ink-2: #1e2330;
-  /* Softer charcoal */
-  --ink-hover: #1a1f2e;
-  --text-on-ink: #ffffff;
-  --text-on-ink-muted: rgba(255, 255, 255, 0.7);
+  --bg-dark-card: #181a1e;
+  --text-on-dark-primary: rgba(255, 255, 255, 0.92);
+  --text-on-dark-secondary: rgba(255, 255, 255, 0.70);
 
   /* ─────────────────────────────────────────
-     SIDEBAR (Deep Ink Premium)
+     SIDEBAR
      ───────────────────────────────────────── */
-  --sidebar-bg: #0e111a;
-  --sidebar-hover: #1a1f2e;
-  --sidebar-active: rgba(190, 242, 100, 0.12);
-  /* Lime glow */
-  --sidebar-text: #94a3b8;
+  --sidebar-bg: #18181b;
+  --sidebar-hover: #27272a;
+  --sidebar-active: rgba(99, 102, 241, 0.15);
+  --sidebar-text: #a1a1aa;
   --sidebar-text-active: #ffffff;
-  --sidebar-border: #1e2330;
+  --sidebar-border: #27272a;
 
   /* ─────────────────────────────────────────
-     ACCENT LIME (Positive / Good / Opportunity)
-     Use for: Strong, Fresh, Active, Verified, Send, Approved
+     ACCENT COLORS (Original Envelope Palette)
      ───────────────────────────────────────── */
-  --lime: #bef264;
-  /* Soft lime */
-  --lime-deep: #84cc16;
-  /* Deeper lime for text/borders */
-  --lime-text: #3f6212;
-  /* Dark lime for text */
-  --lime-bg: rgba(190, 242, 100, 0.15);
-  /* Light lime tint */
-  --lime-bg-solid: #f7fee7;
-  /* Solid lime background */
+  --accent-mint: #a6f4b3;
+  --accent-mint-text: #065f46;
+  --accent-mint-bg: rgba(166, 244, 179, 0.15);
+
+  --accent-lilac: #b8a6ff;
+  --accent-lilac-text: #4c3d99;
+  --accent-lilac-bg: rgba(184, 166, 255, 0.15);
+
+  --accent-blue: #6366f1;
+  --accent-blue-hover: #4f46e5;
+  --accent-blue-light: #eef2ff;
+  --accent-blue-text: #4338ca;
+
+  --accent-red: #ff4d4d;
+  --accent-red-light: #fef2f2;
+  --accent-red-text: #991b1b;
+
+  --accent-yellow: #ffcc66;
+  --accent-yellow-light: #fffbeb;
+  --accent-yellow-text: #92400e;
 
   /* ─────────────────────────────────────────
-     ACCENT LILAC (AI / Intelligence / Workflow)
-     Use for: AI features, Lead score, Draft, Suggested, Next step
+     SEMANTIC COLORS
      ───────────────────────────────────────── */
-  --lilac: #c4b5fd;
-  /* Soft lilac */
-  --lilac-deep: #8b5cf6;
-  /* Deeper purple for text/borders */
-  --lilac-text: #5b21b6;
-  /* Dark purple for text */
-  --lilac-bg: rgba(196, 181, 253, 0.15);
-  /* Light lilac tint */
-  --lilac-bg-solid: #f5f3ff;
-  /* Solid lilac background */
-
-  /* ─────────────────────────────────────────
-     STATE COLOURS (Harmonised)
-     ───────────────────────────────────────── */
-  --success: var(--lime-deep);
-  --success-light: var(--lime-bg-solid);
-  --success-text: var(--lime-text);
+  --success: #10b981;
+  --success-light: #ecfdf5;
+  --success-text: #065f46;
 
   --warning: #f59e0b;
-  --warning-light: #fefce8;
-  --warning-text: #854d0e;
+  --warning-light: #fffbeb;
+  --warning-text: #92400e;
 
   --error: #ef4444;
   --error-light: #fef2f2;
-  --error-text: #b91c1c;
+  --error-text: #991b1b;
 
-  --info: var(--lilac-deep);
-  --info-light: var(--lilac-bg-solid);
-  --info-text: var(--lilac-text);
-
-  /* Legacy accent mappings (for compatibility) */
-  --accent-mint: var(--lime);
-  --accent-mint-text: var(--lime-text);
-  --accent-mint-bg: var(--lime-bg);
-
-  --accent-lilac: var(--lilac);
-  --accent-lilac-text: var(--lilac-text);
-  --accent-lilac-bg: var(--lilac-bg);
-
-  --accent-blue: var(--lilac-deep);
-  --accent-blue-hover: #7c3aed;
-  --accent-blue-light: var(--lilac-bg-solid);
-  --accent-blue-text: var(--lilac-text);
+  --info: #3b82f6;
+  --info-light: #eff6ff;
+  --info-text: #1e40af;
 
   /* ─────────────────────────────────────────
      SHADOWS
