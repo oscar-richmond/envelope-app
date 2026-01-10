@@ -51,12 +51,12 @@ const Sidebar = () => {
                 ${isCollapsed ? 'justify-center px-3' : 'px-5'}
             `}>
                 {isCollapsed ? (
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--accent)] flex items-center justify-center">
                         <span className="font-bold text-white text-lg">E</span>
                     </div>
                 ) : (
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-[var(--accent)] flex items-center justify-center shrink-0">
                             <span className="font-bold text-white text-lg">E</span>
                         </div>
                         <span className="text-lg font-semibold text-white tracking-tight">Envelope</span>
@@ -77,6 +77,7 @@ const Sidebar = () => {
                     transition-all duration-200
                     hover:bg-[var(--sidebar-hover)]
                     shadow-md
+                    cursor-pointer
                 "
             >
                 {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}

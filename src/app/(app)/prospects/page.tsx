@@ -9,6 +9,7 @@ import ExplainButton from '@/components/ExplainButton';
 import IndustrySelect from '@/components/industry-select';
 import OutreachComposer from '@/components/outreach/composer';
 import { CompanyNameLink } from '@/components/company/CompanyNameLink';
+import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 
 export default function ProspectSearch() {
     const router = useRouter();
@@ -806,17 +807,45 @@ export default function ProspectSearch() {
                 <p className="text-gray-500 mt-2">Search Companies House for new prospects.</p>
             </header>
 
+            {/* Dashboard Overview Cards */}
+            <StatsGrid>
+                <StatsCard
+                    label="Prospects Found"
+                    value={results.length}
+                    icon={<Building2 size={20} />}
+                    color="indigo"
+                />
+                <StatsCard
+                    label="High Stability"
+                    value={results.filter(r => r.financialScore >= 75).length}
+                    icon={<Target size={20} />}
+                    color="green"
+                />
+                <StatsCard
+                    label="With Website"
+                    value={results.filter(r => r.url).length}
+                    icon={<Globe size={20} />}
+                    color="default"
+                />
+                <StatsCard
+                    label="Likely Outdated"
+                    value={results.filter(r => r.score >= 60).length}
+                    icon={<AlertCircle size={20} />}
+                    color="rose"
+                />
+            </StatsGrid>
+
             {/* Search Filters */}
-            <form onSubmit={handleSearch} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
+            <form onSubmit={handleSearch} className="card p-6 mb-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Row 1: Primary Filters */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                        <label className="label">Company Name</label>
                         <div className="relative">
                             <input
                                 type="text"
                                 placeholder="e.g. Tesla"
-                                className="w-full border rounded-md pl-10 pr-3 py-2"
+                                className="input pl-10"
                                 value={filters.query}
                                 onChange={(e) => setFilters({ ...filters, query: e.target.value })}
                             />
@@ -832,9 +861,9 @@ export default function ProspectSearch() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Company Size</label>
+                        <label className="label">Company Size</label>
                         <select
-                            className="w-full border rounded-md px-3 py-2 bg-white"
+                            className="input w-full bg-white"
                             value={filters.size}
                             onChange={(e) => setFilters({ ...filters, size: e.target.value })}
                         >
@@ -846,22 +875,22 @@ export default function ProspectSearch() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                        <label className="label">Location</label>
                         <input
                             type="text"
                             placeholder="e.g. London"
-                            className="w-full border rounded-md px-3 py-2"
+                            className="input w-full"
                             value={filters.location}
                             onChange={(e) => setFilters({ ...filters, location: e.target.value })}
                         />
-                        <p className="text-xs text-gray-500 mt-1">Region or City (UK)</p>
+                        <p className="helper-text mt-1">Region or City (UK)</p>
                     </div>
 
                     {/* Row 2: Age & Website Signals */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Company Age</label>
+                        <label className="label">Company Age</label>
                         <select
-                            className="w-full border rounded-md px-3 py-2 bg-white"
+                            className="input w-full bg-white"
                             value={filters.ageRange}
                             onChange={(e) => setFilters({ ...filters, ageRange: e.target.value })}
                         >
@@ -873,9 +902,9 @@ export default function ProspectSearch() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Min. Stability</label>
+                        <label className="label">Min. Stability</label>
                         <select
-                            className="w-full border rounded-md px-3 py-2 bg-white"
+                            className="input w-full bg-white"
                             value={(filters as any).minFinancialScore || ''}
                             onChange={(e) => setFilters({ ...filters, minFinancialScore: e.target.value } as any)}
                         >
@@ -883,29 +912,29 @@ export default function ProspectSearch() {
                             <option value="Strong">Strong+</option>
                             <option value="Medium">Medium+</option>
                         </select>
-                        <p className="text-xs text-gray-500 mt-1">Operational/Financial Health</p>
+                        <p className="helper-text mt-1">Operational/Financial Health</p>
                     </div>
 
-                    <div className="flex items-center gap-4 pt-6">
-                        <label className="flex items-center gap-2 cursor-pointer">
+                    <div className="flex items-center gap-6 pt-7">
+                        <label className="flex items-center gap-2 cursor-pointer group">
                             <input
                                 type="checkbox"
-                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                                 checked={filters.websiteRequired}
                                 onChange={(e) => setFilters({ ...filters, websiteRequired: e.target.checked })}
                             />
-                            <span className="text-sm text-gray-700 font-medium">Must have website</span>
+                            <span className="text-sm text-gray-700 font-medium group-hover:text-gray-900 transition-colors">Must have website</span>
                         </label>
 
-                        <label className="flex items-center gap-2 cursor-pointer ml-4">
+                        <label className="flex items-center gap-2 cursor-pointer ml-4 group">
                             <input
                                 type="checkbox"
-                                className="w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
+                                className="w-4 h-4 text-rose-600 rounded border-gray-300 focus:ring-rose-500"
                                 checked={filters.onlyOutdated}
                                 onChange={(e) => setFilters({ ...filters, onlyOutdated: e.target.checked })}
                             />
-                            <span className="text-sm text-gray-700 font-medium">Likely Outdated</span>
-                            <span className="text-xs text-gray-400">(Score &ge; 60)</span>
+                            <span className="text-sm text-gray-700 font-medium group-hover:text-gray-900 transition-colors">Likely Outdated</span>
+                            <span className="text-xs text-gray-400 font-mono">(Score &ge; 60)</span>
                         </label>
                     </div>
 
@@ -913,7 +942,7 @@ export default function ProspectSearch() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex justify-center items-center gap-2 font-medium"
+                            className="btn btn-primary w-full justify-center shadow-lg shadow-indigo-200/50"
                         >
                             <Search size={18} />
                             {loading ? 'Searching...' : 'Find Companies'}
@@ -938,17 +967,17 @@ export default function ProspectSearch() {
 
             {
                 results.length > 0 ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="card table-container">
                         {/* <pre className="text-xs p-2 bg-gray-100 max-h-40 overflow-auto">{JSON.stringify(results[0], null, 2)}</pre> */}
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-semibold border-b border-gray-200">
+                        <table className="table">
+                            <thead>
                                 <tr>
-                                    <th className="px-3 py-4 font-medium tracking-wide">Company Details</th>
-                                    <th className="px-3 py-4 font-medium tracking-wide">Location</th>
-                                    <th className="px-3 py-4 font-medium tracking-wide">Financial Analysis</th>
-                                    <th className="px-3 py-4 font-medium tracking-wide">Website Analysis</th>
-                                    <th className="px-3 py-4 font-medium tracking-wide">Lead Opportunity</th>
-                                    <th className="px-3 py-4 font-medium tracking-wide text-right">Actions</th>
+                                    <th className="w-[25%] pl-6">Company Details</th>
+                                    <th className="w-[15%]">Location</th>
+                                    <th className="w-[20%]">Financial Health</th>
+                                    <th className="w-[20%]">Website Match</th>
+                                    <th className="w-[10%]">Priority</th>
+                                    <th className="w-[10%] text-right pr-6"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -977,70 +1006,73 @@ export default function ProspectSearch() {
                                     }
 
                                     return (
-                                        <tr key={c.companyNumber || i} className="hover:bg-gray-50/80 group transition-colors border-b border-gray-50 last:border-0">
-                                            <td className="px-3 py-5 align-middle">
-                                                <div className="flex flex-col gap-0.5">
+                                        <tr key={c.companyNumber || i} className="hover:bg-gray-50/80 group transition-colors">
+                                            <td className="pl-6 py-5 align-top">
+                                                <div className="flex flex-col gap-1">
                                                     <CompanyNameLink
                                                         prospectId={c.id}
                                                         name={c.displayBrandName || c.websiteBrandName || c.companyName}
-                                                        className="font-semibold text-gray-900 text-sm"
+                                                        className="font-semibold text-gray-900 text-base"
                                                         onCompose={() => handleGenerateDraft(c)}
                                                     />
                                                     <div className="flex items-center gap-2 text-xs text-gray-400">
-                                                        <span>{c.companyNumber}</span>
+                                                        <span className="font-mono">{c.companyNumber}</span>
                                                         <span>&bull;</span>
                                                         <span className="truncate max-w-[120px]" title={c.industry || 'Unknown'}>{c.industry || 'Unknown Type'}</span>
                                                     </div>
                                                     <div className="flex flex-wrap gap-1 mt-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                        {c.source === 'companies_house' && <span className="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded border border-gray-200">CH</span>}
+                                                        {c.source === 'companies_house' && <span className="badge badge-neutral bg-gray-100 border border-gray-200">CH</span>}
                                                         {c.sicCodes?.slice(0, 2).map((code: string) => (
-                                                            <span key={code} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                                                            <span key={code} className="badge badge-neutral bg-gray-100 border border-gray-200">
                                                                 {code}
                                                             </span>
                                                         ))}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-4 align-top text-sm text-gray-500">
+                                            <td className="py-5 align-top text-sm text-gray-500">
                                                 {c.location && (
                                                     <button
                                                         onClick={() => setViewLocation(c.location)}
-                                                        className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded transition text-left group/loc"
+                                                        className="flex items-center gap-1.5 hover:bg-gray-100 px-2 py-1 rounded transition text-left group/loc -ml-2"
                                                     >
-                                                        <MapPin size={14} className="text-gray-400 shrink-0 group-hover/loc:text-blue-500" />
-                                                        <span className="truncate max-w-[120px] underline decoration-dotted decoration-gray-400 underline-offset-2 group-hover/loc:decoration-blue-500 group-hover/loc:text-blue-700">
+                                                        <MapPin size={14} className="text-gray-400 shrink-0 group-hover/loc:text-indigo-500" />
+                                                        <span className="truncate max-w-[120px] underline decoration-dotted decoration-gray-400 underline-offset-2 group-hover/loc:decoration-indigo-500 group-hover/loc:text-indigo-700">
                                                             {extractCity(c.location)}
                                                         </span>
                                                     </button>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-5 align-middle">
+                                            <td className="py-5 align-top">
                                                 {isLoadingFin ? (
-                                                    <div className="animate-pulse h-5 w-20 bg-gray-100 rounded"></div>
+                                                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                                                        <RefreshCw className="animate-spin" size={12} /> Analyzing...
+                                                    </div>
                                                 ) : (
                                                     c.financialActivityBand ? (
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-start gap-3">
                                                             <div className="flex flex-col items-center min-w-[32px]">
-                                                                <span className={`text-xl font-bold leading-none
-                                                                    ${finBand === 'Very Strong' ? 'text-emerald-700' :
-                                                                        finBand === 'Strong' ? 'text-green-700' :
-                                                                            finBand === 'Medium' ? 'text-amber-700' :
-                                                                                'text-gray-500'}`}>
+                                                                <span className={`text-xl font-bold leading-none font-mono
+                                                                    ${finBand === 'Very Strong' ? 'text-emerald-600' :
+                                                                        finBand === 'Strong' ? 'text-green-600' :
+                                                                            finBand === 'Medium' ? 'text-amber-600' :
+                                                                                'text-gray-400'}`}>
                                                                     {finScore}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex flex-col">
-                                                                <span className={`text-xs font-bold uppercase tracking-wide
-                                                                     ${finBand === 'Very Strong' ? 'text-emerald-700' :
-                                                                        finBand === 'Strong' ? 'text-green-700' :
-                                                                            finBand === 'Medium' ? 'text-amber-700' :
-                                                                                'text-gray-400'}`}>
+                                                            <div className="flex flex-col items-start gap-1">
+                                                                <span className={`badge px-2 py-0.5
+                                                                     ${finBand === 'Very Strong' ? 'badge-success' :
+                                                                        finBand === 'Strong' ? 'badge-success' :
+                                                                            finBand === 'Medium' ? 'badge-warning' :
+                                                                                'badge-neutral'}`}>
                                                                     {finBand}
                                                                 </span>
                                                                 <ExplainButton
                                                                     onClick={() => setViewFinancials(c)}
                                                                     title="See financial data breakdown"
-                                                                    className="-ml-1"
+                                                                    className="bg-transparent border-0 hover:bg-gray-100 p-0 h-auto min-h-0 min-w-0"
+                                                                    label="Why?"
                                                                 />
                                                             </div>
                                                         </div>
@@ -1048,39 +1080,40 @@ export default function ProspectSearch() {
                                                         <button
                                                             onClick={() => handleCheckFinancials(c, i)}
                                                             disabled={isLoadingFin}
-                                                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                            className="btn btn-secondary text-xs py-1.5 h-auto"
                                                         >
                                                             Check Financials
                                                         </button>
                                                     )
                                                 )}
                                             </td>
-                                            <td className="px-3 py-5 align-middle">
+                                            <td className="py-5 align-top">
                                                 {/* Website Analysis - Simplified */}
                                                 {renderMatchState(c, i)}
                                             </td>
-                                            <td className="px-3 py-5 align-middle">
+                                            <td className="py-5 align-top">
                                                 {c.contactPriorityBand ? (
                                                     <div className="flex items-center gap-2">
                                                         <div className="flex flex-col items-center min-w-[32px]">
-                                                            <span className={`text-xl font-bold leading-none
-                                                                ${c.contactPriorityBand === 'High' ? 'text-purple-700' :
-                                                                    c.contactPriorityBand === 'Medium' ? 'text-indigo-700' :
-                                                                        'text-gray-500'}`}>
+                                                            <span className={`text-xl font-bold leading-none font-mono
+                                                                ${c.contactPriorityBand === 'High' ? 'text-purple-600' :
+                                                                    c.contactPriorityBand === 'Medium' ? 'text-indigo-600' :
+                                                                        'text-gray-400'}`}>
                                                                 {c.contactPriorityScore}
                                                             </span>
                                                         </div>
-                                                        <div className="flex flex-col">
-                                                            <span className={`text-xs font-bold uppercase tracking-wide
-                                                                 ${c.contactPriorityBand === 'High' ? 'text-purple-700' :
-                                                                    c.contactPriorityBand === 'Medium' ? 'text-indigo-700' :
-                                                                        'text-gray-400'}`}>
+                                                        <div className="flex flex-col gap-1 items-start">
+                                                            <span className={`badge px-2 py-0.5
+                                                                 ${c.contactPriorityBand === 'High' ? 'bg-purple-100 text-purple-700' :
+                                                                    c.contactPriorityBand === 'Medium' ? 'bg-indigo-100 text-indigo-700' :
+                                                                        'slide-neutral'}`}>
                                                                 {c.contactPriorityBand}
                                                             </span>
                                                             <ExplainButton
                                                                 onClick={() => setViewPriority(c)}
                                                                 title="See lead opportunity score breakdown"
-                                                                className="-ml-1"
+                                                                className="bg-transparent border-0 hover:bg-gray-100 p-0 h-auto min-h-0 min-w-0"
+                                                                label="Why?"
                                                             />
                                                         </div>
                                                     </div>
@@ -1088,45 +1121,45 @@ export default function ProspectSearch() {
                                                     <span className="text-xs text-gray-300">-</span>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-5 align-middle text-right">
+                                            <td className="pr-6 py-5 align-middle text-right">
                                                 {status === 'ADDED' ? (
-                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                                                    <span className="badge badge-success">
                                                         <Check size={12} /> Added
                                                     </span>
                                                 ) : (
-                                                    <div className="flex items-center justify-end gap-1 transition-opacity">
+                                                    <div className="flex items-center justify-end gap-2 transition-opacity">
 
                                                         {/* Icon Group */}
-                                                        <div className="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-200 mr-2">
+                                                        <div className="flex items-center gap-1">
                                                             <button
                                                                 onClick={() => handleOpenDiscovery(c)}
-                                                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-white rounded-md transition-all relative group/btn"
+                                                                className="btn btn-ghost p-2 rounded-lg text-gray-400 hover:text-blue-600"
+                                                                title="Find Emails"
                                                             >
-                                                                <Database size={14} />
-                                                                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap">Find Emails</div>
+                                                                <Database size={16} />
                                                             </button>
 
                                                             <button
                                                                 onClick={() => handleGenerateDraft(c)}
                                                                 disabled={isGeneratingDraft}
-                                                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-md transition-all relative group/btn"
+                                                                className="btn btn-ghost p-2 rounded-lg text-gray-400 hover:text-indigo-600"
+                                                                title="Draft Email"
                                                             >
-                                                                <PenTool size={14} />
-                                                                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap">Draft</div>
+                                                                <PenTool size={16} />
                                                             </button>
 
                                                             <button
                                                                 onClick={() => handleAction(c, i, 'REJECT')}
-                                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-white rounded-md transition-all relative group/btn"
+                                                                className="btn btn-ghost p-2 rounded-lg text-gray-400 hover:text-rose-600"
+                                                                title="Reject"
                                                             >
-                                                                <X size={14} />
-                                                                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap">Reject</div>
+                                                                <X size={16} />
                                                             </button>
                                                         </div>
 
                                                         <button
                                                             onClick={() => checkAddLead(c, i)}
-                                                            className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-md hover:bg-gray-800 flex items-center gap-1.5 shadow-sm transition ring-1 ring-gray-900/10"
+                                                            className="btn btn-primary text-xs py-1.5 h-auto shadow-sm shadow-indigo-200"
                                                         >
                                                             <Plus size={14} /> Add
                                                         </button>
@@ -1140,10 +1173,12 @@ export default function ProspectSearch() {
                         </table>
                     </div>
                 ) : (
-                    <div className="text-center py-12 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
-                        <Building2 className="mx-auto h-12 w-12 text-gray-300" />
-                        <h3 className="mt-2 text-sm font-semibold text-gray-900">No prospects to show</h3>
-                        <p className="mt-1 text-sm text-gray-500">Get started by searching for companies.</p>
+                    <div className="text-center py-16 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
+                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Building2 className="h-8 w-8 text-gray-300" />
+                        </div>
+                        <h3 className="text-base font-semibold text-gray-900">No prospects to show</h3>
+                        <p className="mt-1 text-sm text-gray-500">Get started by searching for companies above.</p>
                     </div>
                 )
             }

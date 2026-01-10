@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Loader2, ChevronDown, ChevronUp, Paperclip, XCircle } from 'lucide-react';
+import { X, Loader2, Clock, Reply, CheckCircle2 } from 'lucide-react';
 import RichComposer from './RichComposer';
+import StatusBadge from './StatusBadge';
 
 interface ThreadMessage {
     id: string;
@@ -36,7 +37,9 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
 
     const [draftContent, setDraftContent] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
+    // Initial Load
     useEffect(() => {
         fetchThread();
 
@@ -47,12 +50,15 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
         return () => document.removeEventListener('keydown', handleEscape);
     }, [emailId]);
 
-    // Auto-scroll to bottom when messages load
+    // Scroll to bottom only on initial load or new message sent
     useEffect(() => {
-        if (thread?.messages && messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        if (thread?.messages && messagesEndRef.current && !loading) {
+            // Use slightly delayed scroll to ensure rendering is complete
+            setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
         }
-    }, [thread?.messages]);
+    }, [thread?.messages.length, loading]);
 
     async function fetchThread() {
         try {
@@ -93,7 +99,6 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
             throw new Error(data.error || 'Failed to send');
         }
 
-        // Refresh thread to show new message
         await fetchThread();
         setDraftContent('');
 
@@ -104,205 +109,201 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
 
     function handleSaveDraft(html: string) {
         setDraftContent(html);
-        // Store in localStorage for persistence
         localStorage.setItem(`draft-${emailId}`, html);
     }
 
-    // Load saved draft on mount
     useEffect(() => {
         const saved = localStorage.getItem(`draft-${emailId}`);
-        if (saved) {
-            setDraftContent(saved);
-        }
+        if (saved) setDraftContent(saved);
     }, [emailId]);
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/20" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
 
             {/* Panel */}
-            <div className="relative w-full max-w-2xl bg-white shadow-2xl flex flex-col animate-slide-in">
-                {/* Header */}
-                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-                    <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                            <h2 className="font-semibold text-gray-900 truncate">
-                                {thread?.company.name || 'Loading...'}
+            <div
+                className="relative w-full max-w-3xl bg-white shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300"
+                ref={containerRef}
+            >
+                {/* 1. Header (Sticky Top) */}
+                <div className="px-6 py-4 border-b border-gray-200 bg-white/95 backdrop-blur z-20 shrink-0 flex items-start justify-between">
+                    <div className="flex-1 min-w-0 pr-4">
+                        <div className="flex items-center gap-2 mb-1">
+                            <h2 className="text-lg font-bold text-gray-900 truncate">
+                                {thread?.company.name || 'Conversation'}
                             </h2>
-                            <p className="text-sm text-gray-500 truncate mt-0.5">
-                                {thread?.contact.name} • {thread?.contact.email}
-                            </p>
-                            {thread?.email?.subject && (
-                                <p className="text-xs text-gray-400 truncate mt-1">
-                                    {thread.email.subject}
-                                </p>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
                             {thread?.email?.status && (
                                 <StatusBadge status={thread.email.status} />
                             )}
-                            <button
-                                onClick={onClose}
-                                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <X size={18} />
-                            </button>
                         </div>
+                        <div className="text-sm text-gray-500 flex items-center gap-2">
+                            <span className="font-medium text-gray-700">{thread?.contact.name}</span>
+                            <span className="text-gray-400">&lt;{thread?.contact.email}&gt;</span>
+                        </div>
+                        {thread?.email?.subject && (
+                            <p className="text-sm font-medium text-gray-800 mt-3 truncate bg-gray-50 p-2 rounded border border-gray-100">
+                                {thread.email.subject}
+                            </p>
+                        )}
                     </div>
+                    <button
+                        onClick={onClose}
+                        className="btn btn-ghost p-2 rounded-full text-gray-400 hover:text-gray-600"
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {/* 2. Messages List (Scrollable) */}
+                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8 bg-gray-50/50">
                     {loading ? (
-                        <div className="flex items-center justify-center h-40">
-                            <Loader2 className="animate-spin text-gray-400" size={24} />
+                        <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                            <Loader2 className="animate-spin mb-2" size={32} />
+                            <p className="text-sm">Loading thread...</p>
                         </div>
                     ) : error ? (
                         <div className="text-center py-12">
-                            <p className="text-gray-500">{error}</p>
-                            <button
-                                onClick={fetchThread}
-                                className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium"
-                            >
-                                Try again
-                            </button>
+                            <p className="text-red-500 mb-2">{error}</p>
+                            <button onClick={fetchThread} className="btn btn-secondary">Try again</button>
                         </div>
                     ) : (
                         <>
                             {thread?.partial && thread?.partialReason && (
-                                <div className="text-center py-2 px-3 bg-amber-50 border border-amber-100 rounded-lg">
-                                    <p className="text-xs text-amber-600">{thread.partialReason}</p>
+                                <div className="text-center py-2 px-3 bg-amber-50 border border-amber-100 rounded-lg mx-auto max-w-md">
+                                    <p className="text-xs text-amber-600 font-medium flex items-center justify-center gap-2">
+                                        <Clock size={12} />
+                                        {thread.partialReason}
+                                    </p>
                                 </div>
                             )}
 
-                            {thread?.messages.map((msg) => (
-                                <MessageCard key={msg.id} message={msg} />
+                            {/* Messages */}
+                            {thread?.messages.map((msg, idx) => (
+                                <MessageCard
+                                    key={msg.id}
+                                    message={msg}
+                                    isLast={idx === thread.messages.length - 1}
+                                />
                             ))}
 
-                            <div ref={messagesEndRef} />
+                            <div ref={messagesEndRef} className="h-4" />
                         </>
                     )}
                 </div>
 
-                {/* Composer (sticky at bottom) */}
+                {/* 3. Composer (Sticky Bottom) */}
                 {thread && !error && (
-                    <RichComposer
-                        to={thread.contact.email}
-                        subject={thread.email?.subject || ''}
-                        initialValue={draftContent}
-                        onSend={handleSend}
-                        onSaveDraft={handleSaveDraft}
-                        disabled={loading}
-                    />
+                    <div className="bg-white border-t border-gray-200 p-6 z-20 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                        <div className="mb-2 flex items-center justify-between">
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                <Reply size={12} />
+                                Reply to {thread.contact.name}
+                            </span>
+                        </div>
+                        <div className="rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-400 transition-all shadow-sm">
+                            <RichComposer
+                                to={thread.contact.email}
+                                subject={thread.email?.subject || ''}
+                                initialValue={draftContent}
+                                onSend={handleSend}
+                                onSaveDraft={handleSaveDraft}
+                                disabled={loading}
+                            />
+                        </div>
+                    </div>
                 )}
             </div>
-
-            <style jsx>{`
-                @keyframes slide-in {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                .animate-slide-in {
-                    animation: slide-in 0.2s ease-out;
-                }
-            `}</style>
         </div>
     );
 }
 
 /**
- * Individual message card with clean rendering
+ * Modern Message Card component
  */
-function MessageCard({ message }: { message: ThreadMessage }) {
+function MessageCard({ message, isLast }: { message: ThreadMessage; isLast: boolean }) {
     const [showQuoted, setShowQuoted] = useState(false);
-
-    // Clean up the message body
     const { mainBody, quotedText } = parseMessageBody(message.body);
     const hasQuoted = quotedText.length > 0;
 
+    const isOutbound = message.isOutbound;
+
     return (
-        <div className={`${message.isOutbound ? 'ml-6' : 'mr-6'}`}>
-            <div className={`rounded-xl p-4 ${message.isOutbound
-                    ? 'bg-indigo-50 border border-indigo-100'
-                    : 'bg-white border border-gray-200 shadow-sm'
-                }`}>
-                {/* Header */}
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${message.isOutbound
-                                ? 'bg-indigo-200 text-indigo-700'
-                                : 'bg-gray-200 text-gray-600'
-                            }`}>
-                            {message.fromName[0]?.toUpperCase() || '?'}
-                        </div>
-                        <div>
-                            <span className={`text-sm font-medium ${message.isOutbound ? 'text-indigo-700' : 'text-gray-900'
-                                }`}>
-                                {message.isOutbound ? 'You' : message.fromName}
-                            </span>
-                        </div>
-                    </div>
-                    <span
-                        className="text-xs text-gray-400"
-                        title={formatFullDate(message.timestamp)}
-                    >
+        <div className={`flex gap-4 ${isOutbound ? 'flex-row-reverse' : 'flex-row'}`}>
+            {/* Avatar */}
+            <div className={`
+                w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm text-sm font-semibold
+                ${isOutbound ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}
+            `}>
+                {message.fromName[0]?.toUpperCase()}
+            </div>
+
+            {/* Bubble */}
+            <div className={`flex flex-col max-w-[85%] ${isOutbound ? 'items-end' : 'items-start'}`}>
+                <div className="flex items-baseline gap-2 mb-1 px-1">
+                    <span className="text-sm font-bold text-gray-900">
+                        {isOutbound ? 'You' : message.fromName}
+                    </span>
+                    <span className="text-xs text-gray-400">
                         {formatRelativeTime(message.timestamp)}
                     </span>
                 </div>
 
-                {/* Body */}
-                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {mainBody || '(No content)'}
-                </div>
+                <div className={`
+                    rounded-2xl px-5 py-4 shadow-sm border text-sm leading-relaxed whitespace-pre-wrap
+                    ${isOutbound
+                        ? 'bg-indigo-50 border-indigo-100 text-gray-800 rounded-tr-sm'
+                        : 'bg-white border-gray-200 text-gray-800 rounded-tl-sm'
+                    }
+                `}>
+                    {/* Show main body, handle empty content */}
+                    {mainBody ? mainBody : <span className="text-gray-400 italic">(No content)</span>}
 
-                {/* Quoted text toggle */}
-                {hasQuoted && (
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                        <button
-                            onClick={() => setShowQuoted(!showQuoted)}
-                            className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
-                        >
-                            {showQuoted ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                            {showQuoted ? 'Hide' : 'Show'} quoted text
-                        </button>
-                        {showQuoted && (
-                            <div className="mt-2 pl-3 border-l-2 border-gray-200 text-xs text-gray-500 whitespace-pre-wrap">
-                                {quotedText}
-                            </div>
-                        )}
-                    </div>
-                )}
+                    {/* Collapsed History */}
+                    {hasQuoted && (
+                        <div className="mt-4 pt-3 border-t border-black/5">
+                            {!showQuoted ? (
+                                <button
+                                    onClick={() => setShowQuoted(true)}
+                                    className="text-xs text-gray-500 font-medium flex items-center gap-1 hover:text-gray-800 bg-white/50 px-2 py-1 rounded transition-colors"
+                                >
+                                    <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center text-[10px]">...</div>
+                                    Show quoted text
+                                </button>
+                            ) : (
+                                <div>
+                                    <div className="text-xs text-gray-500 pl-2 border-l-2 border-gray-300 py-1 mb-2">
+                                        {quotedText}
+                                    </div>
+                                    <button
+                                        onClick={() => setShowQuoted(false)}
+                                        className="text-xs text-gray-400 hover:text-gray-600"
+                                    >
+                                        Hide history
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
 }
 
-/**
- * Parse message body to separate main content from quoted text
- */
+// ... helpers ...
 function parseMessageBody(body: string): { mainBody: string; quotedText: string } {
     if (!body) return { mainBody: '', quotedText: '' };
-
-    // Remove raw header blocks from body
+    // Basic cleanup
     let cleaned = body
         .replace(/^From:.*$/gm, '')
         .replace(/^Sent:.*$/gm, '')
         .replace(/^To:.*$/gm, '')
         .replace(/^Subject:.*$/gm, '')
-        .replace(/^Cc:.*$/gm, '')
-        .replace(/^Date:.*$/gm, '')
         .trim();
 
-    // Detect quoted text patterns
-    const quotePatterns = [
-        /On .+wrote:[\s\S]*/i,
-        /^>.*$/gm,
-        /_{10,}/,
-        /-{10,}/
-    ];
-
+    const quotePatterns = [/On .+wrote:[\s\S]*/i, /^>.*$/gm, /_{10,}/, /-{10,}/];
     let mainBody = cleaned;
     let quotedText = '';
 
@@ -314,46 +315,17 @@ function parseMessageBody(body: string): { mainBody: string; quotedText: string 
             break;
         }
     }
-
-    // Clean up extra newlines
-    mainBody = mainBody.replace(/\n{3,}/g, '\n\n').trim();
-
     return { mainBody, quotedText };
 }
 
-function StatusBadge({ status }: { status: string }) {
-    const config: Record<string, { label: string; className: string }> = {
-        SENT: { label: 'Waiting', className: 'bg-gray-100 text-gray-600' },
-        FOLLOW_UP_DUE: { label: 'Action Needed', className: 'bg-amber-100 text-amber-700' },
-        REPLIED: { label: 'Replied', className: 'bg-green-100 text-green-700' },
-        CLOSED: { label: 'Closed', className: 'bg-gray-100 text-gray-500' },
-    };
-
-    const { label, className } = config[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
-
-    return (
-        <span className={`text-[10px] font-medium px-2 py-1 rounded ${className}`}>
-            {label}
-        </span>
-    );
-}
 
 function formatRelativeTime(timestamp: string): string {
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-}
-
-function formatFullDate(timestamp: string): string {
-    return new Date(timestamp).toLocaleString();
+    if (diffMs < 60000) return 'Just now';
+    if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)}m ago`;
+    if (diffMs < 86400000) return `${Math.floor(diffMs / 3600000)}h ago`;
+    if (diffMs < 172800000) return 'Yesterday';
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }

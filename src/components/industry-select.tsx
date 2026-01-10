@@ -39,49 +39,65 @@ export default function IndustrySelect({ selected, onChange }: IndustrySelectPro
 
     return (
         <div className="relative" ref={containerRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Industries</label>
+            <label className="label">Industries</label>
             <div
-                className="w-full border rounded-md px-3 py-2 bg-white min-h-[42px] cursor-pointer flex flex-wrap gap-2 items-center"
+                className={`
+                    min-h-[42px] cursor-pointer flex flex-wrap gap-2 items-center
+                    input h-auto py-1.5
+                    ${isOpen ? 'ring-2 ring-indigo-100 border-indigo-500' : ''}
+                `}
                 onClick={() => setIsOpen(!isOpen)}
             >
                 {selected.length === 0 && <span className="text-gray-400 text-sm">Select industries...</span>}
                 {selected.map(label => (
-                    <span key={label} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded flex items-center gap-1 border border-blue-100">
+                    <span key={label} className="badge badge-neutral bg-indigo-50 text-indigo-700 border-indigo-100 flex items-center gap-1 pl-2 pr-1 h-7">
                         {label}
-                        <button onClick={(e) => removeSelection(e, label)} className="hover:text-blue-900"><X size={12} /></button>
+                        <button
+                            onClick={(e) => removeSelection(e, label)}
+                            className="hover:bg-indigo-200 rounded-full p-0.5 transition-colors"
+                        >
+                            <X size={12} />
+                        </button>
                     </span>
                 ))}
-                <div className="ml-auto pointer-events-none text-gray-400">
+                <div className="ml-auto pointer-events-none text-gray-400 pl-2">
                     <ChevronDown size={16} />
                 </div>
             </div>
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-[400px] mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[400px] overflow-y-auto left-0">
-                    <div className="p-2 sticky top-0 bg-white border-b border-gray-100 pb-2 mb-2">
-                        <p className="text-xs text-gray-500 font-medium px-2">
-                            Industries are mapped to Companies House SIC codes.
+                <div className="absolute z-50 w-[400px] mt-2 bg-white border border-gray-200 rounded-xl shadow-xl max-h-[400px] overflow-y-auto left-0 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="p-3 sticky top-0 bg-white border-b border-gray-100 pb-2 mb-2 z-10">
+                        <p className="text-xs text-gray-500 font-medium px-1 flex items-center gap-1">
+                            <Check size={12} className="text-green-600" />
+                            Industries mapped to SIC codes
                         </p>
                     </div>
                     <div className="p-2 space-y-4">
                         {INDUSTRY_TAXONOMY.map(group => (
                             <div key={group.key}>
-                                <h4 className="text-xs uppercase font-bold text-gray-500 mb-2 px-2">{group.label}</h4>
-                                <div className="space-y-1">
+                                <h4 className="text-[10px] uppercase font-bold text-gray-400 mb-2 px-2 tracking-wider">{group.label}</h4>
+                                <div className="space-y-0.5">
                                     {group.items.map(item => {
                                         const isSelected = selected.includes(item.label);
                                         return (
                                             <div
                                                 key={item.label}
-                                                className={`flex items-start gap-3 p-2 rounded cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
+                                                className={`
+                                                    flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors
+                                                    ${isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50'}
+                                                `}
                                                 onClick={() => toggleSelection(item.label)}
                                             >
-                                                <div className={`mt-0.5 w-4 h-4 border rounded flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
-                                                    {isSelected && <Check size={12} className="text-white" />}
+                                                <div className={`
+                                                    w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors
+                                                    ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}
+                                                `}>
+                                                    {isSelected && <Check size={10} className="text-white" />}
                                                 </div>
                                                 <div>
-                                                    <span className={`text-sm block ${isSelected ? 'text-blue-900 font-medium' : 'text-gray-700'}`}>
+                                                    <span className={`text-sm block ${isSelected ? 'text-indigo-900 font-medium' : 'text-gray-700'}`}>
                                                         {item.label}
                                                     </span>
                                                 </div>

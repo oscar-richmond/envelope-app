@@ -184,25 +184,25 @@ export default function RichComposer({
                 <button
                     onClick={handleSaveDraft}
                     disabled={disabled}
-                    className="text-gray-500 hover:text-gray-700 text-xs font-medium flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-gray-100 transition-colors disabled:opacity-50"
+                    className="btn btn-tertiary text-xs py-1.5 h-8"
                 >
-                    <Save size={12} />
+                    <Save size={14} />
                     {draftSaved ? 'Saved!' : 'Save Draft'}
                 </button>
 
                 <button
                     onClick={handleSend}
                     disabled={disabled || sending}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="btn btn-primary"
                 >
                     {sending ? (
                         <>
-                            <Loader2 size={14} className="animate-spin" />
+                            <Loader2 size={16} className="animate-spin" />
                             Sending...
                         </>
                     ) : (
                         <>
-                            <Send size={14} />
+                            <Send size={16} />
                             Send
                         </>
                     )}
@@ -233,7 +233,7 @@ function ToolbarButton({
         <button
             onClick={onClick}
             title={title}
-            className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            className="btn btn-tertiary p-1.5 h-7 w-7 justify-center"
         >
             {children}
         </button>

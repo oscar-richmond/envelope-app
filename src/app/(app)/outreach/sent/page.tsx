@@ -4,8 +4,9 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Mail, ArrowRight, Clock, AlertCircle, CheckCircle, MessageSquare, RefreshCw, XCircle } from 'lucide-react';
+import { Mail, ArrowRight, Clock, AlertCircle, CheckCircle, MessageSquare, RefreshCw, XCircle, ChevronRight } from 'lucide-react';
 import ThreadViewer from '@/components/ThreadViewer';
+import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 
 interface StatusCounts {
     actionNeeded: number;
@@ -64,44 +65,73 @@ export default function InboxPage() {
     ];
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
-            <header className="flex items-center justify-between mb-8">
+        <div className="page-container">
+            <header className="page-header flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">
-                        Inbox
-                    </h1>
-                    <p className="text-gray-500 mt-1">Track replies and manage follow-ups.</p>
+                    <h1 className="page-title">Inbox</h1>
+                    <p className="page-description">Track replies and manage follow-ups.</p>
                 </div>
                 <div className="flex gap-2">
                     <button
                         onClick={syncReplies}
                         disabled={syncing}
-                        className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm disabled:opacity-50"
+                        className="btn btn-secondary"
                     >
                         <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
                         {syncing ? 'Syncing...' : 'Sync Replies'}
                     </button>
-                    <Link href="/outreach/follow-ups" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm">
+                    <Link href="/outreach/follow-ups" className="btn btn-primary">
                         <MessageSquare size={16} />
-                        Go to Follow Up Queue
+                        Go to Queue
                     </Link>
                 </div>
             </header>
 
-            {/* Tabs - Ordered: Action Needed, Waiting, Replied, All */}
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg w-fit mb-6">
+            {/* Overview Stats */}
+            <div className="mb-8">
+                <StatsGrid>
+                    <StatsCard
+                        label="Action Needed"
+                        value={counts.actionNeeded}
+                        color="amber"
+                        icon={<AlertCircle size={20} />}
+                    />
+                    <StatsCard
+                        label="Waiting"
+                        value={counts.waiting}
+                        color="default"
+                        icon={<Clock size={20} />}
+                    />
+                    <StatsCard
+                        label="Replied"
+                        value={counts.replied}
+                        color="green"
+                        icon={<CheckCircle size={20} />}
+                    />
+                    <StatsCard
+                        label="Closed"
+                        value={counts.closed}
+                        color="default"
+                        icon={<XCircle size={20} />}
+                    />
+                </StatsGrid>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex items-center gap-1 mb-6">
                 {tabs.map((tab) => (
                     <button
                         key={tab.key}
                         onClick={() => setFilter(tab.key)}
-                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2 ${filter === tab.key
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
+                        className={`px-4 py-2 text-sm font-medium rounded-full transition-all flex items-center gap-2 border ${filter === tab.key
+                            ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                             }`}
                     >
                         {tab.label}
-                        {tab.key === 'ACTION_NEEDED' && tab.count > 0 && (
-                            <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        {tab.count > 0 && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${filter === tab.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                                }`}>
                                 {tab.count}
                             </span>
                         )}
@@ -110,62 +140,86 @@ export default function InboxPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-100">
+            <div className="card table-container">
+                <table className="table">
+                    <thead>
                         <tr>
-                            <th className="px-6 py-3">Recipient</th>
-                            <th className="px-6 py-3">Subject</th>
-                            <th className="px-6 py-3">Sent</th>
-                            <th className="px-6 py-3">Status</th>
-                            <th className="px-6 py-3 text-right">Actions</th>
+                            <th className="w-[25%] pl-6">Recipient</th>
+                            <th className="w-[35%]">Subject & Summary</th>
+                            <th className="w-[15%]">Sent</th>
+                            <th className="w-[15%]">Status</th>
+                            <th className="w-[10%] text-right pr-6"></th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-100">
                         {loading ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-gray-400">Loading...</td>
+                                <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <RefreshCw className="animate-spin text-gray-300" size={24} />
+                                        <span>Loading conversations...</span>
+                                    </div>
+                                </td>
                             </tr>
                         ) : emails.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                                    {filter === 'ACTION_NEEDED'
-                                        ? 'No items need your attention right now.'
-                                        : 'No emails found for this filter.'}
+                                <td colSpan={5} className="px-6 py-16 text-center">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center">
+                                            <Mail className="text-gray-300" size={24} />
+                                        </div>
+                                        <p className="text-gray-500 font-medium">
+                                            {filter === 'ACTION_NEEDED'
+                                                ? 'You\'re all caught up!'
+                                                : 'No emails found for this filter.'}
+                                        </p>
+                                    </div>
                                 </td>
                             </tr>
                         ) : (
                             emails.map((email) => (
-                                <tr key={email.id} className="hover:bg-gray-50/50 transition-colors group">
-                                    <td className="px-6 py-4">
-                                        <div className="font-medium text-gray-900">{email.lead.companyName}</div>
-                                        <div className="text-xs text-gray-400 truncate max-w-[200px]">{email.formattedTo}</div>
+                                <tr key={email.id}
+                                    onClick={() => setSelectedThreadId(email.id)}
+                                    className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
+                                >
+                                    <td className="pl-6 py-4 align-top">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 shrink-0">
+                                                {email.lead.companyName.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <div className="font-semibold text-gray-900 text-sm">{email.lead.companyName}</div>
+                                                <div className="text-xs text-gray-400 truncate max-w-[150px]">{email.formattedTo}</div>
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="text-gray-700 font-medium truncate max-w-[300px]">{email.subject}</div>
-                                        <div className="text-xs text-gray-400 truncate max-w-[300px]">{email.bodyText.substring(0, 50)}...</div>
+                                    <td className="py-4 align-top">
+                                        <div className="text-gray-900 font-medium text-sm truncate max-w-[400px] mb-0.5">{email.subject}</div>
+                                        <div className="text-xs text-gray-500 truncate max-w-[400px]">{email.bodyText.substring(0, 80)}...</div>
                                         {/* AI Summary - Only show if valid */}
-                                        <AISummary summary={email.replySummary} status={email.status} />
+                                        <div className="mt-2">
+                                            <AISummary summary={email.replySummary} status={email.status} />
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4 text-gray-500">
-                                        {new Date(email.sentAt).toLocaleDateString()}
-                                        <div className="text-[10px] text-gray-300">
+                                    <td className="py-4 align-top">
+                                        <div className="text-sm text-gray-500 font-medium">
+                                            {new Date(email.sentAt).toLocaleDateString()}
+                                        </div>
+                                        <div className="text-xs text-gray-400 mt-0.5">
                                             {new Date(email.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="py-4 align-top">
                                         <StatusBadge
                                             status={email.status}
                                             nextFollowUpAt={email.nextFollowUpAt}
                                             replySentiment={email.replySentiment}
+                                            replyIntent={email.replyIntent}
                                         />
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button
-                                            onClick={() => setSelectedThreadId(email.id)}
-                                            className="text-gray-500 hover:text-indigo-600 text-xs font-medium border border-gray-200 hover:border-indigo-200 rounded px-3 py-1.5 transition-colors"
-                                        >
-                                            View Thread
+                                    <td className="pr-6 py-4 text-right align-middle">
+                                        <button className="text-gray-400 group-hover:text-indigo-600 transition-colors">
+                                            <ChevronRight size={20} />
                                         </button>
                                     </td>
                                 </tr>
@@ -206,8 +260,9 @@ function AISummary({ summary, status }: { summary: string | null; status: string
     }
 
     return (
-        <div className="mt-1 text-[10px] text-indigo-600 bg-indigo-50 border border-indigo-100 p-1 rounded max-w-[300px]">
-            {summary}
+        <div className="inline-flex items-start gap-1.5 text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1.5 rounded-lg max-w-[90%]">
+            <MessageSquare size={12} className="mt-0.5 shrink-0" />
+            <span className="leading-snug">{summary}</span>
         </div>
     );
 }
@@ -246,7 +301,7 @@ function StatusBadge({
     // Calculate contextual hint
     const getContextHint = () => {
         if (status === 'FOLLOW_UP_DUE' || status === 'ACTION_NEEDED') {
-            return 'Follow-up due';
+            return 'Response required';
         }
         if (status === 'REPLIED' || status === 'CLOSED') {
             const intentLabel = getIntentLabel();
@@ -270,40 +325,36 @@ function StatusBadge({
 
     if (status === 'REPLIED') {
         badge = (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-green-50 text-green-700 uppercase tracking-wider">
-                <MessageSquare size={10} />
+            <span className="badge badge-success">
                 Reply received
             </span>
         );
     } else if (status === 'FOLLOW_UP_DUE' || status === 'ACTION_NEEDED') {
         badge = (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 uppercase tracking-wider">
-                <AlertCircle size={10} />
+            <span className="badge badge-warning">
                 Action Needed
             </span>
         );
     } else if (status === 'CLOSED') {
         badge = (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 uppercase tracking-wider">
-                <XCircle size={10} />
+            <span className="badge badge-neutral">
                 Closed
             </span>
         );
     } else {
         // SENT, FOLLOWED_UP, WAITING → Waiting
         badge = (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 uppercase tracking-wider">
-                <Clock size={10} />
-                Waiting for reply
+            <span className="badge badge-info bg-gray-100 text-gray-600">
+                Waiting
             </span>
         );
     }
 
     return (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5 items-start">
             {badge}
             {hint && (
-                <span className="text-[10px] text-gray-400">
+                <span className="text-[10px] font-medium text-gray-400 pl-1 uppercase tracking-wide">
                     {hint}
                 </span>
             )}

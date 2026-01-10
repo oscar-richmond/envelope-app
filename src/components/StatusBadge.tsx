@@ -1,17 +1,19 @@
 export default function StatusBadge({ status }: { status: string }) {
-    const styles: Record<string, string> = {
-        NEW: "bg-blue-100 text-blue-800",
-        DRAFTED: "bg-purple-100 text-purple-800",
-        REVIEWED: "bg-yellow-100 text-yellow-800",
-        APPROVED: "bg-green-100 text-green-800",
-        REJECTED: "bg-red-100 text-red-800",
+    const config: Record<string, { className: string; label?: string }> = {
+        NEW: { className: "badge-info" },
+        DRAFTED: { className: "badge-warning" },
+        REVIEWED: { className: "badge-warning" },
+        APPROVED: { className: "badge-success" },
+        REJECTED: { className: "badge-error" },
+        SENT: { className: "badge-info" },
+        REPLIED: { className: "badge-success" },
     };
 
-    const className = styles[status] || "bg-gray-100 text-gray-800";
+    const conf = config[status] || { className: "badge-neutral" };
 
     return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
-            {status}
+        <span className={`badge ${conf.className}`}>
+            {conf.label || status}
         </span>
     );
 }
