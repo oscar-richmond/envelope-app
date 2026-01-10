@@ -85,37 +85,37 @@ export default function ProspectResultRowCard({
     return (
         <div
             className={`
-                group bg-white rounded-2xl border border-gray-200 p-2 pl-4 pr-2 transition-all duration-150
+                group bg-white rounded-2xl border border-gray-200 py-4 px-5 transition-all duration-150
                 hover:shadow-md hover:border-gray-300 hover:bg-slate-50/20 relative
                 ${status === 'ADDED' ? 'bg-green-50/30 border-green-200' : ''}
             `}
         >
             {/* Status Overlay (Added) */}
             {status === 'ADDED' && (
-                <div className="absolute top-2 right-2 z-10 pointer-events-none">
+                <div className="absolute top-3 right-3 z-10 pointer-events-none">
                     <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-200 flex items-center gap-1 shadow-sm">
                         ✓ Added
                     </span>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_220px] gap-4 items-center h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr_260px] gap-6 items-center h-full">
 
-                {/* 1. Company Identity (Fixed 320px) */}
-                <div className="flex flex-col gap-1 pr-6 min-w-0 max-w-[340px] py-1">
+                {/* 1. Company Identity (Fixed 360px) */}
+                <div className="flex flex-col gap-2 pr-6 min-w-0 max-w-[380px] py-1">
                     <CompanyNameLink
                         prospectId={c.id}
                         name={c.companyName}
-                        className="font-bold text-gray-900 text-base hover:text-indigo-600 transition truncate leading-tight block w-full cursor-pointer"
+                        className="font-bold text-gray-900 text-lg hover:text-indigo-600 transition truncate leading-snug block w-full cursor-pointer"
                         onCompose={onDraftEmail}
                     />
 
                     {/* Compact One-Line Meta */}
-                    <div className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                    <div className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis leading-relaxed">
                         <span className="font-mono text-gray-400 text-xs">{c.companyNumber}</span>
                         <span className="text-gray-300">•</span>
                         {c.location ? (
-                            <button onClick={onViewLocation} className="hover:text-indigo-600 hover:underline truncate max-w-[100px]" title={c.location}>
+                            <button onClick={onViewLocation} className="hover:text-indigo-600 hover:underline truncate max-w-[120px]" title={c.location}>
                                 {formatLocation(c.location)}
                             </button>
                         ) : 'Unknown'}
@@ -126,9 +126,9 @@ export default function ProspectResultRowCard({
                     </div>
 
                     {/* Compact Pills (Max 1 + overflow) */}
-                    <div className="flex flex-wrap gap-1 mt-1.5 h-6 overflow-hidden">
+                    <div className="flex flex-wrap gap-1.5 mt-1 h-6 overflow-hidden">
                         {c.sicCodes?.slice(0, 1).map((code: string) => (
-                            <span key={code} className="bg-gray-50 text-gray-500 px-2 py-0.5 rounded-md text-xs border border-gray-100 truncate max-w-[180px]">
+                            <span key={code} className="bg-gray-50 text-gray-500 px-2.5 py-0.5 rounded-md text-xs border border-gray-100 truncate max-w-[200px]">
                                 {code}
                             </span>
                         ))}
@@ -140,8 +140,8 @@ export default function ProspectResultRowCard({
                     </div>
                 </div>
 
-                {/* 2. Metrics Grid (Flex 1 - Tight) */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 border-l border-gray-100 h-full items-center py-1">
+                {/* 2. Metrics Grid (Flex 1 - Breathable) */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 px-6 border-l border-gray-100 h-full items-center py-1">
 
                     {/* B. Lead Opportunity (Priority) - 1st */}
                     <MetricTile
@@ -203,24 +203,24 @@ export default function ProspectResultRowCard({
                 </div>
 
                 {/* 3. Actions (Control Panel) */}
-                <div className="flex flex-col items-center justify-center gap-2 p-2 bg-gray-50 rounded-xl border border-gray-100 h-full">
+                <div className="flex flex-col items-center justify-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 h-full">
 
                     {/* Primary CTA */}
                     {status !== 'ADDED' ? (
                         <button
                             onClick={onCheckAddLead}
-                            className="bg-gray-900 text-white hover:bg-black transition shadow-sm hover:shadow-md text-sm font-semibold px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-full"
+                            className="bg-gray-900 text-white hover:bg-black transition shadow-sm hover:shadow-md text-sm font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 w-full"
                         >
                             <Plus size={16} /> Add
                         </button>
                     ) : (
-                        <div className="w-full h-9 flex items-center justify-center text-xs text-green-600 font-medium bg-green-50 rounded-lg border border-green-100">
+                        <div className="w-full h-10 flex items-center justify-center text-xs text-green-600 font-medium bg-green-50 rounded-lg border border-green-100">
                             Added
                         </div>
                     )}
 
                     {/* Quick Actions Grid */}
-                    <div className="flex items-center gap-1 justify-center w-full">
+                    <div className="flex items-center gap-2 justify-center w-full">
                         <TooltipButton
                             icon={Maximize2}
                             onClick={() => document.getElementById(`company-link-${c.id}`)?.click()}

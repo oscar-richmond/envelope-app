@@ -600,7 +600,7 @@ export default function ProspectSearch() {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 w-full max-w-[1920px] mx-auto">
             {/* Email Discovery Modal */}
             {viewEmails && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewEmails(null)}>
