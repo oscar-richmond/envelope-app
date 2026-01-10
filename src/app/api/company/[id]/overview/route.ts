@@ -21,10 +21,10 @@ export async function GET(
                 companyProspect: true,
                 sentEmails: {
                     orderBy: { sentAt: 'desc' },
-                    take: 1,
-                    include: {
-                        lead: true
-                    }
+                    take: 1
+                },
+                contacts: {
+                    orderBy: { confidence: 'desc' }
                 }
             }
         });
@@ -61,7 +61,8 @@ export async function GET(
             websiteUrl: lead.websiteUrl,
             industry: lead.industry,
             companyProspect: lead.companyProspect,
-            sentEmails: lead.sentEmails, // Pass raw array for ThreadPreview
+            sentEmails: lead.sentEmails,
+            contacts: lead.contacts,
             kpis: {
                 opportunityScore: lead.stalenessScore, // Using staleness as proxy for now
                 financialScore: lead.companyProspect?.financialActivityScore || 0,

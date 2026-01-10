@@ -148,50 +148,12 @@ export default function CompanyOverviewModal({ leadId, onClose }: CompanyOvervie
                                  
                                  Correction: I will fetch contacts/threads client side in this modal to keep it clean.
                              */}
-                            <ContactsLoader leadId={leadId} />
-                            <ThreadLoader leadId={leadId} />
+                            <ContactsCard leadId={leadId} contacts={data.contacts || []} />
+                            <ThreadPreview sentEmails={data.sentEmails || []} />
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     );
-}
-
-// Helper Loaders to keep the main modal clean and fetch parallel data if needed
-function ContactsLoader({ leadId }: { leadId: number }) {
-    // In a real implementation this would fetch. For now we just use the API we built which generates mocks
-    // We can POST to /api/company/:id/contacts to get them.
-    // However, ContactsCard expects a list. 
-    // Let's just instantiate ContactsCard with empty list and let user click 'Find'?
-    // Better: Fetch them. 
-    const [contacts, setContacts] = useState([]);
-    useEffect(() => {
-        fetch(`/api/company/${leadId}/contacts`, { method: 'POST' }).then(r => r.json()).then(d => setContacts(d.contacts || []));
-    }, [leadId]);
-
-    return <ContactsCard leadId={leadId} contacts={contacts} />;
-}
-
-function ThreadLoader({ leadId }: { leadId: number }) {
-    // We need to fetch the thread. We can add an endpoint or include it in overview.
-    // Overview included `lastSentEmail` but ThreadPreview expects array.
-    // Let's wrap it.
-    const [emails, setEmails] = useState<any[]>([]);
-    useEffect(() => {
-        // Quick fetch or re-use overview data if we passed it down better.
-        // For speed, I'll just use the overview API which I know returns `lead.sentEmails` (array of 1).
-        // Wait, overview returns synthesized `outreach` object, not the raw array.
-        // Let's modify overview API or just make a quick call.
-        // Actually, let's just use what we have in the modal data first? 
-        // The modal data `data` in parent component *could* have it if I requested it.
-        // I will update the Overview API to return the raw `sentEmails` array for this prop.
-
-        fetch(`/api/company/${leadId}/overview`).then(r => r.json()).then(d => {
-            // Use the raw sentEmails array from the API
-            if (d.sentEmails) setEmails(d.sentEmails);
-        });
-    }, [leadId]);
-
-    return <ThreadPreview sentEmails={emails} />;
 }

@@ -110,7 +110,14 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                 <div className="space-y-8 xl:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <ErrorBoundary sectionName="Contacts Widget">
-                            <ContactsCard leadId={lead.id} contacts={lead.contacts || []} />
+                            <ContactsCard leadId={lead.id} contacts={(lead.contacts || []).map(c => ({
+                                id: c.id,
+                                firstName: c.firstName,
+                                lastName: c.lastName,
+                                title: c.title,
+                                email: c.email,
+                                confidence: c.confidence
+                            }))} />
                         </ErrorBoundary>
                         <ErrorBoundary sectionName="Thread Widget">
                             <ThreadPreview sentEmails={lead.sentEmails.map(e => ({
