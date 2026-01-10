@@ -11,7 +11,7 @@ interface Props {
 
 interface State {
     hasError: boolean;
-    error: Error | null;
+    error: (Error & { componentStack?: string }) | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -76,7 +76,15 @@ export class ErrorBoundary extends Component<Props, State> {
                             Try Again
                         </button>
                     </div>
-                    {/* Safe Debug Info (if needed later, could hide behind debug flag) */}
+                    {/* Debug Info */}
+                    {this.state.error && (
+                        <div className="mt-6 w-full max-w-md bg-white p-3 rounded border border-red-200 shadow-inner text-left overflow-hidden">
+                            <p className="font-bold text-[10px] text-red-900 border-b border-red-100 pb-1 mb-1 uppercase tracking-wider">Error Details</p>
+                            <div className="text-[10px] font-mono text-red-800 break-words whitespace-pre-wrap max-h-32 overflow-auto leading-tight">
+                                {this.state.error.toString()}
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
