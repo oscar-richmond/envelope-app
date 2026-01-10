@@ -9,6 +9,7 @@ interface KPIGridProps {
     financialBand: string;
     websiteScore: number;
     outreachStatus: string;
+    isSidebar?: boolean;
 }
 
 export default function KPIGrid({
@@ -16,7 +17,8 @@ export default function KPIGrid({
     financialScore,
     financialBand,
     websiteScore,
-    outreachStatus
+    outreachStatus,
+    isSidebar = false
 }: KPIGridProps) {
 
     // Helper to determine color
@@ -26,31 +28,47 @@ export default function KPIGrid({
         return 'rose';
     };
 
+    // Financial Value Formatted
+    const financialValue = (
+        <div className="flex flex-col items-start leading-none gap-1">
+            <span>{financialScore}</span>
+            <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded-full border border-current opacity-80
+                ${financialBand === 'Strong' || financialBand === 'Very Strong' ? 'bg-green-50 text-green-700' :
+                    financialBand === 'Medium' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
+                {financialBand}
+            </span>
+        </div>
+    );
+
     return (
-        <StatsGrid>
+        <StatsGrid className={isSidebar ? 'grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}>
             <StatsCard
-                label="Lead Opportunity"
+                label="Lead Opp."
                 value={`${opportunityScore}/100`}
-                icon={<Target size={20} />}
+                icon={<Target size={18} />}
                 color={getScoreColor(opportunityScore)}
+                compact={isSidebar}
             />
             <StatsCard
-                label="Financial Health"
-                value={`${financialScore} - ${financialBand}`}
-                icon={<TrendingUp size={20} />}
+                label="Financial"
+                value={financialValue} // Render formatted node
+                icon={<TrendingUp size={18} />}
                 color={getScoreColor(financialScore)}
+                compact={isSidebar}
             />
             <StatsCard
-                label="Website Health"
+                label="Website"
                 value={`${websiteScore}/100`}
-                icon={<Monitor size={20} />}
+                icon={<Monitor size={18} />}
                 color={getScoreColor(websiteScore)}
+                compact={isSidebar}
             />
             <StatsCard
-                label="Outreach Status"
-                value={outreachStatus.replace('_', ' ')}
-                icon={<Send size={20} />}
+                label="Status"
+                value={<span className="text-base truncate block">{outreachStatus.replace(/_/g, ' ')}</span>}
+                icon={<Send size={18} />}
                 color="indigo"
+                compact={isSidebar}
             />
         </StatsGrid>
     );

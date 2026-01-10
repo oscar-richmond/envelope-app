@@ -12,11 +12,18 @@ import FinancialHealth from '@/components/company-hq/FinancialHealth';
 import ContactsCard from '@/components/company-hq/ContactsCard';
 import ThreadPreview from '@/components/company-hq/ThreadPreview';
 
+import WebsiteEvidenceModal from '@/components/modals/WebsiteEvidenceModal';
+import FinancialReportModal from '@/components/modals/FinancialReportModal';
+
 export default function CompanyInspector() {
     const { activeLeadId, close, togglePin, pinnedWidth, resize } = useCompanyViewer();
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'Overview' | 'Contacts' | 'Thread'>('Overview');
+
+    // Modal State
+    const [isWebsiteModalOpen, setIsWebsiteModalOpen] = useState(false);
+    const [isFinancialModalOpen, setIsFinancialModalOpen] = useState(false);
 
     // Resizing Logic
     const isResizing = useRef(false);
@@ -78,46 +85,50 @@ export default function CompanyInspector() {
             </div>
 
             {/* Header */}
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-                <div className="min-w-0">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-start justify-between bg-white shrink-0 z-20">
+                <div className="min-w-0 pr-2">
                     {loading ? (
                         <div className="h-5 w-32 bg-gray-100 rounded animate-pulse" />
                     ) : (
-                        <h2 className="text-sm font-bold text-gray-900 truncate">
+                        <h2 className="text-lg font-bold text-gray-900 truncate leading-snug">
                             {data?.companyName}
                         </h2>
                     )}
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                        {data?.websiteUrl && (
-                            <a href={data.websiteUrl} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 truncate">
-                                {new URL(data.websiteUrl).hostname}
+                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                        {data?.websiteUrl ? (
+                            <a href={data.websiteUrl} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 truncate flex items-center gap-1">
+                                {new URL(data.websiteUrl).hostname} <ExternalLink size={10} />
                             </a>
+                        ) : (
+                            <span className="italic">No website</span>
                         )}
                         <span>•</span>
-                        <Link href={`/leads/${activeLeadId}`} className="hover:text-indigo-600">
-                            Full Page
-                        </Link>
+                        <span>{data?.industry || 'Unknown'}</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-1">
-                    <button onClick={togglePin} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100" title="Unpin (Move to Modal)">
-                        <Maximize2 size={16} />
-                    </button>
-                    <button onClick={close} className="p-1.5 text-gray-400 hover:text-rose-600 rounded hover:bg-gray-100" title="Close Panel">
-                        <X size={18} />
+                <div className="flex items-center gap-1 shrink-0">
+                    <Link
+                        href={`/leads/${activeLeadId}`}
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md hover:bg-gray-50 transition"
+                        title="Open Full Page"
+                    >
+                        <Maximize2 size={18} />
+                    </Link>
+                    <button onClick={close} className="p-1.5 text-gray-400 hover:text-rose-600 rounded-md hover:bg-gray-50 transition" title="Close Panel">
+                        <X size={20} />
                     </button>
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="px-4 pt-2 border-b border-gray-100 flex gap-4 text-xs font-medium text-gray-500">
+            <div className="px-5 pt-0 border-b border-gray-100 flex gap-6 text-xs font-semibold text-gray-500 bg-white z-10 sticky top-0">
                 {['Overview', 'Contacts', 'Thread'].map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab as any)}
-                        className={`pb-2 border-b-2 transition-colors ${activeTab === tab
-                                ? 'text-indigo-600 border-indigo-600'
-                                : 'border-transparent hover:text-gray-800'
+                        className={`py-3 border-b-2 transition-all ${activeTab === tab
+                            ? 'text-indigo-600 border-indigo-600'
+                            : 'border-transparent hover:text-gray-900'
                             }`}
                     >
                         {tab}
@@ -126,25 +137,33 @@ export default function CompanyInspector() {
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
+            <div className="flex-1 overflow-y-auto bg-gray-50/50 p-5">
                 {loading && !data ? (
                     <div className="space-y-4 animate-pulse">
-                        <div className="h-24 bg-gray-200 rounded-xl" />
-                        <div className="h-40 bg-gray-200 rounded-xl" />
+                        <div className="h-32 bg-gray-200 rounded-xl" />
+                        <div className="h-48 bg-gray-200 rounded-xl" />
                     </div>
                 ) : data ? (
                     <>
                         {activeTab === 'Overview' && (
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <KPIGrid
                                     opportunityScore={data.kpis.opportunityScore}
                                     financialScore={data.kpis.financialScore}
                                     financialBand={data.kpis.financialBand}
                                     websiteScore={data.kpis.websiteScore}
                                     outreachStatus={data.outreach.status}
+                                    isSidebar={true}
                                 />
-                                <WebsiteAudit signals={data.websiteSignals} websiteUrl={data.websiteUrl} />
-                                <FinancialHealth score={data.kpis.financialScore} band={data.kpis.financialBand} signals={data.financialSignals} />
+                                <WebsiteAudit
+                                    signals={data.websiteSignals}
+                                    websiteUrl={data.websiteUrl}
+                                />
+                                <FinancialHealth
+                                    score={data.kpis.financialScore}
+                                    band={data.kpis.financialBand}
+                                    signals={data.financialSignals}
+                                />
                             </div>
                         )}
 
