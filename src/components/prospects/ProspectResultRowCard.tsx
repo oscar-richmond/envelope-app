@@ -203,7 +203,7 @@ export default function ProspectResultRowCard({
                 </div>
 
                 {/* 3. Actions (Control Panel) */}
-                <div className="flex flex-col items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 h-full">
+                <div className="flex flex-col items-center justify-center gap-2 p-2 bg-gray-50 rounded-xl border border-gray-100 h-full">
 
                     {/* Primary CTA */}
                     {status !== 'ADDED' ? (
@@ -214,11 +214,13 @@ export default function ProspectResultRowCard({
                             <Plus size={16} /> Add
                         </button>
                     ) : (
-                        <div className="w-full h-9"></div> // Spacer
+                        <div className="w-full h-9 flex items-center justify-center text-xs text-green-600 font-medium bg-green-50 rounded-lg border border-green-100">
+                            Added
+                        </div>
                     )}
 
                     {/* Quick Actions Grid */}
-                    <div className="flex items-center gap-2 justify-between w-full">
+                    <div className="flex items-center gap-1 justify-center w-full">
                         <TooltipButton
                             icon={Maximize2}
                             onClick={() => document.getElementById(`company-link-${c.id}`)?.click()}
