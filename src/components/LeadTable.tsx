@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ExternalLink, ChevronRight, Trash2, Search, Building2 } from 'lucide-react';
+import { ExternalLink, ChevronRight, Trash2, Search, Building2, Plus } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import CompanyNameLink from './ui/CompanyNameLink';
+import AddLeadModal from '@/components/modals/AddLeadModal';
 
 type Lead = {
     id: number;
@@ -18,29 +19,72 @@ type Lead = {
 };
 
 export default function LeadTable({ initialLeads }: { initialLeads: Lead[] }) {
-    const [filter, setFilter] = useState('');
+    const [leads, setLeads] = useState<Lead[]>(initialLeads);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-    const filteredLeads = initialLeads.filter(lead =>
+    // Keyboard shortcut 'n'
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key.toLowerCase() === 'n' &&
+                !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+                e.preventDefault();
+                setIsAddModalOpen(true);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    const filteredLeads = leads.filter(lead =>
         lead.companyName.toLowerCase().includes(filter.toLowerCase()) ||
         (lead.industry && lead.industry.toLowerCase().includes(filter.toLowerCase()))
     );
+
+    const handleLeadAdded = (newLead: any) => {
+        // Optimistically add to top
+        // Parse date fields if needed although Table uses simple format?
+        // Lead interface has string dates above. Prisma returns objects (or string if JSON'd).
+        // Let's assume API returns JSON so dates are strings.
+        const formattedLead: Lead = {
+            id: newLead.id,
+            companyName: newLead.companyName,
+            websiteUrl: newLead.websiteUrl,
+            industry: newLead.industry,
+            location: newLead.location,
+            stalenessScore: 0,
+            emailStatus: 'NEW',
+            lastAnalyzedAt: null
+        };
+        setLeads([formattedLead, ...leads]);
+    };
 
     return (
         <div className="space-y-4">
             {/* Filter Bar */}
             <div className="flex items-center justify-between">
-                <div className="relative">
-                    <input
-                        type="text"
-                        placeholder="Filter by company or industry..."
-                        className="input !pl-11 w-64"
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                    />
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Filter by company or industry..."
+                            className="input !pl-11 w-64"
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                        />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                    </div>
                 </div>
-                <div className="text-sm font-medium text-gray-500">
-                    <span className="text-gray-900 font-bold">{filteredLeads.length}</span> active leads
+
+                <div className="flex items-center gap-4">
+                    <div className="text-sm font-medium text-gray-500">
+                        <span className="text-gray-900 font-bold">{filteredLeads.length}</span> active leads
+                    </div>
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="btn btn-primary shadow-sm"
+                    >
+                        <Plus size={16} /> Add Manual
+                    </button>
                 </div>
             </div>
 
@@ -122,7 +166,8 @@ export default function LeadTable({ initialLeads }: { initialLeads: Lead[] }) {
                                                     e.preventDefault();
                                                     if (!confirm('Delete this lead?')) return;
                                                     await fetch(`/api/leads/${lead.id}`, { method: 'DELETE' });
-                                                    window.location.reload();
+                                                    // Remove from state instead of reload
+                                                    setLeads(current => current.filter(l => l.id !== lead.id));
                                                 }}
                                                 className="btn btn-ghost px-2 py-2 text-gray-400 hover:text-rose-600"
                                             >
@@ -136,6 +181,12 @@ export default function LeadTable({ initialLeads }: { initialLeads: Lead[] }) {
                     </tbody>
                 </table>
             </div>
+
+            <AddLeadModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onSuccess={handleLeadAdded}
+            />
         </div>
     );
 }
