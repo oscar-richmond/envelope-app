@@ -82,28 +82,37 @@
   --info-text: #1e40af;
 
   /* ─────────────────────────────────────────
-     SHADOWS
+     SHADOWS (Apple-style Soft Layered)
      ───────────────────────────────────────── */
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
-  --shadow-card-hover: 0 4px 12px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -2px rgba(0, 0, 0, 0.04);
-  --shadow-float: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0 2px 8px -2px rgba(0, 0, 0, 0.06), 0 1px 3px -1px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 8px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, 0.08), 0 6px 12px -4px rgba(0, 0, 0, 0.04);
+  --shadow-float: 0 20px 40px -8px rgba(0, 0, 0, 0.12), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
+  --shadow-modal: 0 24px 48px -12px rgba(0, 0, 0, 0.15), 0 12px 24px -6px rgba(0, 0, 0, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  --shadow-focus-error: 0 0 0 3px rgba(239, 68, 68, 0.15);
 
   /* ─────────────────────────────────────────
-     RADII (Premium rounded corners)
+     RADII (60% Apple-style Corner Smoothing)
      ───────────────────────────────────────── */
-  --radius-sm: 8px;
-  --radius-default: 12px;
-  --radius-md: 16px;
-  --radius-lg: 20px;
-  --radius-xl: 24px;
-  --radius-2xl: 28px;
-  --radius-card: 28px;
-  --radius-button: 18px;
-  --radius-badge: 12px;
-  --radius-input: 16px;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-default: 14px;
+  --radius-md: 18px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-2xl: 32px;
+  --radius-3xl: 40px;
+  --radius-card: 24px;
+  --radius-modal: 28px;
+  --radius-button: 14px;
+  --radius-pill: 9999px;
+  --radius-badge: 10px;
+  --radius-input: 14px;
+  --radius-chip: 20px;
 
   /* ─────────────────────────────────────────
      SPACING (4px base grid)
@@ -286,7 +295,7 @@ h4,
 }
 
 /* ========================================
-   CARD COMPONENT (Premium V2)
+   CARD COMPONENT (Apple-style Premium)
    ======================================== */
 
 .card {
@@ -294,16 +303,23 @@ h4,
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
+  transition: all 0.2s ease-out;
 }
 
 .card-hover {
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.2s ease-out, transform 0.2s ease-out, border-color 0.2s ease-out;
+  cursor: pointer;
 }
 
 .card-hover:hover {
   box-shadow: var(--shadow-card-hover);
   border-color: var(--border-default);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+}
+
+.card-hover:active {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 /* Muted card variant */
@@ -311,6 +327,7 @@ h4,
   background: var(--bg-card-muted);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-card);
+  transition: all 0.2s ease-out;
 }
 
 /* Dark hero card */
@@ -320,6 +337,7 @@ h4,
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   color: var(--text-on-dark-primary);
+  transition: all 0.2s ease-out;
 }
 
 .card-dark .text-secondary,
