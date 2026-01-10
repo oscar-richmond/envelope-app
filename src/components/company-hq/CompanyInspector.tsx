@@ -158,11 +158,29 @@ export default function CompanyInspector() {
                                 <WebsiteAudit
                                     signals={data.websiteSignals}
                                     websiteUrl={data.websiteUrl}
+                                    onViewEvidence={() => setIsWebsiteModalOpen(true)}
                                 />
                                 <FinancialHealth
                                     score={data.kpis.financialScore}
                                     band={data.kpis.financialBand}
                                     signals={data.financialSignals}
+                                    onFullReport={() => setIsFinancialModalOpen(true)}
+                                />
+
+                                <WebsiteEvidenceModal
+                                    isOpen={isWebsiteModalOpen}
+                                    onClose={() => setIsWebsiteModalOpen(false)}
+                                    evidence={Array.isArray(data.websiteSignals) ? data.websiteSignals : []}
+                                    url={data.websiteUrl}
+                                />
+
+                                <FinancialReportModal
+                                    isOpen={isFinancialModalOpen}
+                                    onClose={() => setIsFinancialModalOpen(false)}
+                                    score={data.kpis.financialScore}
+                                    band={data.kpis.financialBand}
+                                    evidence={data.financialSignals}
+                                    companyName={data.companyName}
                                 />
                             </div>
                         )}

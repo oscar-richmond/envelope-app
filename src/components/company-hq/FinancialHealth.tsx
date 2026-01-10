@@ -13,17 +13,17 @@ interface FinancialHealthProps {
 export default function FinancialHealth({ score, band, signals, onFullReport }: FinancialHealthProps) {
     return (
         <div className={hqStyles.card}>
-            <div className={hqStyles.cardHeader}>
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white rounded-t-xl">
                 <div className="flex items-center gap-2">
-                    <TrendingUp size={18} className="text-gray-400" />
-                    <h3 className={hqStyles.cardTitle}>Financial Health</h3>
+                    <TrendingUp size={16} className="text-gray-400" />
+                    <h3 className="text-sm font-bold text-gray-900">Financial Health</h3>
                 </div>
                 {onFullReport && (
                     <button
                         onClick={onFullReport}
-                        className="text-xs text-indigo-600 font-medium hover:underline"
+                        className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                     >
-                        Full Report
+                        Report
                     </button>
                 )}
             </div>

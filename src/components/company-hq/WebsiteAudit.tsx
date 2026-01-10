@@ -18,17 +18,17 @@ export default function WebsiteAudit({ signals, websiteUrl, onViewEvidence }: We
 
     return (
         <div className={hqStyles.card}>
-            <div className={hqStyles.cardHeader}>
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white rounded-t-xl">
                 <div className="flex items-center gap-2">
-                    <Monitor size={18} className="text-gray-400" />
-                    <h3 className={hqStyles.cardTitle}>Website Review</h3>
+                    <Monitor size={16} className="text-gray-400" />
+                    <h3 className="text-sm font-bold text-gray-900">Website Review</h3>
                 </div>
                 {onViewEvidence && (
                     <button
                         onClick={onViewEvidence}
-                        className="text-xs text-indigo-600 font-medium hover:underline"
+                        className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                     >
-                        View Evidence
+                        Evidence
                     </button>
                 )}
             </div>
