@@ -337,6 +337,7 @@ export default function CompanyOverviewModal({ leadId, onClose }: CompanyOvervie
                 onClose={() => setIsWebsiteModalOpen(false)}
                 evidence={Array.isArray(data.websiteSignals) ? data.websiteSignals : []}
                 url={data.websiteUrl}
+                lastChecked={data.companyProspect?.websiteDiscoveryDate}
             />
 
             <FinancialReportModal
@@ -346,6 +347,7 @@ export default function CompanyOverviewModal({ leadId, onClose }: CompanyOvervie
                 band={data.kpis.financialBand}
                 evidence={data.financialSignals}
                 companyName={data.companyName}
+                lastChecked={data.companyProspect?.financialLastCheckedAt}
             />
         </>
     );
