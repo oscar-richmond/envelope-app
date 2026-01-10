@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
     List, Settings, PlusCircle, Send, Users,
     LayoutDashboard, ChevronLeft, ChevronRight,
-    Mail, LogOut, User as UserIcon, RefreshCw
+    Mail, LogOut, User as UserIcon, RefreshCw, MessageCircle
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from "next-auth/react";
@@ -86,13 +86,14 @@ const Sidebar = () => {
             {/* Navigation */}
             <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                 <NavSection title="Main" collapsed={isCollapsed}>
-                    <NavItem href="/" icon={<List size={18} />} label="Lead Board" collapsed={isCollapsed} isActive={pathname === '/'} />
+                    <NavItem href="/dashboard" icon={<LayoutDashboard size={18} />} label="Dashboard" collapsed={isCollapsed} isActive={pathname === '/dashboard'} />
+                    <NavItem href="/leads" icon={<List size={18} />} label="Lead Board" collapsed={isCollapsed} isActive={pathname === '/leads'} />
                     <NavItem href="/prospects" icon={<Users size={18} />} label="Prospects" collapsed={isCollapsed} isActive={pathname === '/prospects'} />
                 </NavSection>
 
                 <NavSection title="Outreach" collapsed={isCollapsed}>
                     <NavItem href="/outreach/sent" icon={<Mail size={18} />} label="Inbox" collapsed={isCollapsed} isActive={pathname === '/outreach/sent'} />
-                    <NavItem href="/conversations" icon={<LayoutDashboard size={18} />} label="Conversations" collapsed={isCollapsed} isActive={pathname === '/conversations'} />
+                    <NavItem href="/conversations" icon={<MessageCircle size={18} />} label="Conversations" collapsed={isCollapsed} isActive={pathname === '/conversations'} />
                     <NavItem href="/outreach/follow-ups" icon={<RefreshCw size={18} />} label="Follow-Ups" collapsed={isCollapsed} isActive={pathname === '/outreach/follow-ups'} />
                     <NavItem href="/outreach" icon={<Send size={18} />} label="Queue" collapsed={isCollapsed} isActive={pathname === '/outreach' && !pathname.includes('/sent') && !pathname.includes('/follow-ups')} />
                 </NavSection>
