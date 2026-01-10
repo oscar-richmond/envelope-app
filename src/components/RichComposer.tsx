@@ -28,14 +28,12 @@ export default function RichComposer({
     const [draftSaved, setDraftSaved] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-    // Initialize editor content
     useEffect(() => {
         if (editorRef.current && initialValue) {
             editorRef.current.innerHTML = initialValue;
         }
     }, [initialValue]);
 
-    // Autosave draft every 15 seconds (in-app only)
     useEffect(() => {
         const interval = setInterval(() => {
             if (editorRef.current && onSaveDraft) {
@@ -85,7 +83,6 @@ export default function RichComposer({
 
     const getPlainText = (): string => {
         if (!editorRef.current) return '';
-        // Convert HTML to plain text
         const temp = document.createElement('div');
         temp.innerHTML = editorRef.current.innerHTML;
         return temp.textContent || temp.innerText || '';
@@ -104,7 +101,6 @@ export default function RichComposer({
         try {
             setSending(true);
             await onSend(html, plainText);
-            // Clear editor on success
             if (editorRef.current) {
                 editorRef.current.innerHTML = '';
             }
@@ -123,47 +119,75 @@ export default function RichComposer({
     };
 
     return (
-        <div className="bg-white border-t border-gray-200">
-            {/* To/Subject (read-only) */}
-            <div className="px-4 py-2 border-b border-gray-100 text-xs text-gray-500">
-                <div className="flex items-center gap-2">
-                    <span className="font-medium">To:</span>
-                    <span>{to}</span>
+        <div style={{ background: 'var(--bg-card)' }}>
+            {/* To/Subject Header */}
+            <div
+                className="px-5 py-3"
+                style={{ borderBottom: '1px solid var(--border-soft)' }}
+            >
+                <div
+                    className="flex items-center gap-2 text-sm"
+                    style={{ color: 'var(--text-secondary)' }}
+                >
+                    <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>To:</span>
+                    <span style={{ color: 'var(--text-primary)' }}>{to}</span>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                    <span className="font-medium">Subject:</span>
-                    <span className="truncate">Re: {subject}</span>
+                <div
+                    className="flex items-center gap-2 text-sm mt-1.5"
+                    style={{ color: 'var(--text-secondary)' }}
+                >
+                    <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Subject:</span>
+                    <span className="truncate" style={{ color: 'var(--text-primary)' }}>Re: {subject}</span>
                 </div>
             </div>
 
-            {/* Formatting toolbar */}
-            <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-1 flex-wrap">
+            {/* Formatting Toolbar */}
+            <div
+                className="px-4 py-2.5 flex items-center gap-1 flex-wrap"
+                style={{
+                    borderBottom: '1px solid var(--border-soft)',
+                    background: 'var(--bg-card-muted)'
+                }}
+            >
                 <ToolbarButton onClick={handleBold} title="Bold (⌘B)">
-                    <Bold size={14} />
+                    <Bold size={15} />
                 </ToolbarButton>
                 <ToolbarButton onClick={handleItalic} title="Italic (⌘I)">
-                    <Italic size={14} />
+                    <Italic size={15} />
                 </ToolbarButton>
                 <ToolbarButton onClick={handleUnderline} title="Underline (⌘U)">
-                    <Underline size={14} />
+                    <Underline size={15} />
                 </ToolbarButton>
-                <div className="w-px h-4 bg-gray-200 mx-1" />
+
+                <div
+                    className="mx-2"
+                    style={{ width: '1px', height: '18px', background: 'var(--border-default)' }}
+                />
+
                 <ToolbarButton onClick={handleBulletList} title="Bullet list">
-                    <List size={14} />
+                    <List size={15} />
                 </ToolbarButton>
                 <ToolbarButton onClick={handleNumberedList} title="Numbered list">
-                    <ListOrdered size={14} />
+                    <ListOrdered size={15} />
                 </ToolbarButton>
-                <div className="w-px h-4 bg-gray-200 mx-1" />
+
+                <div
+                    className="mx-2"
+                    style={{ width: '1px', height: '18px', background: 'var(--border-default)' }}
+                />
+
                 <ToolbarButton onClick={handleLink} title="Insert link">
-                    <Link2 size={14} />
+                    <Link2 size={15} />
                 </ToolbarButton>
                 <ToolbarButton onClick={handleRemoveFormat} title="Remove formatting">
-                    <RemoveFormatting size={14} />
+                    <RemoveFormatting size={15} />
                 </ToolbarButton>
 
                 {lastSaved && (
-                    <span className="ml-auto text-[10px] text-gray-400">
+                    <span
+                        className="ml-auto text-[10px]"
+                        style={{ color: 'var(--text-muted)' }}
+                    >
                         Draft saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                 )}
@@ -174,17 +198,30 @@ export default function RichComposer({
                 ref={editorRef}
                 contentEditable={!disabled}
                 onKeyDown={handleKeyDown}
-                className="min-h-[120px] max-h-[200px] overflow-y-auto px-4 py-3 text-sm text-gray-700 focus:outline-none"
-                style={{ lineHeight: 1.6 }}
+                className="min-h-[140px] max-h-[240px] overflow-y-auto px-5 py-4 text-sm focus:outline-none"
+                style={{
+                    lineHeight: 1.7,
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-body)'
+                }}
                 data-placeholder="Write your reply..."
             />
 
-            {/* Actions */}
-            <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+            {/* Actions Footer */}
+            <div
+                className="px-5 py-4 flex items-center justify-between"
+                style={{ borderTop: '1px solid var(--border-soft)' }}
+            >
                 <button
                     onClick={handleSaveDraft}
                     disabled={disabled}
-                    className="btn btn-tertiary text-xs py-1.5 h-8"
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all"
+                    style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-default)',
+                        borderRadius: 'var(--radius-button)',
+                        color: 'var(--text-primary)'
+                    }}
                 >
                     <Save size={14} />
                     {draftSaved ? 'Saved!' : 'Save Draft'}
@@ -193,7 +230,14 @@ export default function RichComposer({
                 <button
                     onClick={handleSend}
                     disabled={disabled || sending}
-                    className="btn btn-primary"
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all"
+                    style={{
+                        background: 'var(--text-primary)',
+                        color: 'white',
+                        borderRadius: 'var(--radius-button)',
+                        boxShadow: 'var(--shadow-card)',
+                        opacity: disabled || sending ? 0.6 : 1
+                    }}
                 >
                     {sending ? (
                         <>
@@ -212,7 +256,7 @@ export default function RichComposer({
             <style jsx>{`
                 [contenteditable]:empty:before {
                     content: attr(data-placeholder);
-                    color: #9ca3af;
+                    color: var(--text-muted);
                     pointer-events: none;
                 }
             `}</style>
@@ -233,7 +277,13 @@ function ToolbarButton({
         <button
             onClick={onClick}
             title={title}
-            className="btn btn-tertiary p-1.5 h-7 w-7 justify-center"
+            className="p-2 transition-all"
+            style={{
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-secondary)'
+            }}
         >
             {children}
         </button>
