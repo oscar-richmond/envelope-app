@@ -13,6 +13,8 @@ import ThreadPreview from '@/components/company-hq/ThreadPreview';
 // Legacy / Shared Components
 import DraftEditor from '@/components/DraftEditor';
 import StatusBadge from '@/components/StatusBadge';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import DebugPanel from '@/components/DebugPanel';
 
 // FORCE DYNAMIC for fetching fresh data
 export const dynamic = 'force-dynamic';
@@ -107,35 +109,43 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                 {/* Right Column: Execution (2 cols) */}
                 <div className="space-y-8 xl:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <ContactsCard leadId={lead.id} contacts={lead.contacts} />
-                        <ThreadPreview sentEmails={lead.sentEmails.map(e => ({
-                            ...e,
-                            sentAt: e.sentAt, // Pass as Date? No, MUST be string for client comp. But ThreadPreview expects what?
-                            // Wait, ThreadPreview uses `new Date(latestEmail.sentAt)`.
-                            // If I pass string, new Date(string) works.
-                            // If I pass Date object, Client Comp crash?
-                            // YES. Server->Client prop must be JSON serializable.
-                            // So I must convert to string.
-                            sentAt: e.sentAt.toISOString(),
-                            createdAt: e.createdAt.toISOString(),
-                            updatedAt: e.updatedAt.toISOString()
-                        }))} />
+                        <ErrorBoundary sectionName="Contacts Widget">
+                            <ContactsCard leadId={lead.id} contacts={lead.contacts || []} />
+                        </ErrorBoundary>
+                        <ErrorBoundary sectionName="Thread Widget">
+                            <ThreadPreview sentEmails={lead.sentEmails.map(e => ({
+                                ...e,
+                                sentAt: e.sentAt.toISOString(),
+                                createdAt: e.createdAt.toISOString(),
+                                updatedAt: e.updatedAt.toISOString()
+                            }))} />
+                        </ErrorBoundary>
                     </div>
 
                     {/* Composer Area */}
                     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
                         <h3 className="text-sm font-semibold text-gray-900 mb-4">Outreach Composer</h3>
-                        <DraftEditor
-                            leadId={lead.id}
-                            initialDraft={lead.emailDraft}
-                            draftHistory={lead.drafts.map(d => ({
-                                ...d,
-                                createdAt: d.createdAt.toISOString()
-                            }))}
-                        />
+                        <ErrorBoundary sectionName="Draft Composer">
+                            <DraftEditor
+                                leadId={lead.id}
+                                initialDraft={lead.emailDraft}
+                                draftHistory={lead.drafts.map(d => ({
+                                    ...d,
+                                    createdAt: d.createdAt.toISOString()
+                                }))}
+                            />
+                        </ErrorBoundary>
                     </div>
                 </div>
             </div>
+
+            <DebugPanel data={{
+                leadId: lead.id,
+                companyName: lead.companyName,
+                contactsCount: lead.contacts?.length,
+                emailStatus: lead.emailStatus,
+                financialScore
+            }} />
         </div>
     );
 }
