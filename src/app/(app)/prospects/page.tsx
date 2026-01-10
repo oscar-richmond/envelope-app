@@ -845,11 +845,11 @@ export default function ProspectSearch() {
                             <input
                                 type="text"
                                 placeholder="e.g. Tesla"
-                                className="input pl-10"
+                                className="input pl-12"
                                 value={filters.query}
                                 onChange={(e) => setFilters({ ...filters, query: e.target.value })}
                             />
-                            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         </div>
                     </div>
 

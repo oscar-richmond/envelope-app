@@ -33,7 +33,7 @@ export default function LeadTable({ initialLeads }: { initialLeads: Lead[] }) {
                     <input
                         type="text"
                         placeholder="Filter by company or industry..."
-                        className="input pl-10 w-64"
+                        className="input pl-12 w-64"
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                     />
