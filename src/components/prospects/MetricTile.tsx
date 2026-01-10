@@ -10,6 +10,7 @@ interface MetricTileProps {
     onDetails?: () => void;
     className?: string;
     action?: ReactNode; // Optional custom action (like "Check Financials" button)
+    href?: string; // New: for external links
 }
 
 export default function MetricTile({
@@ -20,7 +21,8 @@ export default function MetricTile({
     subtext,
     onDetails,
     className = '',
-    action
+    action,
+    href
 }: MetricTileProps) {
 
     const pillColors = {
@@ -32,6 +34,7 @@ export default function MetricTile({
         blue: 'bg-blue-100 text-blue-800'
     };
 
+    // 1. Custom Action State (e.g. "Find Website") - Not clickable container
     if (action) {
         return (
             <div className={`flex flex-col h-full justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 ${className}`}>
@@ -43,20 +46,36 @@ export default function MetricTile({
         )
     }
 
+    // 2. Interactive Card State
+    // Determine tag and props
+    const isInteractive = !!href || !!onDetails;
+    const Component = href ? 'a' : (onDetails ? 'button' : 'div') as any;
+
+    const interactionProps = href ? {
+        href,
+        target: '_blank',
+        rel: 'noopener noreferrer'
+    } : (onDetails ? {
+        onClick: onDetails,
+        type: 'button'
+    } : {});
+
     return (
-        <div
-            className={`flex flex-col h-full p-3 rounded-xl bg-gray-50 border border-gray-100 transition-all group/tile relative ${className} hover:bg-white hover:border-gray-200 hover:shadow-sm`}
+        <Component
+            {...interactionProps}
+            className={`
+                flex flex-col h-full p-3 rounded-xl bg-gray-50 border border-gray-100 relative text-left w-full
+                ${className}
+                ${isInteractive ? 'hover:bg-white hover:border-gray-300 hover:shadow-sm cursor-pointer transition-all group/tile' : ''}
+            `}
         >
-            <div className="flex items-center justify-between mb-1.5 h-4">
+            <div className="flex items-center justify-between mb-1.5 h-4 w-full">
                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
-                {onDetails && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onDetails(); }}
-                        className="text-gray-300 hover:text-indigo-600 transition-colors -mr-1 p-0.5 rounded hover:bg-indigo-50"
-                        title="View details"
-                    >
+                {/* Visual Arrow Cue (always visible if interactive) */}
+                {isInteractive && (
+                    <div className="text-gray-300 group-hover/tile:text-indigo-600 transition-colors">
                         <ChevronRight size={14} strokeWidth={2.5} />
-                    </button>
+                    </div>
                 )}
             </div>
 
@@ -74,6 +93,6 @@ export default function MetricTile({
                     {subtext}
                 </div>
             )}
-        </div>
+        </Component>
     );
 }

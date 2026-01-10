@@ -57,6 +57,13 @@ export default function ProspectResultRowCard({
     let matchColor: any = isMatched ? (matchConfidence === 'HIGH' ? 'green' : matchConfidence === 'MEDIUM' ? 'amber' : 'red') : 'gray';
     let matchHelper = isMatched ? c.websiteUrl?.replace(/^https?:\/\/(www\.)?/, '') : 'No URL found';
 
+    const normalizeUrl = (url: string) => {
+        if (!url) return undefined;
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return `https://${url}`;
+    };
+    const websiteLink = isMatched && c.websiteUrl ? normalizeUrl(c.websiteUrl) : undefined;
+
     // Financial Logic
     const finScore = c.financialActivityScore || 0;
     const finBand = c.financialActivityBand || 'Unknown';
@@ -194,7 +201,7 @@ export default function ProspectResultRowCard({
                         value={isMatched ? matchLabel : (isMatchLoading ? 'Searching...' : 'Not Matched')}
                         scoreColor={matchColor}
                         subtext={matchHelper}
-                        onDetails={isMatched ? onMatchEvidence : undefined}
+                        href={websiteLink}
                         action={!isMatched && !isMatchLoading ? (
                             <button onClick={onFindWebsite} className="text-xs text-blue-600 hover:underline font-medium">Find Website</button>
                         ) : undefined}
