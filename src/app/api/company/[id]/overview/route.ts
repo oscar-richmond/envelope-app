@@ -40,18 +40,18 @@ export async function GET(
         if (lead.companyProspect?.signals) {
             try {
                 const parsed = JSON.parse(lead.companyProspect.signals);
-                if (Array.isArray(parsed)) websiteSignals = parsed;
+                if (Array.isArray(parsed) || typeof parsed === 'object') websiteSignals = parsed;
             } catch (e) {
                 // ignore
             }
         }
 
         // Financial Signals (parse JSON if present)
-        let financialSignals: string[] = [];
+        let financialSignals: any = []; // Change type to any to support object
         if (lead.companyProspect?.financialSignals) {
             try {
                 const parsed = JSON.parse(lead.companyProspect.financialSignals);
-                if (Array.isArray(parsed)) financialSignals = parsed;
+                if (Array.isArray(parsed) || typeof parsed === 'object') financialSignals = parsed;
             } catch (e) {
                 // ignore
             }

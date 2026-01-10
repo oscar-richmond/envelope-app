@@ -7,9 +7,10 @@ interface FinancialHealthProps {
     score: number;
     band: string;
     signals: string[];
+    onFullReport?: () => void;
 }
 
-export default function FinancialHealth({ score, band, signals }: FinancialHealthProps) {
+export default function FinancialHealth({ score, band, signals, onFullReport }: FinancialHealthProps) {
     return (
         <div className={hqStyles.card}>
             <div className={hqStyles.cardHeader}>
@@ -17,7 +18,14 @@ export default function FinancialHealth({ score, band, signals }: FinancialHealt
                     <TrendingUp size={18} className="text-gray-400" />
                     <h3 className={hqStyles.cardTitle}>Financial Health</h3>
                 </div>
-                <button className="text-xs text-indigo-600 font-medium hover:underline">Full Report</button>
+                {onFullReport && (
+                    <button
+                        onClick={onFullReport}
+                        className="text-xs text-indigo-600 font-medium hover:underline"
+                    >
+                        Full Report
+                    </button>
+                )}
             </div>
             <div className={hqStyles.cardBody}>
                 <div className="flex items-center gap-4 mb-6">
@@ -27,8 +35,8 @@ export default function FinancialHealth({ score, band, signals }: FinancialHealt
                     </div>
                     <div className="text-right">
                         <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${band === 'Strong' ? 'bg-green-100 text-green-800' :
-                                band === 'Medium' ? 'bg-amber-100 text-amber-800' :
-                                    'bg-rose-100 text-rose-800'
+                            band === 'Medium' ? 'bg-amber-100 text-amber-800' :
+                                'bg-rose-100 text-rose-800'
                             }`}>
                             {band}
                         </span>

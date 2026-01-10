@@ -6,9 +6,10 @@ import { CheckCircle, AlertTriangle, Monitor, Shield, Zap } from 'lucide-react';
 interface WebsiteAuditProps {
     signals: string[]; // For simplicity, we assume generic string signals for now
     websiteUrl: string;
+    onViewEvidence?: () => void;
 }
 
-export default function WebsiteAudit({ signals, websiteUrl }: WebsiteAuditProps) {
+export default function WebsiteAudit({ signals, websiteUrl, onViewEvidence }: WebsiteAuditProps) {
     // Mock categorization for now since signals are raw strings/JSON
     // In a real app, signals would be objects with 'category'
     const designSignals = signals.filter(s => s.toLowerCase().includes('design') || s.toLowerCase().includes('mobile') || s.toLowerCase().includes('viewport'));
@@ -22,7 +23,14 @@ export default function WebsiteAudit({ signals, websiteUrl }: WebsiteAuditProps)
                     <Monitor size={18} className="text-gray-400" />
                     <h3 className={hqStyles.cardTitle}>Website Review</h3>
                 </div>
-                <button className="text-xs text-indigo-600 font-medium hover:underline">View Evidence</button>
+                {onViewEvidence && (
+                    <button
+                        onClick={onViewEvidence}
+                        className="text-xs text-indigo-600 font-medium hover:underline"
+                    >
+                        View Evidence
+                    </button>
+                )}
             </div>
             <div className={hqStyles.cardBody}>
                 <div className="space-y-6">
