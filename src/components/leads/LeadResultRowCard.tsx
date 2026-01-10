@@ -7,6 +7,7 @@ interface LeadResultRowCardProps {
     lead: any;
     index: number;
     onCompose: () => void;
+    onViewThread: () => void;
     onDelete: () => void;
 }
 
@@ -14,11 +15,13 @@ export default function LeadResultRowCard({
     lead,
     index,
     onCompose,
+    onViewThread,
     onDelete
 }: LeadResultRowCardProps) {
 
     // Status Logic
     const status = lead.emailStatus || 'NEW';
+    const hasThread = status === 'SENT' || status === 'REPLIED' || lead.sentEmails?.length > 0;
 
     // Metrics
     const finScore = lead.financialScore ?? 0;
@@ -39,6 +42,13 @@ export default function LeadResultRowCard({
     };
 
     const currentStatusStyle = statusStyles[status] || statusStyles.NEW;
+
+    // Stop propagation helper
+    const handleClick = (e: React.MouseEvent, handler: () => void) => {
+        e.stopPropagation();
+        e.preventDefault();
+        handler();
+    };
 
     return (
         <div
@@ -146,18 +156,20 @@ export default function LeadResultRowCard({
                                 color: 'white',
                                 borderRadius: 'var(--radius-button)'
                             }}
+                            onClick={(e) => e.stopPropagation()}
                         >
                             Open
                         </Link>
                         <button
-                            onClick={onCompose}
-                            className="flex-1 text-sm font-semibold px-3 py-2.5 flex items-center justify-center gap-1.5 transition-all"
+                            onClick={(e) => handleClick(e, onCompose)}
+                            className="flex-1 text-sm font-semibold px-3 py-2.5 flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
                             style={{
                                 background: 'var(--accent-lilac-bg)',
                                 color: 'var(--accent-lilac-text)',
                                 borderRadius: 'var(--radius-button)',
                                 border: '1px solid rgba(184, 166, 255, 0.3)'
                             }}
+                            title="Compose outreach"
                         >
                             <PenTool size={14} /> Msg
                         </button>
@@ -168,28 +180,28 @@ export default function LeadResultRowCard({
                         style={{ borderLeft: '1px solid var(--border-soft)' }}
                     >
                         <button
-                            onClick={() => { }}
-                            className="p-2 transition-all"
+                            onClick={(e) => handleClick(e, onViewThread)}
+                            className="p-2 transition-all hover:opacity-80"
                             style={{
-                                background: 'var(--accent-blue-light)',
-                                color: 'var(--accent-blue)',
+                                background: hasThread ? 'var(--accent-blue-light)' : 'var(--bg-card-muted)',
+                                color: hasThread ? 'var(--accent-blue)' : 'var(--text-muted)',
                                 borderRadius: 'var(--radius-md)',
-                                border: '1px solid rgba(99, 102, 241, 0.3)'
+                                border: hasThread ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid var(--border-soft)'
                             }}
-                            title="View Thread"
+                            title={hasThread ? "View thread" : "No thread yet"}
                         >
                             <MessageSquare size={16} />
                         </button>
                         <button
-                            onClick={onDelete}
-                            className="p-2 transition-all"
+                            onClick={(e) => handleClick(e, onDelete)}
+                            className="p-2 transition-all hover:opacity-80"
                             style={{
                                 background: 'var(--error-light)',
                                 color: 'var(--error-text)',
                                 borderRadius: 'var(--radius-md)',
                                 border: '1px solid rgba(255, 77, 77, 0.3)'
                             }}
-                            title="Remove Lead"
+                            title="Remove lead"
                         >
                             <Trash2 size={16} />
                         </button>
@@ -200,4 +212,5 @@ export default function LeadResultRowCard({
         </div>
     );
 }
+
 

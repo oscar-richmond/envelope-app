@@ -1,63 +1,251 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { Building2, CheckCircle, AlertCircle, PenTool, Search } from 'lucide-react';
 import { ResultsListContainer, ResultsListHeader, ResultsListEmptyState } from '@/components/ui/ResultsList';
 import LeadResultRowCard from '@/components/leads/LeadResultRowCard';
 import AddLeadModal from '@/components/AddLeadModal';
+import OutreachComposer from '@/components/outreach/composer';
+import ThreadViewer from '@/components/ThreadViewer';
+import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
+import { ThreadEmptyModal } from '@/components/modals/ThreadEmptyModal';
 
-export default function DashboardClient({ leads }: { leads: any[] }) {
-    const [isModalOpen, setIsModalOpen] = useState(false);
+// Toast helper (simple inline for now)
+function showToast(message: string, type: 'success' | 'error' = 'success') {
+    // In production, use a proper toast library
+    const div = document.createElement('div');
+    div.className = `fixed bottom-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-300`;
+    div.style.background = type === 'success' ? 'var(--accent-mint-bg)' : 'var(--error-light)';
+    div.style.color = type === 'success' ? 'var(--accent-mint-text)' : 'var(--error-text)';
+    div.style.border = type === 'success' ? '1px solid rgba(166, 244, 179, 0.3)' : '1px solid rgba(255, 77, 77, 0.3)';
+    div.textContent = message;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
+}
 
-    const [sort, setSort] = useState('date');
+export default function DashboardClient({ leads: initialLeads }: { leads: any[] }) {
+    const router = useRouter();
+    const [leads, setLeads] = useState(initialLeads);
+
+    // UI State
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [filter, setFilter] = useState('');
+    const [sort, setSort] = useState('date');
 
+    // Composer State
+    const [composerOpen, setComposerOpen] = useState(false);
+    const [composerLead, setComposerLead] = useState<any>(null);
+    const [composerProspect, setComposerProspect] = useState<any>(null);
+
+    // Thread State
+    const [threadOpen, setThreadOpen] = useState(false);
+    const [threadEmailId, setThreadEmailId] = useState<number | null>(null);
+    const [threadEmptyOpen, setThreadEmptyOpen] = useState(false);
+    const [threadEmptyLead, setThreadEmptyLead] = useState<any>(null);
+
+    // Delete State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [deletingLead, setDeletingLead] = useState<any>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Filtering & Sorting
     const filteredLeads = leads
         .filter(l => l.companyName.toLowerCase().includes(filter.toLowerCase()))
         .sort((a, b) => {
-            // Basic Client Sort
             if (sort === 'date') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             if (sort === 'priority') return (b.priorityScore || 0) - (a.priorityScore || 0);
             if (sort === 'health') return (b.stalenessScore || 0) - (a.stalenessScore || 0);
             return 0;
         });
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('Delete this lead?')) return;
-        await fetch(`/api/leads/${id}`, { method: 'DELETE' });
-        // Ideally router.refresh() or local mutation
-        window.location.reload();
-    };
+    // =====================
+    // CTA Handlers
+    // =====================
+
+    // COMPOSE OUTREACH
+    const handleCompose = useCallback(async (lead: any) => {
+        try {
+            // Fetch prospect data if needed
+            let prospect = lead.companyProspect;
+            if (!prospect && lead.companyProspectId) {
+                const res = await fetch(`/api/prospects/${lead.companyProspectId}`);
+                if (res.ok) prospect = await res.json();
+            }
+
+            // Prepare draft data
+            let initialDraft = undefined;
+            if (lead.emailDraft || lead.subjectLine1) {
+                initialDraft = {
+                    subject: lead.subjectLine1 || '',
+                    body: lead.emailDraft || '',
+                    tier: lead.contactPriorityBand || 'Medium',
+                    toEmail: lead.contacts?.[0]?.email
+                };
+            }
+
+            setComposerLead(lead);
+            setComposerProspect(prospect || {
+                id: lead.companyProspectId,
+                companyName: lead.companyName,
+                websiteUrl: lead.websiteUrl
+            });
+            setComposerOpen(true);
+        } catch (e) {
+            console.error('Error opening composer:', e);
+            showToast('Failed to open composer', 'error');
+        }
+    }, []);
+
+    // VIEW THREAD
+    const handleViewThread = useCallback(async (lead: any) => {
+        try {
+            // Check if lead has sent emails
+            const hasEmails = lead.sentEmails?.length > 0 ||
+                lead.emailStatus === 'SENT' ||
+                lead.emailStatus === 'REPLIED';
+
+            if (!hasEmails) {
+                // Try to find sent email from API
+                const res = await fetch(`/api/leads/${lead.id}/thread`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.emailId) {
+                        setThreadEmailId(data.emailId);
+                        setThreadOpen(true);
+                        return;
+                    }
+                }
+
+                // No thread found - show empty state
+                setThreadEmptyLead(lead);
+                setThreadEmptyOpen(true);
+                return;
+            }
+
+            // Get the email ID from sent emails
+            const emailId = lead.sentEmails?.[0]?.id;
+            if (emailId) {
+                setThreadEmailId(emailId);
+                setThreadOpen(true);
+            } else {
+                // Fetch email ID from API
+                const res = await fetch(`/api/leads/${lead.id}/thread`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.emailId) {
+                        setThreadEmailId(data.emailId);
+                        setThreadOpen(true);
+                        return;
+                    }
+                }
+
+                // Still no thread
+                setThreadEmptyLead(lead);
+                setThreadEmptyOpen(true);
+            }
+        } catch (e) {
+            console.error('Error opening thread:', e);
+            // Show empty state on error
+            setThreadEmptyLead(lead);
+            setThreadEmptyOpen(true);
+        }
+    }, []);
+
+    // DELETE LEAD
+    const handleDeleteClick = useCallback((lead: any) => {
+        setDeletingLead(lead);
+        setDeleteModalOpen(true);
+    }, []);
+
+    const handleDeleteConfirm = useCallback(async () => {
+        if (!deletingLead) return;
+
+        setIsDeleting(true);
+
+        // Optimistic update
+        const leadId = deletingLead.id;
+        const previousLeads = [...leads];
+        setLeads(leads.filter(l => l.id !== leadId));
+        setDeleteModalOpen(false);
+
+        try {
+            const res = await fetch(`/api/leads/${leadId}`, { method: 'DELETE' });
+
+            if (!res.ok) {
+                // Revert on failure
+                setLeads(previousLeads);
+                showToast("Couldn't remove lead. Please try again.", 'error');
+            } else {
+                showToast('Lead removed');
+            }
+        } catch (e) {
+            // Revert on error
+            setLeads(previousLeads);
+            showToast("Couldn't remove lead. Please try again.", 'error');
+        } finally {
+            setIsDeleting(false);
+            setDeletingLead(null);
+        }
+    }, [deletingLead, leads]);
+
+    const handleSendSuccess = useCallback(() => {
+        // Refresh leads list after sending
+        router.refresh();
+        showToast('Email sent successfully!');
+    }, [router]);
 
     return (
         <div className="p-8 max-w-[1600px] mx-auto">
             <header className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Lead Board</h1>
-                    <p className="text-gray-500 mt-1">Manage and analyze your prospecting pipeline.</p>
+                    <h1
+                        className="text-3xl font-bold tracking-tight"
+                        style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                    >
+                        Lead Board
+                    </h1>
+                    <p style={{ color: 'var(--text-secondary)' }} className="mt-1">
+                        Manage and analyze your prospecting pipeline.
+                    </p>
                 </div>
                 <div className="flex gap-3">
                     <div className="relative">
                         <input
-                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                            className="pl-9 pr-4 py-2 text-sm w-64 outline-none transition-all"
+                            style={{
+                                background: 'var(--bg-card)',
+                                border: '1px solid var(--border-default)',
+                                borderRadius: 'var(--radius-button)',
+                                color: 'var(--text-primary)'
+                            }}
                             placeholder="Filter companies..."
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
                         />
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <Search
+                            className="absolute left-3 top-1/2 -translate-y-1/2"
+                            size={16}
+                            style={{ color: 'var(--text-muted)' }}
+                        />
                     </div>
                     <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="bg-gray-900 text-white hover:bg-black px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all"
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="px-4 py-2 text-sm font-semibold shadow-sm transition-all"
+                        style={{
+                            background: 'var(--text-primary)',
+                            color: 'white',
+                            borderRadius: 'var(--radius-button)'
+                        }}
                     >
                         Add Lead
                     </button>
                 </div>
             </header>
 
-            {/* Overview Stats (Home) */}
+            {/* Overview Stats */}
             <div className="mb-8">
                 <StatsGrid>
                     <StatsCard
@@ -105,8 +293,9 @@ export default function DashboardClient({ leads }: { leads: any[] }) {
                             key={lead.id}
                             index={i}
                             lead={lead}
-                            onCompose={() => { }} // Future
-                            onDelete={() => handleDelete(lead.id)}
+                            onCompose={() => handleCompose(lead)}
+                            onViewThread={() => handleViewThread(lead)}
+                            onDelete={() => handleDeleteClick(lead)}
                         />
                     ))
                 ) : (
@@ -114,7 +303,11 @@ export default function DashboardClient({ leads }: { leads: any[] }) {
                         title="No leads found"
                         description="Try adjusting your filters or add a new lead manually."
                         action={
-                            <button onClick={() => setIsModalOpen(true)} className="text-indigo-600 font-medium text-sm hover:underline">
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="font-medium text-sm hover:underline"
+                                style={{ color: 'var(--accent-blue)' }}
+                            >
                                 Add Manual Lead
                             </button>
                         }
@@ -122,7 +315,67 @@ export default function DashboardClient({ leads }: { leads: any[] }) {
                 )}
             </ResultsListContainer>
 
-            <AddLeadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            {/* Modals */}
+            <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+
+            {/* Outreach Composer */}
+            {composerOpen && composerLead && (
+                <OutreachComposer
+                    isOpen={composerOpen}
+                    onClose={() => {
+                        setComposerOpen(false);
+                        setComposerLead(null);
+                        setComposerProspect(null);
+                    }}
+                    prospect={composerProspect}
+                    lead={composerLead}
+                    initialDraft={composerLead.emailDraft ? {
+                        subject: composerLead.subjectLine1 || '',
+                        body: composerLead.emailDraft || '',
+                        tier: 'Medium'
+                    } : undefined}
+                    onSendSuccess={handleSendSuccess}
+                />
+            )}
+
+            {/* Thread Viewer */}
+            {threadOpen && threadEmailId && (
+                <ThreadViewer
+                    emailId={threadEmailId}
+                    onClose={() => {
+                        setThreadOpen(false);
+                        setThreadEmailId(null);
+                    }}
+                    onReplySent={() => router.refresh()}
+                />
+            )}
+
+            {/* Thread Empty State */}
+            <ThreadEmptyModal
+                isOpen={threadEmptyOpen}
+                onClose={() => {
+                    setThreadEmptyOpen(false);
+                    setThreadEmptyLead(null);
+                }}
+                companyName={threadEmptyLead?.companyName || 'Company'}
+                onComposeOutreach={() => {
+                    if (threadEmptyLead) {
+                        handleCompose(threadEmptyLead);
+                    }
+                }}
+            />
+
+            {/* Delete Confirmation */}
+            <ConfirmDeleteModal
+                isOpen={deleteModalOpen}
+                onClose={() => {
+                    setDeleteModalOpen(false);
+                    setDeletingLead(null);
+                }}
+                onConfirm={handleDeleteConfirm}
+                companyName={deletingLead?.companyName || 'this lead'}
+                isDeleting={isDeleting}
+            />
         </div>
     );
 }
