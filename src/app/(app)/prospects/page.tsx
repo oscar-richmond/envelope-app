@@ -10,6 +10,7 @@ import IndustrySelect from '@/components/industry-select';
 import OutreachComposer from '@/components/outreach/composer';
 import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
+import ProspectResultRowCard from '@/components/prospects/ProspectResultRowCard';
 
 export default function ProspectSearch() {
     const router = useRouter();
@@ -951,8 +952,7 @@ export default function ProspectSearch() {
                 </div>
             </form>
 
-            {/* Results Table */}
-            {/* Empty State */}
+            {/* Results List */}
             {hasSearched && results.length === 0 && (
                 <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
                     <div className="text-gray-400 mb-2">
@@ -965,223 +965,61 @@ export default function ProspectSearch() {
                 </div>
             )}
 
-            {
-                results.length > 0 ? (
-                    <div className="card table-container">
-                        {/* <pre className="text-xs p-2 bg-gray-100 max-h-40 overflow-auto">{JSON.stringify(results[0], null, 2)}</pre> */}
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th className="w-[25%] pl-6">Company Details</th>
-                                    <th className="w-[15%]">Location</th>
-                                    <th className="w-[20%]">Financial Health</th>
-                                    <th className="w-[20%]">Website Match</th>
-                                    <th className="w-[10%]">Priority</th>
-                                    <th className="w-[10%] text-right pr-6"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {results.map((c, i) => {
-                                    const status = statusMap[i]; // Use index for status lookup
-                                    if (status === 'REJECTED') return null; // Hide rejected
-
-                                    const isLoadingFin = statusMap[`fin-${i}`] === 'LOADING';
-
-                                    const isMatched = c.websiteDiscoveryMethod === 'google_places';
-                                    const confidence = c.websiteConfidence || 'LOW';
-
-                                    // Hotfix for Dormant Accounts visualization on stale data
-                                    let finScore = c.financialActivityScore || 0;
-                                    let finBand = c.financialActivityBand || 'Low';
-
-                                    // Parse signals safely for UI check
-                                    let signals: any = {};
-                                    try { signals = typeof c.financialSignals === 'string' ? JSON.parse(c.financialSignals) : c.financialSignals || {}; } catch (e) { }
-
-                                    const hasDormantAccounts = signals.hasDormantAccounts || (signals.accountsType && signals.accountsType.includes('dormant'));
-
-                                    if (hasDormantAccounts && finScore >= 60) {
-                                        finScore = 59;
-                                        finBand = 'Medium';
-                                    }
-
-                                    return (
-                                        <tr key={c.companyNumber || i} className="hover:bg-gray-50/80 group transition-colors">
-                                            <td className="pl-6 py-5 align-top">
-                                                <div className="flex flex-col gap-1">
-                                                    <CompanyNameLink
-                                                        prospectId={c.id}
-                                                        name={c.displayBrandName || c.websiteBrandName || c.companyName}
-                                                        className="font-semibold text-gray-900 text-base"
-                                                        onCompose={() => handleGenerateDraft(c)}
-                                                    />
-                                                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                                                        <span className="font-mono">{c.companyNumber}</span>
-                                                        <span>&bull;</span>
-                                                        <span className="truncate max-w-[120px]" title={c.industry || 'Unknown'}>{c.industry || 'Unknown Type'}</span>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-1 mt-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                        {c.source === 'companies_house' && <span className="badge badge-neutral bg-gray-100 border border-gray-200">CH</span>}
-                                                        {c.sicCodes?.slice(0, 2).map((code: string) => (
-                                                            <span key={code} className="badge badge-neutral bg-gray-100 border border-gray-200">
-                                                                {code}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="py-5 align-top text-sm text-gray-500">
-                                                {c.location && (
-                                                    <button
-                                                        onClick={() => setViewLocation(c.location)}
-                                                        className="flex items-center gap-1.5 hover:bg-gray-100 px-2 py-1 rounded transition text-left group/loc -ml-2"
-                                                    >
-                                                        <MapPin size={14} className="text-gray-400 shrink-0 group-hover/loc:text-indigo-500" />
-                                                        <span className="truncate max-w-[120px] underline decoration-dotted decoration-gray-400 underline-offset-2 group-hover/loc:decoration-indigo-500 group-hover/loc:text-indigo-700">
-                                                            {extractCity(c.location)}
-                                                        </span>
-                                                    </button>
-                                                )}
-                                            </td>
-                                            <td className="py-5 align-top">
-                                                {isLoadingFin ? (
-                                                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                                                        <RefreshCw className="animate-spin" size={12} /> Analyzing...
-                                                    </div>
-                                                ) : (
-                                                    c.financialActivityBand ? (
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="flex flex-col items-center min-w-[32px]">
-                                                                <span className={`text-xl font-bold leading-none font-mono
-                                                                    ${finBand === 'Very Strong' ? 'text-emerald-600' :
-                                                                        finBand === 'Strong' ? 'text-green-600' :
-                                                                            finBand === 'Medium' ? 'text-amber-600' :
-                                                                                'text-gray-400'}`}>
-                                                                    {finScore}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex flex-col items-start gap-1">
-                                                                <span className={`badge px-2 py-0.5
-                                                                     ${finBand === 'Very Strong' ? 'badge-success' :
-                                                                        finBand === 'Strong' ? 'badge-success' :
-                                                                            finBand === 'Medium' ? 'badge-warning' :
-                                                                                'badge-neutral'}`}>
-                                                                    {finBand}
-                                                                </span>
-                                                                <ExplainButton
-                                                                    onClick={() => setViewFinancials(c)}
-                                                                    title="See financial data breakdown"
-                                                                    className="bg-transparent border-0 hover:bg-gray-100 p-0 h-auto min-h-0 min-w-0"
-                                                                    label="Why?"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleCheckFinancials(c, i)}
-                                                            disabled={isLoadingFin}
-                                                            className="btn btn-secondary text-xs py-1.5 h-auto"
-                                                        >
-                                                            Check Financials
-                                                        </button>
-                                                    )
-                                                )}
-                                            </td>
-                                            <td className="py-5 align-top">
-                                                {/* Website Analysis - Simplified */}
-                                                {renderMatchState(c, i)}
-                                            </td>
-                                            <td className="py-5 align-top">
-                                                {c.contactPriorityBand ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex flex-col items-center min-w-[32px]">
-                                                            <span className={`text-xl font-bold leading-none font-mono
-                                                                ${c.contactPriorityBand === 'High' ? 'text-purple-600' :
-                                                                    c.contactPriorityBand === 'Medium' ? 'text-indigo-600' :
-                                                                        'text-gray-400'}`}>
-                                                                {c.contactPriorityScore}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex flex-col gap-1 items-start">
-                                                            <span className={`badge px-2 py-0.5
-                                                                 ${c.contactPriorityBand === 'High' ? 'bg-purple-100 text-purple-700' :
-                                                                    c.contactPriorityBand === 'Medium' ? 'bg-indigo-100 text-indigo-700' :
-                                                                        'slide-neutral'}`}>
-                                                                {c.contactPriorityBand}
-                                                            </span>
-                                                            <ExplainButton
-                                                                onClick={() => setViewPriority(c)}
-                                                                title="See lead opportunity score breakdown"
-                                                                className="bg-transparent border-0 hover:bg-gray-100 p-0 h-auto min-h-0 min-w-0"
-                                                                label="Why?"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-gray-300">-</span>
-                                                )}
-                                            </td>
-                                            <td className="pr-6 py-5 align-middle text-right">
-                                                {status === 'ADDED' ? (
-                                                    <span className="badge badge-success">
-                                                        <Check size={12} /> Added
-                                                    </span>
-                                                ) : (
-                                                    <div className="flex items-center justify-end gap-2 transition-opacity">
-
-                                                        {/* Icon Group */}
-                                                        <div className="flex items-center gap-1">
-                                                            <button
-                                                                onClick={() => handleOpenDiscovery(c)}
-                                                                className="btn btn-ghost p-2 rounded-lg text-gray-400 hover:text-blue-600"
-                                                                title="Find Emails"
-                                                            >
-                                                                <Database size={16} />
-                                                            </button>
-
-                                                            <button
-                                                                onClick={() => handleGenerateDraft(c)}
-                                                                disabled={isGeneratingDraft}
-                                                                className="btn btn-ghost p-2 rounded-lg text-gray-400 hover:text-indigo-600"
-                                                                title="Draft Email"
-                                                            >
-                                                                <PenTool size={16} />
-                                                            </button>
-
-                                                            <button
-                                                                onClick={() => handleAction(c, i, 'REJECT')}
-                                                                className="btn btn-ghost p-2 rounded-lg text-gray-400 hover:text-rose-600"
-                                                                title="Reject"
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                        </div>
-
-                                                        <button
-                                                            onClick={() => checkAddLead(c, i)}
-                                                            className="btn btn-primary text-xs py-1.5 h-auto shadow-sm shadow-indigo-200"
-                                                        >
-                                                            <Plus size={14} /> Add
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+            {results.length > 0 ? (
+                <div className="space-y-4">
+                    {/* Header Label (Optional, maybe just count) */}
+                    <div className="flex justify-between items-center px-1">
+                        <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{results.length} Prospects Found</span>
+                        {/* Sort dropdown could go here */}
                     </div>
-                ) : (
-                    <div className="text-center py-16 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
-                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Building2 className="h-8 w-8 text-gray-300" />
-                        </div>
-                        <h3 className="text-base font-semibold text-gray-900">No prospects to show</h3>
-                        <p className="mt-1 text-sm text-gray-500">Get started by searching for companies above.</p>
+
+                    {results.map((c, i) => {
+                        const status = statusMap[i]; // Use index for status lookup
+                        if (status === 'REJECTED') return null; // Hide rejected
+
+                        const isLoadingFin = statusMap[`fin-${i}`] === 'LOADING';
+                        const isMatchLoading = matchingMap[i];
+
+                        return (
+                            <ProspectResultRowCard
+                                key={c.companyNumber || i}
+                                index={i}
+                                company={c}
+                                status={status}
+
+                                // Action Handlers
+                                onAction={(act) => handleAction(c, i, act)}
+                                onCheckAddLead={() => checkAddLead(c, i)}
+                                onFindEmails={() => handleOpenDiscovery(c)}
+                                onDraftEmail={() => handleGenerateDraft(c)}
+                                onViewLocation={() => setViewLocation(c.location)}
+
+                                // Evidence Handlers
+                                onMatchEvidence={() => setViewEvidence(JSON.parse(c.websiteMatchEvidence || '{}'))}
+                                onFinancialEvidence={() => setViewFinancials(c)}
+                                onPriorityEvidence={() => setViewPriority(c)}
+
+                                // Logic Triggers
+                                onFindWebsite={() => handleMatch(c, i)}
+                                onCheckFinancials={() => handleCheckFinancials(c, i)}
+                                onRefreshAnalysis={() => handleReanalyze(c, c.id)}
+
+                                // State
+                                isFinancialLoading={isLoadingFin}
+                                isMatchLoading={isMatchLoading}
+                            />
+                        );
+                    })}
+                </div>
+            ) : !hasSearched ? (
+                <div className="text-center py-16 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
+                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Building2 className="h-8 w-8 text-gray-300" />
                     </div>
-                )
-            }
+                    <h3 className="text-base font-semibold text-gray-900">No prospects to show</h3>
+                    <p className="mt-1 text-sm text-gray-500">Get started by searching for companies above.</p>
+                </div>
+            ) : null}
             {
                 viewFinancials && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewFinancials(null)}>
