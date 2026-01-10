@@ -39,17 +39,19 @@ export async function GET(
         let websiteSignals = [];
         if (lead.companyProspect?.signals) {
             try {
-                websiteSignals = JSON.parse(lead.companyProspect.signals);
+                const parsed = JSON.parse(lead.companyProspect.signals);
+                if (Array.isArray(parsed)) websiteSignals = parsed;
             } catch (e) {
                 // ignore
             }
         }
 
         // Financial Signals (parse JSON if present)
-        let financialSignals = [];
+        let financialSignals: string[] = [];
         if (lead.companyProspect?.financialSignals) {
             try {
-                financialSignals = JSON.parse(lead.companyProspect.financialSignals);
+                const parsed = JSON.parse(lead.companyProspect.financialSignals);
+                if (Array.isArray(parsed)) financialSignals = parsed;
             } catch (e) {
                 // ignore
             }

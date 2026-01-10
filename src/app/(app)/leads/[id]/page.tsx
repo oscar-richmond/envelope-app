@@ -46,12 +46,18 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
 
     let websiteSignals: string[] = [];
     if (lead.companyProspect?.signals) {
-        try { websiteSignals = JSON.parse(lead.companyProspect.signals); } catch (e) { }
+        try {
+            const parsed = JSON.parse(lead.companyProspect.signals);
+            if (Array.isArray(parsed)) websiteSignals = parsed;
+        } catch (e) { }
     }
 
     let financialSignals: string[] = [];
     if (lead.companyProspect?.financialSignals) {
-        try { financialSignals = JSON.parse(lead.companyProspect.financialSignals); } catch (e) { }
+        try {
+            const parsed = JSON.parse(lead.companyProspect.financialSignals);
+            if (Array.isArray(parsed)) financialSignals = parsed;
+        } catch (e) { }
     }
 
     return (
