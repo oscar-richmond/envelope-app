@@ -39,47 +39,67 @@
   --sidebar-border: #27272a;
 
   /* ─────────────────────────────────────────
-     ACCENT COLORS (Original Envelope Palette)
+     LOCKED PALETTE (Mint + Lilac + Neutrals)
      ───────────────────────────────────────── */
-  --accent-mint: #a6f4b3;
-  --accent-mint-text: #065f46;
-  --accent-mint-bg: rgba(166, 244, 179, 0.15);
 
-  --accent-lilac: #b8a6ff;
-  --accent-lilac-text: #4c3d99;
-  --accent-lilac-bg: rgba(184, 166, 255, 0.15);
+  /* Ink (near-black anchor) */
+  --ink: #0f172a;
+  --ink-soft: #1e293b;
 
-  --accent-blue: #6366f1;
-  --accent-blue-hover: #4f46e5;
-  --accent-blue-light: #eef2ff;
-  --accent-blue-text: #4338ca;
+  /* Mint (reference green) */
+  --mint: #a6f4b3;
+  --mint-soft: rgba(166, 244, 179, 0.20);
+  --mint-weak: rgba(166, 244, 179, 0.10);
+  --mint-text: #065f46;
+  --mint-strong: #4ade80;
 
-  --accent-red: #ff4d4d;
-  --accent-red-light: #fef2f2;
-  --accent-red-text: #991b1b;
+  /* Lilac (reference purple) */
+  --lilac: #b8a6ff;
+  --lilac-soft: rgba(184, 166, 255, 0.20);
+  --lilac-weak: rgba(184, 166, 255, 0.10);
+  --lilac-text: #4c3d99;
+  --lilac-strong: #8b5cf6;
 
-  --accent-yellow: #ffcc66;
-  --accent-yellow-light: #fffbeb;
-  --accent-yellow-text: #92400e;
+  /* Danger (red - ONLY for destructive states) */
+  --danger: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.12);
+  --danger-weak: rgba(239, 68, 68, 0.06);
+  --danger-text: #b91c1c;
 
-  /* ─────────────────────────────────────────
-     SEMANTIC COLORS
-     ───────────────────────────────────────── */
-  --success: #10b981;
-  --success-light: #ecfdf5;
-  --success-text: #065f46;
+  /* Legacy accent mappings */
+  --accent-mint: var(--mint);
+  --accent-mint-text: var(--mint-text);
+  --accent-mint-bg: var(--mint-soft);
 
-  --warning: #f59e0b;
-  --warning-light: #fffbeb;
-  --warning-text: #92400e;
+  --accent-lilac: var(--lilac);
+  --accent-lilac-text: var(--lilac-text);
+  --accent-lilac-bg: var(--lilac-soft);
 
-  --error: #ef4444;
-  --error-light: #fef2f2;
-  --error-text: #991b1b;
+  --accent-blue: var(--lilac-strong);
+  --accent-blue-hover: #7c3aed;
+  --accent-blue-light: var(--lilac-weak);
+  --accent-blue-text: var(--lilac-text);
 
-  --info: #3b82f6;
-  --info-light: #eff6ff;
-  --info-text: #1e40af;
+  --accent-red: var(--danger);
+  --accent-red-light: var(--danger-soft);
+  --accent-red-text: var(--danger-text);
+
+  /* Semantic mapped to palette */
+  --success: var(--mint-strong);
+  --success-light: var(--mint-soft);
+  --success-text: var(--mint-text);
+
+  --warning: var(--lilac-strong);
+  --warning-light: var(--lilac-soft);
+  --warning-text: var(--lilac-text);
+
+  --error: var(--danger);
+  --error-light: var(--danger-soft);
+  --error-text: var(--danger-text);
+
+  --info: var(--lilac-strong);
+  --info-light: var(--lilac-soft);
+  --info-text: var(--lilac-text);
 
   /* ─────────────────────────────────────────
      SHADOWS (Apple-style Soft Layered)
@@ -158,31 +178,40 @@
   --surface-active: #f3f4f6;
 
   /* ─────────────────────────────────────────
-     CHIP / BADGE TOKENS (Status colours)
+     CHIP / BADGE TOKENS (Locked palette only)
      ───────────────────────────────────────── */
-  --chip-success-bg: var(--success-light);
-  --chip-success-text: var(--success-text);
-  --chip-success-border: rgba(16, 185, 129, 0.25);
+  --chip-mint-bg: var(--mint-soft);
+  --chip-mint-text: var(--mint-text);
+  --chip-mint-border: rgba(166, 244, 179, 0.30);
 
-  --chip-warning-bg: var(--warning-light);
-  --chip-warning-text: var(--warning-text);
-  --chip-warning-border: rgba(245, 158, 11, 0.25);
+  --chip-lilac-bg: var(--lilac-soft);
+  --chip-lilac-text: var(--lilac-text);
+  --chip-lilac-border: rgba(184, 166, 255, 0.30);
 
-  --chip-danger-bg: var(--error-light);
-  --chip-danger-text: var(--error-text);
-  --chip-danger-border: rgba(239, 68, 68, 0.25);
+  --chip-danger-bg: var(--danger-soft);
+  --chip-danger-text: var(--danger-text);
+  --chip-danger-border: rgba(239, 68, 68, 0.20);
 
-  --chip-info-bg: var(--info-light);
-  --chip-info-text: var(--info-text);
-  --chip-info-border: rgba(59, 130, 246, 0.25);
-
-  --chip-neutral-bg: var(--bg-card-muted);
+  --chip-neutral-bg: var(--surface-2);
   --chip-neutral-text: var(--text-secondary);
   --chip-neutral-border: var(--border-soft);
 
-  --chip-accent-bg: var(--accent-lilac-bg);
-  --chip-accent-text: var(--accent-lilac-text);
-  --chip-accent-border: rgba(184, 166, 255, 0.25);
+  /* Semantic aliases for legacy compatibility */
+  --chip-success-bg: var(--chip-mint-bg);
+  --chip-success-text: var(--chip-mint-text);
+  --chip-success-border: var(--chip-mint-border);
+
+  --chip-warning-bg: var(--chip-lilac-bg);
+  --chip-warning-text: var(--chip-lilac-text);
+  --chip-warning-border: var(--chip-lilac-border);
+
+  --chip-info-bg: var(--chip-lilac-bg);
+  --chip-info-text: var(--chip-lilac-text);
+  --chip-info-border: var(--chip-lilac-border);
+
+  --chip-accent-bg: var(--chip-lilac-bg);
+  --chip-accent-text: var(--chip-lilac-text);
+  --chip-accent-border: var(--chip-lilac-border);
 
   /* ─────────────────────────────────────────
      BRAND TOKENS (Primary action)
