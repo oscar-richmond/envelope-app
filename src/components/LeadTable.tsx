@@ -20,6 +20,7 @@ type Lead = {
 
 export default function LeadTable({ initialLeads }: { initialLeads: Lead[] }) {
     const [leads, setLeads] = useState<Lead[]>(initialLeads);
+    const [filter, setFilter] = useState('');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     // Keyboard shortcut 'n'
