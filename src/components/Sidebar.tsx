@@ -155,7 +155,7 @@ const Sidebar = () => {
                         )}
                     </div>
 
-                    {/* Collapse Toggle - Always visible, premium styling */}
+                    {/* Collapse Toggle - Hover-only, premium styling */}
                     <button
                         onClick={toggle}
                         title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -165,25 +165,33 @@ const Sidebar = () => {
                             flex items-center justify-center
                             transition-all duration-200
                             cursor-pointer z-20
-                            focus:outline-none focus:ring-2 focus:ring-white/30
+                            opacity-0 group-hover:opacity-100
+                            pointer-events-none group-hover:pointer-events-auto
+                            focus:outline-none focus:ring-2 focus:ring-white/40
                         "
                         style={{
-                            background: '#1A1A1A',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                            color: 'rgba(255, 255, 255, 0.85)',
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)'
+                            background: 'rgba(255, 255, 255, 0.22)',
+                            border: '1px solid rgba(255, 255, 255, 0.18)',
+                            color: 'rgba(255, 255, 255, 0.95)',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.15)'
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#2A2A2A';
-                            e.currentTarget.style.color = '#ffffff';
-                            e.currentTarget.style.transform = 'scale(1.05)';
-                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.5), 0 3px 6px rgba(0, 0, 0, 0.3)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.30)';
+                            e.currentTarget.style.transform = 'scale(1.08)';
+                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4), 0 3px 8px rgba(0, 0, 0, 0.2)';
                         }}
                         onMouseLeave={(e) => {
-                            e.currentTarget.style.background = '#1A1A1A';
-                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.85)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.22)';
                             e.currentTarget.style.transform = 'scale(1)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.15)';
+                        }}
+                        onMouseDown={(e) => {
+                            e.currentTarget.style.transform = 'scale(0.96) translateY(1px)';
+                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.25)';
+                        }}
+                        onMouseUp={(e) => {
+                            e.currentTarget.style.transform = 'scale(1.08)';
+                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4), 0 3px 8px rgba(0, 0, 0, 0.2)';
                         }}
                     >
                         {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
