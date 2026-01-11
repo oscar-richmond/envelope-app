@@ -1,37 +1,35 @@
-
 'use client';
 
-import { useState } from 'react';
-import { CompanyProfilePopup } from './CompanyProfilePopup';
+import { useCompanyOverviewModal } from '@/components/modals/CompanyOverviewModalProvider';
 
 interface Props {
-    prospectId: number;
+    prospectId?: number;
+    leadId?: number;
     name: string;
     className?: string;
-    onAddToLeads?: () => void;
+    style?: React.CSSProperties;
     onCompose?: () => void;
 }
 
-export function CompanyNameLink({ prospectId, name, className = '', onAddToLeads, onCompose }: Props) {
-    const [isOpen, setIsOpen] = useState(false);
+export function CompanyNameLink({ prospectId, leadId, name, className = '', style, onCompose }: Props) {
+    const { openCompanyOverview } = useCompanyOverviewModal();
+
+    const handleClick = () => {
+        if (leadId) {
+            openCompanyOverview({ leadId });
+        } else if (prospectId) {
+            openCompanyOverview({ prospectId });
+        }
+    };
 
     return (
-        <>
-            <button
-                onClick={() => setIsOpen(true)}
-                className={`text-left hover:text-blue-600 hover:underline transition-colors cursor-pointer ${className}`}
-            >
-                {name}
-            </button>
-
-            {isOpen && (
-                <CompanyProfilePopup
-                    prospectId={prospectId}
-                    onClose={() => setIsOpen(false)}
-                    onAddToLeads={onAddToLeads}
-                    onCompose={onCompose}
-                />
-            )}
-        </>
+        <button
+            id={prospectId ? `company-link-${prospectId}` : leadId ? `company-link-lead-${leadId}` : undefined}
+            onClick={handleClick}
+            className={`text-left transition-colors cursor-pointer hover:text-[var(--lilac-text)] ${className}`}
+            style={style}
+        >
+            {name}
+        </button>
     );
 }

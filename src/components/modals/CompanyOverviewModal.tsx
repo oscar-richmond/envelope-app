@@ -169,15 +169,17 @@ function SignalPill({ label, type = 'neutral' }: { label: string; type?: 'danger
 
 // --- Main Modal ---
 interface CompanyOverviewModalProps {
-    leadId: number;
+    leadId?: number;
+    prospectId?: number;
     onClose: () => void;
 }
 
-export default function CompanyOverviewModal({ leadId, onClose }: CompanyOverviewModalProps) {
+export default function CompanyOverviewModal({ leadId, prospectId, onClose }: CompanyOverviewModalProps) {
     const { togglePin } = useCompanyViewer();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'overview' | 'contacts' | 'thread'>('overview');
+    const [resolvedLeadId, setResolvedLeadId] = useState<number | null>(leadId || null);
 
     const [isWebsiteModalOpen, setIsWebsiteModalOpen] = useState(false);
     const [isFinancialModalOpen, setIsFinancialModalOpen] = useState(false);
@@ -186,8 +188,31 @@ export default function CompanyOverviewModal({ leadId, onClose }: CompanyOvervie
         async function fetchData() {
             setLoading(true);
             try {
-                const res = await fetch(`/api/company/${leadId}/overview`);
-                if (res.ok) setData(await res.json());
+                let res;
+                if (leadId) {
+                    // Fetch lead data
+                    res = await fetch(`/api/company/${leadId}/overview`);
+                } else if (prospectId) {
+                    // Fetch prospect data
+                    res = await fetch(`/api/prospects/${prospectId}/overview`);
+                } else {
+                    setLoading(false);
+                    return;
+                }
+
+                if (res.ok) {
+                    const json = await res.json();
+
+                    // Handle redirect if prospect already has a lead
+                    if (json.redirectToLead) {
+                        setResolvedLeadId(json.redirectToLead);
+                        const leadRes = await fetch(`/api/company/${json.redirectToLead}/overview`);
+                        if (leadRes.ok) setData(await leadRes.json());
+                    } else {
+                        setData(json);
+                        if (json.leadId) setResolvedLeadId(json.leadId);
+                    }
+                }
             } catch (e) {
                 console.error(e);
             } finally {
@@ -195,7 +220,7 @@ export default function CompanyOverviewModal({ leadId, onClose }: CompanyOvervie
             }
         }
         fetchData();
-    }, [leadId]);
+    }, [leadId, prospectId]);
 
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -208,7 +233,9 @@ export default function CompanyOverviewModal({ leadId, onClose }: CompanyOvervie
     if (!data && loading) return null;
     if (!data) return null;
 
-    const domain = data.websiteUrl ? new URL(data.websiteUrl).hostname : undefined;
+    // Check if this is a prospect (not yet a lead)
+    const isProspect = data.isProspect === true;
+    const domain = data.websiteUrl ? (() => { try { return new URL(data.websiteUrl).hostname; } catch { return undefined; } })() : undefined;
 
     // Score band helpers
     const getScoreAccent = (score: number): 'mint' | 'lilac' | 'default' =>

@@ -3,8 +3,13 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import CompanyOverviewModal from './CompanyOverviewModal';
 
+interface CompanyOverviewParams {
+    leadId?: number;
+    prospectId?: number;
+}
+
 interface CompanyOverviewContextType {
-    openCompanyOverview: (leadId: number) => void;
+    openCompanyOverview: (params: CompanyOverviewParams) => void;
     closeCompanyOverview: () => void;
 }
 
@@ -12,23 +17,27 @@ const CompanyOverviewContext = createContext<CompanyOverviewContextType | undefi
 
 export function CompanyOverviewModalProvider({ children }: { children: ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
-    const [activeLeadId, setActiveLeadId] = useState<number | null>(null);
+    const [activeParams, setActiveParams] = useState<CompanyOverviewParams | null>(null);
 
-    const openCompanyOverview = (leadId: number) => {
-        setActiveLeadId(leadId);
+    const openCompanyOverview = (params: CompanyOverviewParams) => {
+        setActiveParams(params);
         setIsOpen(true);
     };
 
     const closeCompanyOverview = () => {
         setIsOpen(false);
-        setActiveLeadId(null);
+        setActiveParams(null);
     };
 
     return (
         <CompanyOverviewContext.Provider value={{ openCompanyOverview, closeCompanyOverview }}>
             {children}
-            {isOpen && activeLeadId && (
-                <CompanyOverviewModal leadId={activeLeadId} onClose={closeCompanyOverview} />
+            {isOpen && activeParams && (
+                <CompanyOverviewModal
+                    leadId={activeParams.leadId}
+                    prospectId={activeParams.prospectId}
+                    onClose={closeCompanyOverview}
+                />
             )}
         </CompanyOverviewContext.Provider>
     );
