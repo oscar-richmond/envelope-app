@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Mail, ArrowRight, Clock, AlertCircle, CheckCircle, MessageSquare, RefreshCw, XCircle, ChevronRight } from 'lucide-react';
 import ThreadViewer from '@/components/ThreadViewer';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 interface StatusCounts {
     actionNeeded: number;
@@ -66,26 +67,26 @@ export default function InboxPage() {
 
     return (
         <div className="page-container">
-            <header className="page-header flex items-center justify-between">
-                <div>
-                    <h1 className="page-title">Inbox</h1>
-                    <p className="page-description">Track replies and manage follow-ups.</p>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={syncReplies}
-                        disabled={syncing}
-                        className="btn btn-secondary"
-                    >
-                        <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-                        {syncing ? 'Syncing...' : 'Sync Replies'}
-                    </button>
-                    <Link href="/outreach/follow-ups" className="btn btn-primary">
-                        <MessageSquare size={16} />
-                        Go to Queue
-                    </Link>
-                </div>
-            </header>
+            <PageHeader
+                title="Inbox"
+                subtitle="Track replies and manage follow-ups"
+                actions={
+                    <>
+                        <button
+                            onClick={syncReplies}
+                            disabled={syncing}
+                            className="btn btn-secondary"
+                        >
+                            <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+                            {syncing ? 'Syncing...' : 'Sync Replies'}
+                        </button>
+                        <Link href="/outreach/follow-ups" className="btn btn-primary">
+                            <MessageSquare size={16} />
+                            Go to Queue
+                        </Link>
+                    </>
+                }
+            />
 
             {/* Overview Stats */}
             <div className="mb-8">

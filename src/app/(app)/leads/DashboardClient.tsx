@@ -4,7 +4,9 @@ import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
-import { Building2, CheckCircle, AlertCircle, PenTool, Search } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { Building2, CheckCircle, AlertCircle, PenTool } from 'lucide-react';
 import { ResultsListContainer, ResultsListHeader, ResultsListEmptyState } from '@/components/ui/ResultsList';
 import LeadResultRowCard from '@/components/leads/LeadResultRowCard';
 import AddLeadModal from '@/components/AddLeadModal';
@@ -199,51 +201,25 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
 
     return (
         <div className="p-8 max-w-[1600px] mx-auto">
-            <header className="flex justify-between items-center mb-8">
-                <div>
-                    <h1
-                        className="text-3xl font-bold tracking-tight"
-                        style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
-                    >
-                        Lead Board
-                    </h1>
-                    <p style={{ color: 'var(--text-secondary)' }} className="mt-1">
-                        Manage and analyze your prospecting pipeline.
-                    </p>
-                </div>
-                <div className="flex gap-3">
-                    <div className="relative">
-                        <input
-                            className="pl-9 pr-4 py-2 text-sm w-64 outline-none transition-all"
-                            style={{
-                                background: 'var(--bg-card)',
-                                border: '1px solid var(--border-default)',
-                                borderRadius: 'var(--radius-button)',
-                                color: 'var(--text-primary)'
-                            }}
-                            placeholder="Filter companies..."
+            <PageHeader
+                title="Lead Board"
+                subtitle="Manage and analyze your prospecting pipeline"
+                actions={
+                    <>
+                        <SearchInput
                             value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
+                            onChange={setFilter}
+                            placeholder="Filter companies..."
                         />
-                        <Search
-                            className="absolute left-3 top-1/2 -translate-y-1/2"
-                            size={16}
-                            style={{ color: 'var(--text-muted)' }}
-                        />
-                    </div>
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="px-4 py-2 text-sm font-semibold shadow-sm transition-all"
-                        style={{
-                            background: 'var(--text-primary)',
-                            color: 'white',
-                            borderRadius: 'var(--radius-button)'
-                        }}
-                    >
-                        Add Lead
-                    </button>
-                </div>
-            </header>
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="btn btn-primary"
+                        >
+                            Add Lead
+                        </button>
+                    </>
+                }
+            />
 
             {/* Overview Stats */}
             <div className="mb-8">

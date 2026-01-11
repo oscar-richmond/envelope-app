@@ -10,6 +10,7 @@ import IndustrySelect from '@/components/industry-select';
 import OutreachComposer from '@/components/outreach/composer';
 import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
+import { PageHeader } from '@/components/ui/PageHeader';
 import ProspectResultRowCard from '@/components/prospects/ProspectResultRowCard';
 
 export default function ProspectSearch() {
@@ -801,12 +802,10 @@ export default function ProspectSearch() {
 
             {/* ... Filters ... */}
 
-
-
-            <header className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Prospect Search</h1>
-                <p className="text-gray-500 mt-2">Search Companies House for new prospects.</p>
-            </header>
+            <PageHeader
+                title="Prospect Search"
+                subtitle="Search Companies House for new prospects"
+            />
 
             {/* Dashboard Overview Cards */}
             <StatsGrid>

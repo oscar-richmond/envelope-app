@@ -732,28 +732,32 @@ h4,
 }
 
 /* ========================================
-   INPUT COMPONENT (V2)
+   INPUT COMPONENT (Selfhood Premium)
    ======================================== */
 
 .input {
   width: 100%;
-  padding: 12px 16px;
+  padding: 10px 14px;
   font-size: 0.875rem;
-  background: var(--bg-card);
+  background: #FFFFFF;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-input);
+  border-radius: var(--radius-button);
+  color: var(--text-primary);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:hover {
+  border-color: var(--border-strong);
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 4px var(--accent-blue-light);
+  border-color: #1A1A1A;
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.06);
 }
 
 .input::placeholder {
   color: var(--text-muted);
-  opacity: 0.8;
 }
 
 .input-error {
@@ -762,7 +766,16 @@ h4,
 
 .input-error:focus {
   border-color: var(--error);
-  box-shadow: 0 0 0 4px var(--error-light);
+  box-shadow: 0 0 0 3px var(--error-light);
+}
+
+/* Select dropdown styling */
+select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
 }
 
 .label {
@@ -823,7 +836,7 @@ h4,
 }
 
 /* ========================================
-   PAGE LAYOUT
+   PAGE LAYOUT (Selfhood Minimal)
    ======================================== */
 
 .page-container {
@@ -832,6 +845,61 @@ h4,
   padding: var(--space-6) var(--space-8);
 }
 
+/* ----------------------------------------
+   PageHeader Component
+   ---------------------------------------- */
+
+.page-header-wrapper {
+  margin-bottom: var(--space-8);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.page-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+
+.page-header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-header-title {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.page-header-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.page-header-filters {
+  margin-top: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Legacy classes for compatibility */
 .page-header {
   margin-bottom: var(--space-8);
 }
@@ -841,13 +909,183 @@ h4,
   font-size: 1.75rem;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
 }
 
 .page-description {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   color: var(--text-secondary);
   margin-top: 6px;
+}
+
+/* ----------------------------------------
+   SearchInput Component
+   ---------------------------------------- */
+
+.search-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.search-input-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: color 0.15s ease;
+}
+
+.search-input {
+  width: 240px;
+  padding: 10px 14px 10px 40px;
+  font-size: 0.875rem;
+  background: #FFFFFF;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-button);
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-input:hover {
+  border-color: var(--border-strong);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #1A1A1A;
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.06);
+}
+
+.search-input:focus+.search-input-icon,
+.search-input-wrapper:focus-within .search-input-icon {
+  color: var(--text-primary);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ----------------------------------------
+   DateRangeSelect Component
+   ---------------------------------------- */
+
+.date-range-select {
+  position: relative;
+}
+
+.date-range-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: #FFFFFF;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-button);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.date-range-trigger:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.date-range-trigger:focus {
+  outline: none;
+  border-color: #1A1A1A;
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.06);
+}
+
+.date-range-icon {
+  color: var(--text-muted);
+}
+
+.date-range-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.date-range-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-default);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+  overflow: hidden;
+  animation: dropdownSlide 0.15s ease-out;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.date-range-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  text-align: left;
+}
+
+.date-range-option:hover {
+  background: var(--surface-hover);
+}
+
+.date-range-option.active {
+  background: rgba(26, 26, 26, 0.04);
+  font-weight: 500;
+}
+
+.date-range-check {
+  color: #1A1A1A;
+}
+
+/* ----------------------------------------
+   Filter Utilities
+   ---------------------------------------- */
+
+.filter-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* ========================================

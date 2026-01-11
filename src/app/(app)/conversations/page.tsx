@@ -6,6 +6,7 @@ import {
     TrendingUp, DollarSign, GripVertical, StickyNote
 } from 'lucide-react';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 interface ConversationCard {
     id: number;
@@ -156,14 +157,12 @@ export default function ConversationsPage() {
         return (
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
-                <header className="bg-white border-b border-gray-200 px-6 py-4">
-                    <div className="text-center">
-                        <h1 className="text-xl font-semibold text-gray-900">Conversations</h1>
-                        <p className="text-sm text-gray-500 mt-1">
-                            This is where active conversations live once someone replies or shows interest.
-                        </p>
-                    </div>
-                </header>
+                <div className="bg-white border-b border-gray-200 px-6 py-4">
+                    <PageHeader
+                        title="Conversations"
+                        subtitle="This is where active conversations live once someone replies or shows interest"
+                    />
+                </div>
 
                 <div className="max-w-4xl mx-auto px-6 py-12">
                     {/* Static Column Preview */}
@@ -215,14 +214,12 @@ export default function ConversationsPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
-            <header className="bg-white border-b border-gray-200 px-6 py-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-xl font-semibold text-gray-900">Conversations</h1>
-                        <p className="text-sm text-gray-500">{activeCount} active conversation{activeCount !== 1 ? 's' : ''}</p>
-                    </div>
-                </div>
-            </header>
+            <div className="bg-white border-b border-gray-200 px-6 py-4">
+                <PageHeader
+                    title="Conversations"
+                    subtitle={`${activeCount} active conversation${activeCount !== 1 ? 's' : ''}`}
+                />
+            </div>
 
             {/* Kanban Board */}
             <div className="p-6 overflow-x-auto">

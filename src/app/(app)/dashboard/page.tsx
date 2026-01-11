@@ -5,7 +5,8 @@ import DashboardKPIs from '@/components/dashboard/DashboardKPIs';
 import NeedsAttention from '@/components/dashboard/NeedsAttention';
 import QuickActions from '@/components/dashboard/QuickActions';
 import RecentActivity from '@/components/dashboard/RecentActivity';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { DateRangeSelect } from '@/components/ui/DateRangeSelect';
 
 export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
@@ -62,11 +63,7 @@ export default function DashboardPage() {
                 </p>
                 <button
                     onClick={() => window.location.reload()}
-                    className="px-5 py-2.5 rounded-[var(--radius-button)] font-semibold text-sm transition-all"
-                    style={{
-                        background: 'var(--text-primary)',
-                        color: 'white'
-                    }}
+                    className="btn btn-primary"
                 >
                     Retry
                 </button>
@@ -76,37 +73,16 @@ export default function DashboardPage() {
 
     return (
         <div className="p-4 md:p-8 w-full max-w-[1600px] mx-auto">
-            {/* Header */}
-            <header className="flex items-center justify-between mb-8">
-                <div>
-                    <h1
-                        className="text-2xl font-bold"
-                        style={{
-                            fontFamily: 'var(--font-display)',
-                            color: 'var(--text-primary)',
-                            letterSpacing: '-0.025em'
-                        }}
-                    >
-                        Dashboard
-                    </h1>
-                    <p style={{ color: 'var(--text-secondary)' }} className="text-sm mt-1">
-                        Overview of outreach, replies, and next actions
-                    </p>
-                </div>
-                <button
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-button)] text-sm font-medium transition-all"
-                    style={{
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-primary)',
-                        boxShadow: 'var(--shadow-card)'
-                    }}
-                >
-                    <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
-                    Last {dateRange} Days
-                    <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
-                </button>
-            </header>
+            <PageHeader
+                title="Dashboard"
+                subtitle="Overview of outreach, replies, and next actions"
+                actions={
+                    <DateRangeSelect
+                        value={dateRange}
+                        onChange={setDateRange}
+                    />
+                }
+            />
 
             {/* Row 1: KPIs */}
             <DashboardKPIs stats={stats} loading={loading} />
