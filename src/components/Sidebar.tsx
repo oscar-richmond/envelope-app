@@ -410,13 +410,13 @@ const NavItem = ({
 
     const getStyles = () => {
         if (isActive) {
-            // Active pill: taller, larger radius, soft glassy background, premium shadow
+            // Active pill: taller, larger radius, soft glassy background, subtle shadow
             return {
                 background: 'rgba(255, 255, 255, 0.07)',
                 border: '1px solid rgba(255, 255, 255, 0.09)',
                 color: 'rgba(255, 255, 255, 0.94)',
                 iconColor: 'rgba(255, 255, 255, 0.96)',
-                boxShadow: '0 10px 24px rgba(0, 0, 0, 0.28), 0 4px 8px rgba(0, 0, 0, 0.15)'
+                boxShadow: 'var(--nav-pill-shadow)'
             };
         }
         if (isHovered) {
