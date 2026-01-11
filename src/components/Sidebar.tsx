@@ -409,12 +409,13 @@ const NavItem = ({
 
     const getStyles = () => {
         if (isActive) {
+            // Active pill: taller, larger radius, soft glassy background, premium shadow
             return {
-                background: 'var(--nav-pill-active)',
-                border: '1px solid var(--nav-pill-border)',
-                color: 'rgba(255, 255, 255, 0.95)',
-                iconColor: 'rgba(255, 255, 255, 0.95)',
-                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.22)'
+                background: 'rgba(255, 255, 255, 0.07)',
+                border: '1px solid rgba(255, 255, 255, 0.09)',
+                color: 'rgba(255, 255, 255, 0.94)',
+                iconColor: 'rgba(255, 255, 255, 0.96)',
+                boxShadow: '0 10px 24px rgba(0, 0, 0, 0.28), 0 4px 8px rgba(0, 0, 0, 0.15)'
             };
         }
         if (isHovered) {
@@ -437,13 +438,18 @@ const NavItem = ({
 
     const styles = getStyles();
 
+    // Active pill uses larger padding for "card-like" feel
+    const paddingClass = isActive
+        ? (collapsed ? 'justify-center px-3 py-3.5' : 'px-4 py-3.5')
+        : (collapsed ? 'justify-center px-3 py-3' : 'px-4 py-3');
+
     return (
         <Link
             href={href}
             className={`
-                flex items-center gap-3 
-                ${collapsed ? 'justify-center px-3 py-3' : 'px-4 py-3'}
-                rounded-[16px]
+                flex items-center gap-3.5 
+                ${paddingClass}
+                rounded-[20px]
                 transition-all duration-200
                 relative
             `}
@@ -457,8 +463,6 @@ const NavItem = ({
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            {/* Active indicator - Figma uses pill background only, no accent bar */}
-
             {/* Icon */}
             <div
                 className="shrink-0 transition-colors duration-200"
@@ -469,7 +473,10 @@ const NavItem = ({
 
             {/* Label */}
             {!collapsed && (
-                <span className="text-[13px] font-medium whitespace-nowrap">
+                <span
+                    className="text-[13px] whitespace-nowrap"
+                    style={{ fontWeight: isActive ? 500 : 450 }}
+                >
                     {label}
                 </span>
             )}
