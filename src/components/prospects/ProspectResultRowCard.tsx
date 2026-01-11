@@ -278,12 +278,10 @@ export default function ProspectResultRowCard({
                     {status !== 'ADDED' ? (
                         <button
                             onClick={onCheckAddLead}
-                            className="text-sm font-semibold px-4 py-2.5 flex items-center justify-center gap-2 w-full transition-all"
+                            className="btn btn-primary text-sm font-semibold flex items-center justify-center gap-2 w-full"
                             style={{
-                                background: 'var(--text-primary)',
-                                color: 'white',
-                                borderRadius: 'var(--radius-button)',
-                                boxShadow: 'var(--shadow-card)'
+                                height: '44px',
+                                borderRadius: 'var(--radius-button)'
                             }}
                         >
                             <Plus size={16} /> Add
@@ -340,37 +338,48 @@ export default function ProspectResultRowCard({
 }
 
 function TooltipButton({ icon: Icon, onClick, label, baseColor = "gray" }: any) {
-    // V2 Color styles with token-based values and always-visible accent colors
-    const colorStyles: Record<string, { bg: string; border: string; color: string; hoverBg: string }> = {
+    // Vibrant colors with strong visibility
+    const colorStyles: Record<string, {
+        bg: string;
+        border: string;
+        color: string;
+        hoverBg: string;
+        hoverBorder: string;
+    }> = {
         gray: {
             bg: 'var(--bg-card)',
             border: 'var(--border-default)',
-            color: 'var(--text-muted)',
-            hoverBg: 'var(--bg-card-muted)'
+            color: 'var(--text-secondary)',
+            hoverBg: 'var(--bg-card-muted)',
+            hoverBorder: 'var(--border-strong)'
         },
         blue: {
-            bg: 'var(--accent-blue-light)',
-            border: 'rgba(99, 102, 241, 0.3)',
-            color: 'var(--accent-blue)',
-            hoverBg: 'rgba(99, 102, 241, 0.15)'
+            bg: 'var(--lilac-soft)',
+            border: 'var(--chip-lilac-border)',
+            color: 'var(--lilac-text)',
+            hoverBg: 'var(--lilac)',
+            hoverBorder: 'var(--lilac)'
         },
         purple: {
-            bg: 'var(--accent-lilac-bg)',
-            border: 'rgba(184, 166, 255, 0.3)',
-            color: 'var(--accent-lilac-text)',
-            hoverBg: 'rgba(184, 166, 255, 0.2)'
+            bg: 'var(--lilac-soft)',
+            border: 'var(--chip-lilac-border)',
+            color: 'var(--lilac-text)',
+            hoverBg: 'var(--lilac)',
+            hoverBorder: 'var(--lilac)'
         },
         teal: {
-            bg: 'var(--accent-mint-bg)',
-            border: 'rgba(166, 244, 179, 0.3)',
-            color: 'var(--accent-mint-text)',
-            hoverBg: 'rgba(166, 244, 179, 0.2)'
+            bg: 'var(--mint-soft)',
+            border: 'var(--chip-mint-border)',
+            color: 'var(--mint-text)',
+            hoverBg: 'var(--mint)',
+            hoverBorder: 'var(--mint)'
         },
         rose: {
-            bg: 'var(--error-light)',
-            border: 'rgba(255, 77, 77, 0.3)',
-            color: 'var(--error-text)',
-            hoverBg: 'rgba(255, 77, 77, 0.15)'
+            bg: 'var(--danger-soft)',
+            border: 'var(--chip-danger-border)',
+            color: 'var(--danger-text)',
+            hoverBg: '#fecaca',
+            hoverBorder: '#f87171'
         }
     };
 
@@ -379,17 +388,50 @@ function TooltipButton({ icon: Icon, onClick, label, baseColor = "gray" }: any) 
     return (
         <button
             onClick={onClick}
-            className="p-2.5 transition-all"
+            className="transition-all duration-150 ease-out"
             style={{
                 background: style.bg,
                 border: `1px solid ${style.border}`,
                 color: style.color,
                 borderRadius: 'var(--radius-md)',
-                boxShadow: 'var(--shadow-sm)'
+                boxShadow: 'var(--shadow-sm)',
+                padding: '10px',
+                width: '40px',
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
             }}
             title={label}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.background = style.hoverBg;
+                e.currentTarget.style.borderColor = style.hoverBorder;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.background = style.bg;
+                e.currentTarget.style.borderColor = style.border;
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+            }}
+            onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
+            }}
+            onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            }}
+            onFocus={(e) => {
+                e.currentTarget.style.boxShadow = 'var(--shadow-focus)';
+            }}
+            onBlur={(e) => {
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+            }}
         >
-            <Icon size={16} />
+            <Icon size={17} />
         </button>
     );
 }
