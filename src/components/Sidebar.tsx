@@ -94,12 +94,49 @@ const Sidebar = () => {
         </aside>
     );
 
-    const navWidth = isCollapsed ? 72 : 256;
+    const navWidth = isCollapsed ? 72 : 280;
 
     return (
         <>
             {/* CSS variable for layout offset */}
             <style>{`:root { --sidebar-width: ${navWidth + 40}px; }`}</style>
+
+            {/* Sidebar CSS for gradient bloom */}
+            <style>{`
+                .sidebar-container {
+                    position: relative;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    background: rgba(28, 33, 47, 0.85);
+                    border-radius: 28px;
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    box-shadow: 
+                        0 12px 40px rgba(0, 0, 0, 0.4),
+                        0 4px 16px rgba(0, 0, 0, 0.25);
+                    overflow: hidden;
+                }
+                
+                .sidebar-container::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 28px;
+                    background: 
+                        radial-gradient(ellipse 120% 80% at 15% 5%, rgba(140, 100, 220, 0.28) 0%, rgba(140, 100, 220, 0.08) 35%, transparent 60%),
+                        radial-gradient(ellipse 100% 60% at 60% 0%, rgba(100, 160, 255, 0.15) 0%, transparent 50%);
+                    pointer-events: none;
+                    z-index: 0;
+                }
+                
+                .sidebar-content {
+                    position: relative;
+                    z-index: 1;
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                }
+            `}</style>
 
             <aside
                 style={{
@@ -112,219 +149,213 @@ const Sidebar = () => {
                     transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
             >
-                <div
-                    className="h-full flex flex-col relative group"
-                    style={{
-                        background: 'var(--nav-bg-opacity)',
-                        backdropFilter: 'blur(24px)',
-                        WebkitBackdropFilter: 'blur(24px)',
-                        borderRadius: '28px',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15)',
-                        border: '0.5px solid',
-                        borderImage: 'linear-gradient(180deg, var(--nav-border-start), var(--nav-border-end)) 1',
-                        overflow: 'hidden'
-                    }}
-                >
-                    {/* Logo Section - Figma branding style */}
-                    <div
-                        className={`
+                <div className="sidebar-container group">
+                    <div className="sidebar-content">
+                        {/* Logo Section - Figma branding style */}
+                        <div
+                            className={`
                             flex items-center shrink-0 transition-all duration-300
                             ${isCollapsed ? 'justify-center px-4 py-6' : 'px-5 py-5'}
                         `}
-                        style={{ borderBottom: '1px solid var(--nav-divider)' }}
-                    >
-                        {isCollapsed ? (
-                            <div
-                                className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-                                style={{ background: 'rgba(255, 255, 255, 0.08)' }}
-                            >
-                                <span className="font-bold text-white text-base">E</span>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col">
-                                <span
-                                    className="text-sm font-bold tracking-[0.08em] uppercase"
-                                    style={{ color: 'var(--nav-text-active)' }}
+                            style={{ borderBottom: '1px solid var(--nav-divider)' }}
+                        >
+                            {isCollapsed ? (
+                                <div
+                                    className="w-9 h-9 rounded-[10px] flex items-center justify-center"
+                                    style={{ background: 'rgba(255, 255, 255, 0.08)' }}
                                 >
-                                    ENVELOPE
-                                </span>
-                                <span
-                                    className="text-[11px] mt-0.5"
-                                    style={{ color: 'var(--nav-text)' }}
-                                >
-                                    by Selfhood
-                                </span>
-                            </div>
-                        )}
-                    </div>
+                                    <span className="font-bold text-white text-base">E</span>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col">
+                                    <span
+                                        className="text-sm font-bold tracking-[0.08em] uppercase"
+                                        style={{ color: 'var(--nav-text-active)' }}
+                                    >
+                                        ENVELOPE
+                                    </span>
+                                    <span
+                                        className="text-[11px] mt-0.5"
+                                        style={{ color: 'var(--nav-text)' }}
+                                    >
+                                        by Selfhood
+                                    </span>
+                                </div>
+                            )}
+                        </div>
 
-                    {/* Collapse Toggle - Hover-only, premium styling */}
-                    <button
-                        onClick={toggle}
-                        title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        className="
-                            absolute -right-4 top-10
-                            w-8 h-8 rounded-full
+                        {/* Collapse Toggle - Hover-only, high opacity background */}
+                        <button
+                            onClick={toggle}
+                            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                            className="
+                            absolute -right-4 top-12
+                            w-7 h-7 rounded-full
                             flex items-center justify-center
                             transition-all duration-200
                             cursor-pointer z-20
                             opacity-0 group-hover:opacity-100
                             pointer-events-none group-hover:pointer-events-auto
-                            focus:outline-none focus:ring-2 focus:ring-white/40
+                            focus:outline-none focus:ring-2 focus:ring-white/30
                         "
-                        style={{
-                            background: 'rgba(255, 255, 255, 0.22)',
-                            border: '1px solid rgba(255, 255, 255, 0.18)',
-                            color: 'rgba(255, 255, 255, 0.95)',
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.15)'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.30)';
-                            e.currentTarget.style.transform = 'scale(1.08)';
-                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4), 0 3px 8px rgba(0, 0, 0, 0.2)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.22)';
-                            e.currentTarget.style.transform = 'scale(1)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.15)';
-                        }}
-                        onMouseDown={(e) => {
-                            e.currentTarget.style.transform = 'scale(0.96) translateY(1px)';
-                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.25)';
-                        }}
-                        onMouseUp={(e) => {
-                            e.currentTarget.style.transform = 'scale(1.08)';
-                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4), 0 3px 8px rgba(0, 0, 0, 0.2)';
-                        }}
-                    >
-                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-                    </button>
+                            style={{
+                                background: 'rgba(28, 33, 47, 0.95)',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                color: 'rgba(255, 255, 255, 0.9)',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(40, 45, 60, 0.98)';
+                                e.currentTarget.style.transform = 'scale(1.08)';
+                                e.currentTarget.style.color = '#FFFFFF';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.5), 0 3px 8px rgba(0, 0, 0, 0.3)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(28, 33, 47, 0.95)';
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2)';
+                            }}
+                            onMouseDown={(e) => {
+                                e.currentTarget.style.transform = 'scale(0.96) translateY(1px)';
+                                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.25)';
+                            }}
+                            onMouseUp={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.08)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4), 0 3px 8px rgba(0, 0, 0, 0.2)';
+                            }}
+                        >
+                            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                        </button>
 
-                    {/* Navigation - Scrollable middle section */}
-                    <nav
-                        className="flex-1 px-3 py-4 overflow-y-auto"
-                        style={{
-                            minHeight: 0, // Important for flex child overflow
-                            scrollbarWidth: 'thin',
-                            scrollbarColor: 'rgba(255,255,255,0.2) transparent'
-                        }}
-                    >
-                        {Object.entries(groupedNavItems).map(([group, items]) => (
-                            <NavSection key={group} title={group} collapsed={isCollapsed}>
-                                {items.map((item) => (
-                                    <NavItem
-                                        key={item.route}
-                                        href={item.route}
-                                        icon={<item.icon size={18} />}
-                                        label={item.label}
-                                        collapsed={isCollapsed}
-                                        isActive={isActive(item.route)}
-                                    />
-                                ))}
-                            </NavSection>
-                        ))}
-                    </nav>
+                        {/* Navigation - Scrollable middle section */}
+                        <nav
+                            className="flex-1 px-3 py-4 overflow-y-auto"
+                            style={{
+                                minHeight: 0, // Important for flex child overflow
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: 'rgba(255,255,255,0.2) transparent'
+                            }}
+                        >
+                            {Object.entries(groupedNavItems).map(([group, items]) => (
+                                <NavSection key={group} title={group} collapsed={isCollapsed}>
+                                    {items.map((item) => (
+                                        <NavItem
+                                            key={item.route}
+                                            href={item.route}
+                                            icon={<item.icon size={18} />}
+                                            label={item.label}
+                                            collapsed={isCollapsed}
+                                            isActive={isActive(item.route)}
+                                        />
+                                    ))}
+                                </NavSection>
+                            ))}
+                        </nav>
 
-                    {/* User Profile Section - Fixed at bottom */}
-                    <div
-                        className={`
+                        {/* User Profile Section - Fixed at bottom */}
+                        <div
+                            className={`
                             p-3 shrink-0 transition-all duration-300
                             ${isCollapsed ? 'flex flex-col items-center gap-2' : ''}
                         `}
-                        style={{ borderTop: '1px solid var(--nav-divider)' }}
-                    >
-                        {isCollapsed ? (
-                            <>
-                                <div
-                                    className="w-10 h-10 rounded-[12px] flex items-center justify-center overflow-hidden"
-                                    style={{ background: 'rgba(255, 255, 255, 0.08)' }}
-                                    title={session?.user?.name || 'User'}
-                                >
-                                    {session?.user?.image ? (
-                                        <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <UserIcon size={16} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-                                    )}
-                                </div>
-                                <button
-                                    onClick={handleSignOut}
-                                    className="
+                            style={{ borderTop: '1px solid var(--nav-divider)' }}
+                        >
+                            {isCollapsed ? (
+                                <>
+                                    <div
+                                        className="w-10 h-10 rounded-[12px] flex items-center justify-center overflow-hidden"
+                                        style={{ background: 'rgba(255, 255, 255, 0.08)' }}
+                                        title={session?.user?.name || 'User'}
+                                    >
+                                        {session?.user?.image ? (
+                                            <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <UserIcon size={16} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={handleSignOut}
+                                        className="
                                         w-10 h-10 rounded-[12px]
                                         flex items-center justify-center
                                         transition-all duration-200
                                     "
-                                    style={{
-                                        color: 'rgba(255, 255, 255, 0.5)',
-                                        background: 'transparent'
-                                    }}
-                                    title="Sign Out"
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
-                                    }}
-                                >
-                                    <LogOut size={18} />
-                                </button>
-                            </>
-                        ) : (
-                            <div
-                                className="flex items-center gap-3 px-3 py-2 rounded-[14px] transition-all duration-200"
-                                style={{ background: 'rgba(255, 255, 255, 0.04)' }}
-                            >
+                                        style={{
+                                            color: 'rgba(255, 255, 255, 0.5)',
+                                            background: 'transparent'
+                                        }}
+                                        title="Sign Out"
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
+                                        }}
+                                    >
+                                        <LogOut size={18} />
+                                    </button>
+                                </>
+                            ) : (
                                 <div
-                                    className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 overflow-hidden"
-                                    style={{ background: 'rgba(255, 255, 255, 0.08)' }}
+                                    className="flex items-center gap-3 px-3 py-2 rounded-[14px] transition-all duration-200"
+                                    style={{ background: 'rgba(255, 255, 255, 0.04)' }}
                                 >
-                                    {session?.user?.image ? (
-                                        <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <UserIcon size={16} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p
-                                        className="text-sm font-medium truncate"
-                                        style={{ color: 'rgba(255, 255, 255, 0.95)' }}
+                                    <div
+                                        className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 overflow-hidden"
+                                        style={{ background: 'rgba(255, 255, 255, 0.08)' }}
                                     >
-                                        {session?.user?.name || 'User'}
-                                    </p>
-                                    <p
-                                        className="text-xs truncate"
-                                        style={{ color: 'rgba(255, 255, 255, 0.5)' }}
-                                    >
-                                        {session?.user?.email}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={handleSignOut}
-                                    className="
+                                        {session?.user?.image ? (
+                                            <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <UserIcon size={16} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p
+                                            className="text-sm font-medium truncate"
+                                            style={{ color: 'rgba(255, 255, 255, 0.95)' }}
+                                        >
+                                            {session?.user?.name || 'User'}
+                                        </p>
+                                        <p
+                                            className="text-xs truncate"
+                                            style={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                                        >
+                                            {session?.user?.email}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={handleSignOut}
+                                        className="
                                         p-2 rounded-[10px]
                                         transition-all duration-200
                                     "
-                                    style={{
-                                        color: 'rgba(255, 255, 255, 0.5)',
-                                        background: 'transparent'
-                                    }}
-                                    title="Sign Out"
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
-                                    }}
-                                >
-                                    <LogOut size={16} />
-                                </button>
-                            </div>
-                        )}
+                                        style={{
+                                            color: 'rgba(255, 255, 255, 0.5)',
+                                            background: 'transparent'
+                                        }}
+                                        title="Sign Out"
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
+                                        }}
+                                    >
+                                        <LogOut size={16} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
+                    {/* End sidebar-content */}
                 </div>
+                {/* End sidebar-container */}
             </aside>
         </>
     );
@@ -380,22 +411,25 @@ const NavItem = ({
     const getStyles = () => {
         if (isActive) {
             return {
-                background: 'var(--nav-active-bg)',
-                color: 'var(--nav-text-active)',
-                iconColor: 'var(--nav-icon-active)'
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#FFFFFF',
+                iconColor: '#FFFFFF',
+                boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.10), 0 2px 8px rgba(0, 0, 0, 0.15)'
             };
         }
         if (isHovered) {
             return {
-                background: 'var(--nav-hover-bg)',
-                color: '#CCCCCC',
-                iconColor: '#BBBBBB'
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                iconColor: 'rgba(255, 255, 255, 0.8)',
+                boxShadow: 'none'
             };
         }
         return {
             background: 'transparent',
-            color: 'var(--nav-text)',
-            iconColor: 'var(--nav-icon)'
+            color: 'rgba(255, 255, 255, 0.55)',
+            iconColor: 'rgba(255, 255, 255, 0.45)',
+            boxShadow: 'none'
         };
     };
 
@@ -407,13 +441,14 @@ const NavItem = ({
             className={`
                 flex items-center gap-3 
                 ${collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'}
-                rounded-[12px]
+                rounded-[10px]
                 transition-all duration-200
                 relative
             `}
             style={{
                 background: styles.background,
-                color: styles.color
+                color: styles.color,
+                boxShadow: styles.boxShadow
             }}
             title={collapsed ? label : undefined}
             onMouseEnter={() => setIsHovered(true)}
