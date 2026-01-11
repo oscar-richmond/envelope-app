@@ -3,6 +3,7 @@ import Sidebar from "@/components/Sidebar";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { CompanyViewerProvider } from "@/components/modals/CompanyViewerProvider";
+import { CompanyOverviewModalProvider } from "@/components/modals/CompanyOverviewModalProvider";
 import CompanyInspectorWrapper from "@/components/CompanyInspectorWrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -29,11 +30,13 @@ export default async function AppLayout({
             <Sidebar />
             <main className="flex-1 overflow-auto flex flex-col">
                 <CompanyViewerProvider>
-                    <CompanyInspectorWrapper>
-                        <ErrorBoundary sectionName="Main App Area">
-                            {children}
-                        </ErrorBoundary>
-                    </CompanyInspectorWrapper>
+                    <CompanyOverviewModalProvider>
+                        <CompanyInspectorWrapper>
+                            <ErrorBoundary sectionName="Main App Area">
+                                {children}
+                            </ErrorBoundary>
+                        </CompanyInspectorWrapper>
+                    </CompanyOverviewModalProvider>
                 </CompanyViewerProvider>
             </main>
         </div>
