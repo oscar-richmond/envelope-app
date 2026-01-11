@@ -150,38 +150,38 @@ const Sidebar = () => {
             >
                 <div className="sidebar-container group">
                     <div className="sidebar-content">
-                        {/* Logo Section - Figma branding style */}
-                        <div
+                        {/* Logo Section - New brand logo */}
+                        <Link
+                            href="/dashboard"
                             className={`
-                            flex items-center shrink-0 transition-all duration-300
-                            ${isCollapsed ? 'justify-center px-4 py-6' : 'px-5 py-5'}
-                        `}
+                                flex items-center shrink-0 transition-all duration-300 cursor-pointer
+                                ${isCollapsed ? 'justify-center px-3 py-5' : 'px-5 py-5'}
+                                hover:opacity-90
+                            `}
                             style={{ borderBottom: '1px solid var(--nav-divider)' }}
                         >
                             {isCollapsed ? (
-                                <div
-                                    className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-                                    style={{ background: 'rgba(255, 255, 255, 0.08)' }}
-                                >
-                                    <span className="font-bold text-white text-base">E</span>
-                                </div>
+                                <img
+                                    src="/branding/envelope-logo.png"
+                                    alt="Envelope"
+                                    style={{
+                                        height: '26px',
+                                        width: 'auto',
+                                        objectFit: 'contain'
+                                    }}
+                                />
                             ) : (
-                                <div className="flex flex-col">
-                                    <span
-                                        className="text-[13px] font-bold tracking-[0.10em] uppercase"
-                                        style={{ color: '#FFFFFF' }}
-                                    >
-                                        ENVELOPE
-                                    </span>
-                                    <span
-                                        className="text-[11px] mt-0.5"
-                                        style={{ color: 'var(--nav-text-muted)' }}
-                                    >
-                                        by Selfhood
-                                    </span>
-                                </div>
+                                <img
+                                    src="/branding/envelope-logo.png"
+                                    alt="Envelope"
+                                    style={{
+                                        height: '32px',
+                                        width: 'auto',
+                                        objectFit: 'contain'
+                                    }}
+                                />
                             )}
-                        </div>
+                        </Link>
 
                         {/* Collapse Toggle - Hover-only, high opacity background */}
                         <button
