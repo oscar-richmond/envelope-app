@@ -264,13 +264,19 @@ export default function ProspectResultRowCard({
 
                 </div>
 
-                {/* 3. Actions (Control Panel) */}
+                {/* 3. Action Stack (Fixed Width Container) */}
                 <div
-                    className="flex flex-col items-center justify-center gap-3 p-4 h-full"
                     style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '12px',
                         background: 'var(--bg-card-muted)',
                         borderRadius: 'var(--radius-xl)',
-                        border: '1px solid var(--border-soft)'
+                        border: '1px solid var(--border-soft)',
+                        width: 'fit-content',
+                        minWidth: status !== 'ADDED' ? '184px' : '152px'
                     }}
                 >
 
@@ -278,18 +284,21 @@ export default function ProspectResultRowCard({
                     {status !== 'ADDED' ? (
                         <button
                             onClick={onCheckAddLead}
-                            className="btn btn-dark text-sm font-semibold flex items-center justify-center gap-2 w-full"
+                            className="btn btn-dark text-sm font-semibold flex items-center justify-center gap-2"
                             style={{
-                                height: '44px',
+                                height: '40px',
+                                width: '100%',
                                 borderRadius: 'var(--radius-button)'
                             }}
                         >
-                            <Plus size={16} /> Add
+                            <Plus size={15} /> Add
                         </button>
                     ) : (
                         <div
-                            className="w-full h-10 flex items-center justify-center text-xs font-semibold"
+                            className="flex items-center justify-center text-xs font-semibold"
                             style={{
+                                height: '36px',
+                                width: '100%',
                                 background: 'var(--accent-mint-bg)',
                                 color: 'var(--accent-mint-text)',
                                 borderRadius: 'var(--radius-button)',
@@ -300,8 +309,8 @@ export default function ProspectResultRowCard({
                         </div>
                     )}
 
-                    {/* Quick Actions Grid */}
-                    <div className="flex items-center gap-2 justify-center w-full">
+                    {/* Quick Actions Row - Fixed 4 icons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <TooltipButton
                             icon={Maximize2}
                             onClick={() => document.getElementById(`company-link-${c.id}`)?.click()}
