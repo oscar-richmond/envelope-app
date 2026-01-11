@@ -140,21 +140,25 @@ export default function LeadResultRowCard({
 
                 {/* 3. Actions Panel */}
                 <div
-                    className="flex items-center gap-3 p-4 h-full justify-between"
+                    className="flex items-center gap-3 h-full"
                     style={{
                         background: 'var(--bg-card-muted)',
                         borderRadius: 'var(--radius-xl)',
-                        border: '1px solid var(--border-soft)'
+                        border: '1px solid var(--border-soft)',
+                        padding: '12px 14px',
+                        minWidth: '240px'
                     }}
                 >
-                    <div className="flex gap-2 w-full">
+                    {/* Main CTAs */}
+                    <div className="flex gap-2 flex-1 min-w-0">
                         <Link
                             href={`/leads/${lead.id}`}
-                            className="flex-1 text-sm font-semibold px-3 py-2.5 flex items-center justify-center gap-1.5 transition-all"
+                            className="flex-1 text-sm font-semibold px-3 py-2.5 flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
                             style={{
                                 background: 'var(--text-primary)',
                                 color: 'white',
-                                borderRadius: 'var(--radius-button)'
+                                borderRadius: 'var(--radius-button)',
+                                minHeight: '40px'
                             }}
                             onClick={(e) => e.stopPropagation()}
                         >
@@ -164,10 +168,11 @@ export default function LeadResultRowCard({
                             onClick={(e) => handleClick(e, onCompose)}
                             className="flex-1 text-sm font-semibold px-3 py-2.5 flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
                             style={{
-                                background: 'var(--accent-lilac-bg)',
-                                color: 'var(--accent-lilac-text)',
+                                background: 'var(--lilac-soft)',
+                                color: 'var(--lilac-text)',
                                 borderRadius: 'var(--radius-button)',
-                                border: '1px solid rgba(184, 166, 255, 0.3)'
+                                border: '1px solid var(--chip-lilac-border)',
+                                minHeight: '40px'
                             }}
                             title="Compose outreach"
                         >
@@ -175,18 +180,33 @@ export default function LeadResultRowCard({
                         </button>
                     </div>
 
+                    {/* Divider */}
                     <div
-                        className="flex items-center gap-1.5 pl-3"
-                        style={{ borderLeft: '1px solid var(--border-soft)' }}
-                    >
+                        style={{
+                            width: '1px',
+                            height: '28px',
+                            background: 'var(--border-soft)',
+                            flexShrink: 0,
+                            margin: '0 4px'
+                        }}
+                    />
+
+                    {/* Icon Actions */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                             onClick={(e) => handleClick(e, onViewThread)}
-                            className="p-2 transition-all hover:opacity-80"
+                            className="transition-all hover:opacity-80"
                             style={{
-                                background: hasThread ? 'var(--accent-blue-light)' : 'var(--bg-card-muted)',
-                                color: hasThread ? 'var(--accent-blue)' : 'var(--text-muted)',
+                                background: hasThread ? 'var(--lilac-soft)' : 'var(--surface-1)',
+                                color: hasThread ? 'var(--lilac-text)' : 'var(--text-muted)',
                                 borderRadius: 'var(--radius-md)',
-                                border: hasThread ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid var(--border-soft)'
+                                border: hasThread ? '1px solid var(--chip-lilac-border)' : '1px solid var(--border-soft)',
+                                width: '40px',
+                                height: '40px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
                             }}
                             title={hasThread ? "View thread" : "No thread yet"}
                         >
@@ -194,12 +214,18 @@ export default function LeadResultRowCard({
                         </button>
                         <button
                             onClick={(e) => handleClick(e, onDelete)}
-                            className="p-2 transition-all hover:opacity-80"
+                            className="transition-all hover:opacity-80"
                             style={{
-                                background: 'var(--error-light)',
-                                color: 'var(--error-text)',
+                                background: 'var(--danger-soft)',
+                                color: 'var(--danger-text)',
                                 borderRadius: 'var(--radius-md)',
-                                border: '1px solid rgba(255, 77, 77, 0.3)'
+                                border: '1px solid var(--chip-danger-border)',
+                                width: '40px',
+                                height: '40px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
                             }}
                             title="Remove lead"
                         >
