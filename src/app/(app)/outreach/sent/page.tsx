@@ -93,25 +93,25 @@ export default function InboxPage() {
                     <StatsCard
                         label="Action Needed"
                         value={counts.actionNeeded}
-                        color="amber"
+                        variant="warning"
                         icon={<AlertCircle size={20} />}
                     />
                     <StatsCard
                         label="Waiting"
                         value={counts.waiting}
-                        color="default"
+                        variant="neutral"
                         icon={<Clock size={20} />}
                     />
                     <StatsCard
                         label="Replied"
                         value={counts.replied}
-                        color="green"
+                        variant="mint"
                         icon={<CheckCircle size={20} />}
                     />
                     <StatsCard
                         label="Closed"
                         value={counts.closed}
-                        color="default"
+                        variant="neutral"
                         icon={<XCircle size={20} />}
                     />
                 </StatsGrid>

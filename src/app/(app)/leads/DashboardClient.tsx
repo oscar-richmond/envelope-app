@@ -251,25 +251,25 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                     <StatsCard
                         label="Total Leads"
                         value={leads.length}
-                        color="indigo"
+                        variant="lilac"
                         icon={<Building2 size={20} />}
                     />
                     <StatsCard
                         label="Analyzed"
                         value={leads.filter(l => l.lastAnalyzedAt).length}
-                        color="green"
+                        variant="mint"
                         icon={<CheckCircle size={20} />}
                     />
                     <StatsCard
                         label="High Priority"
                         value={leads.filter(l => l.stalenessScore > 70).length}
-                        color="rose"
+                        variant="warning"
                         icon={<AlertCircle size={20} />}
                     />
                     <StatsCard
                         label="Drafted"
                         value={leads.filter(l => l.emailStatus === 'DRAFTED').length}
-                        color="amber"
+                        variant="neutral"
                         icon={<PenTool size={20} />}
                     />
                 </StatsGrid>

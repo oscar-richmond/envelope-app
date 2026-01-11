@@ -814,25 +814,25 @@ export default function ProspectSearch() {
                     label="Prospects Found"
                     value={results.length}
                     icon={<Building2 size={20} />}
-                    color="indigo"
+                    variant="lilac"
                 />
                 <StatsCard
                     label="High Stability"
                     value={results.filter(r => r.financialScore >= 75).length}
                     icon={<Target size={20} />}
-                    color="green"
+                    variant="mint"
                 />
                 <StatsCard
                     label="With Website"
                     value={results.filter(r => r.url).length}
                     icon={<Globe size={20} />}
-                    color="default"
+                    variant="neutral"
                 />
                 <StatsCard
                     label="Likely Outdated"
                     value={results.filter(r => r.score >= 60).length}
                     icon={<AlertCircle size={20} />}
-                    color="rose"
+                    variant="warning"
                 />
             </StatsGrid>
 
