@@ -7,44 +7,70 @@
 
 :root {
   /* ─────────────────────────────────────────
-     NEUTRALS (Background & Text)
+     NEUTRAL SCALE (Soft Graphite System)
      ───────────────────────────────────────── */
-  --bg-page: #fafafa;
+  --neutral-950: #1a1d24;
+  /* Headings only */
+  --neutral-900: #2d3340;
+  /* Strong text */
+  --neutral-800: #3d4451;
+  /* Primary text */
+  --neutral-700: #4b5563;
+  /* Secondary text */
+  --neutral-600: #6b7280;
+  /* Muted text */
+  --neutral-500: #9ca3af;
+  /* Placeholder */
+  --neutral-400: #c4cad4;
+  /* Disabled */
+  --neutral-300: #e2e5ea;
+  /* Borders */
+  --neutral-200: #eef0f3;
+  /* Subtle dividers */
+  --neutral-100: #f6f7f9;
+  /* Card backgrounds */
+  --neutral-50: #fafbfc;
+  /* Page background */
+
+  /* ─────────────────────────────────────────
+     NEUTRALS (Background & Text - Lightened)
+     ───────────────────────────────────────── */
+  --bg-page: var(--neutral-50);
   --bg-card: #ffffff;
-  --bg-card-muted: #f7f7f7;
+  --bg-card-muted: var(--neutral-100);
 
-  --text-primary: #0b1220;
-  --text-secondary: #5b6678;
-  --text-muted: #8b95a7;
+  --text-primary: var(--neutral-800);
+  --text-secondary: var(--neutral-700);
+  --text-muted: var(--neutral-600);
 
-  --border-soft: rgba(15, 23, 42, 0.08);
-  --border-default: #e5e7eb;
-  --border-strong: #d1d5db;
-
-  /* ─────────────────────────────────────────
-     DARK CARD (Hero/Feature Cards)
-     ───────────────────────────────────────── */
-  --bg-dark-card: #181a1e;
-  --text-on-dark-primary: rgba(255, 255, 255, 0.92);
-  --text-on-dark-secondary: rgba(255, 255, 255, 0.70);
+  --border-soft: rgba(45, 51, 64, 0.06);
+  --border-default: var(--neutral-300);
+  --border-strong: var(--neutral-400);
 
   /* ─────────────────────────────────────────
-     SIDEBAR
+     DARK CARD (Hero/Feature Cards - Softened)
      ───────────────────────────────────────── */
-  --sidebar-bg: #18181b;
-  --sidebar-hover: #27272a;
-  --sidebar-active: rgba(99, 102, 241, 0.15);
-  --sidebar-text: #a1a1aa;
+  --bg-dark-card: #2d3340;
+  --text-on-dark-primary: rgba(255, 255, 255, 0.95);
+  --text-on-dark-secondary: rgba(255, 255, 255, 0.65);
+
+  /* ─────────────────────────────────────────
+     SIDEBAR (Lightened Charcoal)
+     ───────────────────────────────────────── */
+  --sidebar-bg: #2d3340;
+  --sidebar-hover: #3d4451;
+  --sidebar-active: rgba(139, 92, 246, 0.12);
+  --sidebar-text: var(--neutral-500);
   --sidebar-text-active: #ffffff;
-  --sidebar-border: #27272a;
+  --sidebar-border: #3d4451;
 
   /* ─────────────────────────────────────────
      LOCKED PALETTE (Mint + Lilac + Neutrals)
      ───────────────────────────────────────── */
 
-  /* Ink (near-black anchor) */
-  --ink: #0f172a;
-  --ink-soft: #1e293b;
+  /* Ink (softened near-black) */
+  --ink: var(--neutral-900);
+  --ink-soft: var(--neutral-800);
 
   /* Mint (reference green) */
   --mint: #a6f4b3;
