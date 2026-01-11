@@ -128,12 +128,12 @@ const Sidebar = () => {
                             flex items-center shrink-0 transition-all duration-300
                             ${isCollapsed ? 'justify-center px-4 py-6' : 'px-6 py-6'}
                         `}
-                        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}
+                        style={{ borderBottom: '1px solid var(--nav-divider)' }}
                     >
                         {isCollapsed ? (
                             <div
                                 className="w-10 h-10 rounded-[14px] flex items-center justify-center"
-                                style={{ background: 'var(--lilac)' }}
+                                style={{ background: 'rgba(255, 255, 255, 0.12)' }}
                             >
                                 <span className="font-bold text-white text-lg">E</span>
                             </div>
@@ -141,13 +141,13 @@ const Sidebar = () => {
                             <div className="flex items-center gap-3">
                                 <div
                                     className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0"
-                                    style={{ background: 'var(--lilac)' }}
+                                    style={{ background: 'rgba(255, 255, 255, 0.12)' }}
                                 >
                                     <span className="font-bold text-white text-lg">E</span>
                                 </div>
                                 <span
                                     className="text-lg font-semibold tracking-tight"
-                                    style={{ color: 'rgba(255, 255, 255, 0.95)' }}
+                                    style={{ color: 'var(--nav-text-active)' }}
                                 >
                                     Envelope
                                 </span>
@@ -155,25 +155,38 @@ const Sidebar = () => {
                         )}
                     </div>
 
-                    {/* Collapse Toggle */}
+                    {/* Collapse Toggle - Always visible, premium styling */}
                     <button
                         onClick={toggle}
+                        title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                         className="
-                            absolute -right-3 top-8
-                            w-6 h-6 rounded-full
+                            absolute -right-4 top-10
+                            w-8 h-8 rounded-full
                             flex items-center justify-center
-                            opacity-0 group-hover:opacity-100 
                             transition-all duration-200
-                            cursor-pointer z-10
+                            cursor-pointer z-20
+                            focus:outline-none focus:ring-2 focus:ring-white/30
                         "
                         style={{
-                            background: 'var(--nav-bg)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            color: 'rgba(255, 255, 255, 0.6)',
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                            background: '#1A1A1A',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            color: 'rgba(255, 255, 255, 0.85)',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#2A2A2A';
+                            e.currentTarget.style.color = '#ffffff';
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.5), 0 3px 6px rgba(0, 0, 0, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#1A1A1A';
+                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.85)';
+                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)';
                         }}
                     >
-                        {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
                     </button>
 
                     {/* Navigation - Scrollable middle section */}
@@ -207,7 +220,7 @@ const Sidebar = () => {
                             p-3 shrink-0 transition-all duration-300
                             ${isCollapsed ? 'flex flex-col items-center gap-2' : ''}
                         `}
-                        style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}
+                        style={{ borderTop: '1px solid var(--nav-divider)' }}
                     >
                         {isCollapsed ? (
                             <>
@@ -356,22 +369,22 @@ const NavItem = ({
     const getStyles = () => {
         if (isActive) {
             return {
-                background: 'rgba(139, 92, 246, 0.15)',
-                color: 'rgba(255, 255, 255, 0.95)',
-                iconColor: 'var(--lilac)'
+                background: 'var(--nav-bg-active)',
+                color: 'var(--nav-text-active)',
+                iconColor: 'var(--nav-text-active)'
             };
         }
         if (isHovered) {
             return {
-                background: 'rgba(255, 255, 255, 0.06)',
+                background: 'var(--nav-bg-hover)',
                 color: 'rgba(255, 255, 255, 0.85)',
-                iconColor: 'rgba(255, 255, 255, 0.7)'
+                iconColor: 'rgba(255, 255, 255, 0.75)'
             };
         }
         return {
             background: 'transparent',
-            color: 'rgba(255, 255, 255, 0.55)',
-            iconColor: 'rgba(255, 255, 255, 0.45)'
+            color: 'var(--nav-text)',
+            iconColor: 'rgba(255, 255, 255, 0.50)'
         };
     };
 
@@ -395,11 +408,11 @@ const NavItem = ({
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            {/* Active indicator */}
+            {/* Active indicator - monochrome */}
             {isActive && !collapsed && (
                 <div
                     className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
-                    style={{ background: 'var(--lilac)' }}
+                    style={{ background: 'rgba(255, 255, 255, 0.9)' }}
                 />
             )}
 

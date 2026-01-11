@@ -7,16 +7,16 @@
 
 :root {
   /* ─────────────────────────────────────────
-     NAV/SIDEBAR TOKENS (Dark Anchor)
-     Keep these dark for grounded UI
+     NAV/SIDEBAR TOKENS (Selfhood Pure Black)
+     Monochrome palette - whites/greys only
      ───────────────────────────────────────── */
-  --nav-bg: #0b1220;
-  --nav-bg-hover: #131d2e;
-  --nav-bg-active: rgba(139, 92, 246, 0.12);
-  --nav-text: #8b95a7;
-  --nav-text-active: #ffffff;
-  --nav-divider: #1a2536;
-  --nav-border: #1a2536;
+  --nav-bg: #0A0A0A;
+  --nav-bg-hover: rgba(255, 255, 255, 0.06);
+  --nav-bg-active: rgba(255, 255, 255, 0.12);
+  --nav-text: rgba(255, 255, 255, 0.65);
+  --nav-text-active: rgba(255, 255, 255, 0.95);
+  --nav-divider: rgba(255, 255, 255, 0.08);
+  --nav-border: rgba(255, 255, 255, 0.06);
 
   /* ─────────────────────────────────────────
      CTA TOKENS (Selfhood Near-Black)
