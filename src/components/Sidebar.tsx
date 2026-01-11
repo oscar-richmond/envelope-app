@@ -155,19 +155,20 @@ const Sidebar = () => {
                             href="/dashboard"
                             className={`
                                 flex items-center shrink-0 transition-all duration-300 cursor-pointer
-                                ${isCollapsed ? 'justify-center px-3 py-5' : 'px-5 py-5'}
+                                ${isCollapsed ? 'justify-center px-3 py-4' : 'px-5 py-5'}
                                 hover:opacity-90
                             `}
                             style={{ borderBottom: '1px solid var(--nav-divider)' }}
                         >
                             {isCollapsed ? (
                                 <img
-                                    src="/branding/envelope-logo.png"
+                                    src="/branding/envelope-icon.png"
                                     alt="Envelope"
                                     style={{
-                                        height: '26px',
-                                        width: 'auto',
-                                        objectFit: 'contain'
+                                        height: '36px',
+                                        width: '36px',
+                                        objectFit: 'contain',
+                                        borderRadius: '10px'
                                     }}
                                 />
                             ) : (
