@@ -154,10 +154,10 @@ export default function LeadResultRowCard({
                         flexShrink: 0
                     }}
                 >
-                    {/* Open CTA */}
+                    {/* Open CTA - Dark style for anchor action */}
                     <Link
                         href={`/leads/${lead.id}`}
-                        className="btn btn-primary"
+                        className="btn btn-dark"
                         style={{
                             fontSize: '13px',
                             fontWeight: 600,

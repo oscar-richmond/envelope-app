@@ -274,11 +274,11 @@ export default function ProspectResultRowCard({
                     }}
                 >
 
-                    {/* Primary CTA */}
+                    {/* Primary CTA - Dark style for "Add" anchor action */}
                     {status !== 'ADDED' ? (
                         <button
                             onClick={onCheckAddLead}
-                            className="btn btn-primary text-sm font-semibold flex items-center justify-center gap-2 w-full"
+                            className="btn btn-dark text-sm font-semibold flex items-center justify-center gap-2 w-full"
                             style={{
                                 height: '44px',
                                 borderRadius: 'var(--radius-button)'

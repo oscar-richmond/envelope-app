@@ -38,6 +38,15 @@
   --cta-primary-ring: rgba(84, 130, 237, 0.35);
 
   /* ─────────────────────────────────────────
+     DARK CTA TOKENS (Nav Black - Anchor Actions)
+     ───────────────────────────────────────── */
+  --cta-dark-bg: #1A1A1A;
+  --cta-dark-bg-hover: #2A2A2A;
+  --cta-dark-bg-active: #0F0F0F;
+  --cta-dark-text: #FFFFFF;
+  --cta-dark-ring: rgba(26, 26, 26, 0.25);
+
+  /* ─────────────────────────────────────────
      CANVAS TOKENS (Selfhood Pure White System)
      Used only for main content area
      ───────────────────────────────────────── */
@@ -549,6 +558,28 @@ h4,
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+/* Dark CTA - Anchor/Navigation Actions (Add, Open) */
+.btn-dark {
+  background: var(--cta-dark-bg);
+  color: var(--cta-dark-text);
+}
+
+.btn-dark:hover {
+  background: var(--cta-dark-bg-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-dark:active {
+  background: var(--cta-dark-bg-active);
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn-dark:focus-visible {
+  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--cta-dark-ring);
 }
 
 .btn-secondary {
