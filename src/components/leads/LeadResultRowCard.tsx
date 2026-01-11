@@ -138,53 +138,62 @@ export default function LeadResultRowCard({
                     />
                 </div>
 
-                {/* 3. Actions Panel */}
+                {/* 3. Actions Panel - All CTAs as direct children */}
                 <div
-                    className="flex items-center h-full"
                     style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
                         background: 'var(--bg-card-muted)',
                         borderRadius: 'var(--radius-xl)',
                         border: '1px solid var(--border-soft)',
-                        padding: '10px 12px',
-                        gap: '10px',
-                        minWidth: '260px',
+                        padding: '8px 12px',
+                        overflow: 'hidden',
+                        width: 'fit-content',
+                        maxWidth: '100%',
                         flexShrink: 0
                     }}
                 >
-                    {/* Main CTAs */}
+                    {/* Open CTA */}
                     <Link
                         href={`/leads/${lead.id}`}
-                        className="btn btn-primary text-sm font-semibold px-4 flex items-center justify-center gap-1.5"
+                        className="btn btn-primary"
                         style={{
-                            minWidth: '70px',
-                            height: '40px',
-                            flex: '0 0 auto'
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            padding: '0 16px',
+                            height: '36px',
+                            borderRadius: 'var(--radius-button)',
+                            flex: '0 0 auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                         }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         Open
                     </Link>
+
+                    {/* Msg CTA */}
                     <button
                         onClick={(e) => handleClick(e, onCompose)}
-                        className="text-sm font-semibold px-4 flex items-center justify-center gap-1.5 transition-all"
+                        className="btn"
                         style={{
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            padding: '0 14px',
+                            height: '36px',
+                            borderRadius: 'var(--radius-button)',
                             background: 'var(--lilac-soft)',
                             color: 'var(--lilac-text)',
-                            borderRadius: 'var(--radius-button)',
                             border: '1px solid var(--chip-lilac-border)',
-                            height: '40px',
-                            minWidth: '70px',
-                            flex: '0 0 auto'
+                            flex: '0 0 auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
                         }}
                         title="Compose outreach"
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'var(--lilac)';
-                            e.currentTarget.style.transform = 'translateY(-1px)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'var(--lilac-soft)';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                        }}
                     >
                         <PenTool size={14} /> Msg
                     </button>
@@ -193,30 +202,31 @@ export default function LeadResultRowCard({
                     <div
                         style={{
                             width: '1px',
-                            height: '28px',
-                            background: 'var(--border-soft)',
-                            flexShrink: 0,
-                            margin: '0 4px'
+                            height: '24px',
+                            background: 'var(--border-default)',
+                            flex: '0 0 auto'
                         }}
                     />
 
-                    {/* Icon Actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                            onClick={(e) => handleClick(e, onViewThread)}
-                            className={`icon-btn ${hasThread ? 'icon-btn-lilac' : ''}`}
-                            title={hasThread ? "View thread" : "No thread yet"}
-                        >
-                            <MessageSquare size={16} />
-                        </button>
-                        <button
-                            onClick={(e) => handleClick(e, onDelete)}
-                            className="icon-btn icon-btn-danger"
-                            title="Remove lead"
-                        >
-                            <Trash2 size={16} />
-                        </button>
-                    </div>
+                    {/* Thread Icon */}
+                    <button
+                        onClick={(e) => handleClick(e, onViewThread)}
+                        className={`icon-btn ${hasThread ? 'icon-btn-lilac' : ''}`}
+                        style={{ flex: '0 0 auto', width: '36px', height: '36px' }}
+                        title={hasThread ? "View thread" : "No thread yet"}
+                    >
+                        <MessageSquare size={15} />
+                    </button>
+
+                    {/* Delete Icon */}
+                    <button
+                        onClick={(e) => handleClick(e, onDelete)}
+                        className="icon-btn icon-btn-danger"
+                        style={{ flex: '0 0 auto', width: '36px', height: '36px' }}
+                        title="Remove lead"
+                    >
+                        <Trash2 size={15} />
+                    </button>
                 </div>
 
             </div>
