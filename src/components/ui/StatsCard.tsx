@@ -1,72 +1,142 @@
 import React from 'react';
 
+type StatsCardVariant = 'mint' | 'lilac' | 'neutral' | 'dark';
+
 interface StatsCardProps {
     label: string;
     value: string | number | React.ReactNode;
     icon?: React.ReactNode;
     trend?: string;
-    color?: 'default' | 'indigo' | 'green' | 'amber' | 'rose' | 'mint' | 'lilac';
+    variant?: StatsCardVariant;
     compact?: boolean;
-    dark?: boolean;
 }
 
-export function StatsCard({ label, value, icon, trend, color = 'default', compact = false, dark = false }: StatsCardProps) {
-    const colorStyles: Record<string, string> = {
-        default: 'border-l-4 border-[var(--border-default)]',
-        indigo: 'border-l-4 border-[var(--accent-blue)]',
-        green: 'border-l-4 border-[var(--success)]',
-        amber: 'border-l-4 border-[var(--warning)]',
-        rose: 'border-l-4 border-[var(--error)]',
-        mint: 'border-l-4 border-[var(--accent-mint)]',
-        lilac: 'border-l-4 border-[var(--accent-lilac)]',
-    };
+// Block-fill style variants using locked palette
+const variantStyles: Record<StatsCardVariant, {
+    bg: string;
+    border: string;
+    labelColor: string;
+    valueColor: string;
+    iconBg: string;
+    iconColor: string;
+}> = {
+    mint: {
+        bg: 'var(--mint-soft)',
+        border: 'rgba(166, 244, 179, 0.25)',
+        labelColor: 'var(--mint-text)',
+        valueColor: 'var(--text-primary)',
+        iconBg: 'var(--mint-weak)',
+        iconColor: 'var(--mint-text)'
+    },
+    lilac: {
+        bg: 'var(--lilac-soft)',
+        border: 'rgba(184, 166, 255, 0.25)',
+        labelColor: 'var(--lilac-text)',
+        valueColor: 'var(--text-primary)',
+        iconBg: 'var(--lilac-weak)',
+        iconColor: 'var(--lilac-text)'
+    },
+    neutral: {
+        bg: 'var(--surface-2)',
+        border: 'var(--border-soft)',
+        labelColor: 'var(--text-muted)',
+        valueColor: 'var(--text-primary)',
+        iconBg: 'var(--surface-3)',
+        iconColor: 'var(--text-muted)'
+    },
+    dark: {
+        bg: 'var(--ink)',
+        border: 'rgba(255, 255, 255, 0.06)',
+        labelColor: 'rgba(255, 255, 255, 0.6)',
+        valueColor: 'rgba(255, 255, 255, 0.95)',
+        iconBg: 'rgba(255, 255, 255, 0.08)',
+        iconColor: 'rgba(255, 255, 255, 0.7)'
+    }
+};
 
-    const bgClass = dark
-        ? 'bg-[var(--bg-dark-card)] text-[var(--text-on-dark-primary)]'
-        : 'bg-[var(--bg-card)]';
+export function StatsCard({
+    label,
+    value,
+    icon,
+    trend,
+    variant = 'neutral',
+    compact = false
+}: StatsCardProps) {
+    const styles = variantStyles[variant];
 
     return (
         <div
-            className={`
-                ${compact ? 'p-4' : 'p-5'} 
-                flex items-start justify-between 
-                ${colorStyles[color]} 
-                ${bgClass}
-                rounded-[var(--radius-xl)]
-                border border-[var(--border-soft)]
-                shadow-[var(--shadow-card)]
-                hover:shadow-[var(--shadow-card-hover)]
-                transition-all duration-200
-                h-full
-            `}
+            style={{
+                background: styles.bg,
+                border: `1px solid ${styles.border}`,
+                borderRadius: 'var(--radius-xl)',
+                padding: compact ? 'var(--space-4)' : 'var(--space-5)',
+                boxShadow: 'var(--shadow-card)',
+                transition: 'all var(--duration-med) var(--ease-out)',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
+            }}
+            className="hover:shadow-[var(--shadow-card-hover)]"
         >
-            <div className="min-w-0">
-                <p className="text-[12px] font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-muted)]" style={dark ? { color: 'var(--text-on-dark-secondary)' } : {}}>
-                    {label}
-                </p>
-                <div
-                    className={`${compact ? 'text-3xl' : 'text-4xl'} font-bold truncate pr-1`}
-                    style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
-                >
-                    {value}
-                </div>
-                {trend && (
-                    <p className="text-sm mt-1.5 text-[var(--text-muted)]" style={dark ? { color: 'var(--text-on-dark-secondary)' } : {}}>
-                        {trend}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                    <p
+                        style={{
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            color: styles.labelColor,
+                            marginBottom: '8px'
+                        }}
+                    >
+                        {label}
                     </p>
+                    <div
+                        style={{
+                            fontFamily: 'var(--font-display)',
+                            fontSize: compact ? '28px' : '36px',
+                            fontWeight: 700,
+                            color: styles.valueColor,
+                            letterSpacing: '-0.02em',
+                            lineHeight: 1.1,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        {value}
+                    </div>
+                    {trend && (
+                        <p
+                            style={{
+                                fontSize: '13px',
+                                color: styles.labelColor,
+                                marginTop: '8px',
+                                opacity: 0.8
+                            }}
+                        >
+                            {trend}
+                        </p>
+                    )}
+                </div>
+                {icon && (
+                    <div
+                        style={{
+                            background: styles.iconBg,
+                            color: styles.iconColor,
+                            padding: '10px',
+                            borderRadius: 'var(--radius-md)',
+                            flexShrink: 0,
+                            marginLeft: '12px'
+                        }}
+                    >
+                        {icon}
+                    </div>
                 )}
             </div>
-            {icon && (
-                <div
-                    className={`p-2 rounded-[var(--radius-md)] shrink-0 ${compact ? 'scale-90' : ''}`}
-                    style={{
-                        background: dark ? 'rgba(255,255,255,0.08)' : 'var(--bg-card-muted)',
-                        color: dark ? 'var(--text-on-dark-secondary)' : 'var(--text-muted)'
-                    }}
-                >
-                    {icon}
-                </div>
-            )}
         </div>
     );
 }
@@ -79,3 +149,4 @@ export function StatsGrid({ children, className }: { children: React.ReactNode, 
     );
 }
 
+export default StatsCard;

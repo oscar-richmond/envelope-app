@@ -1,6 +1,7 @@
 import React from 'react';
 
-type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'accent';
+// Locked palette variants only: mint, lilac, neutral, danger
+type BadgeVariant = 'mint' | 'lilac' | 'neutral' | 'danger';
 type BadgeSize = 'sm' | 'md' | 'lg';
 
 interface BadgeProps {
@@ -10,43 +11,34 @@ interface BadgeProps {
     className?: string;
 }
 
+// Block-fill style using locked palette
 const variantStyles: Record<BadgeVariant, { bg: string; text: string; border: string }> = {
-    success: {
-        bg: 'var(--chip-success-bg)',
-        text: 'var(--chip-success-text)',
-        border: 'var(--chip-success-border)'
+    mint: {
+        bg: 'var(--mint-soft)',
+        text: 'var(--mint-text)',
+        border: 'var(--chip-mint-border)'
     },
-    warning: {
-        bg: 'var(--chip-warning-bg)',
-        text: 'var(--chip-warning-text)',
-        border: 'var(--chip-warning-border)'
-    },
-    danger: {
-        bg: 'var(--chip-danger-bg)',
-        text: 'var(--chip-danger-text)',
-        border: 'var(--chip-danger-border)'
-    },
-    info: {
-        bg: 'var(--chip-info-bg)',
-        text: 'var(--chip-info-text)',
-        border: 'var(--chip-info-border)'
+    lilac: {
+        bg: 'var(--lilac-soft)',
+        text: 'var(--lilac-text)',
+        border: 'var(--chip-lilac-border)'
     },
     neutral: {
-        bg: 'var(--chip-neutral-bg)',
-        text: 'var(--chip-neutral-text)',
-        border: 'var(--chip-neutral-border)'
+        bg: 'var(--surface-2)',
+        text: 'var(--text-secondary)',
+        border: 'var(--border-soft)'
     },
-    accent: {
-        bg: 'var(--chip-accent-bg)',
-        text: 'var(--chip-accent-text)',
-        border: 'var(--chip-accent-border)'
+    danger: {
+        bg: 'var(--danger-soft)',
+        text: 'var(--danger-text)',
+        border: 'var(--chip-danger-border)'
     }
 };
 
 const sizeStyles: Record<BadgeSize, { fontSize: string; padding: string }> = {
-    sm: { fontSize: '11px', padding: '2px 8px' },
+    sm: { fontSize: '11px', padding: '3px 8px' },
     md: { fontSize: '12px', padding: '4px 10px' },
-    lg: { fontSize: '13px', padding: '6px 12px' }
+    lg: { fontSize: '13px', padding: '5px 12px' }
 };
 
 export function Badge({
