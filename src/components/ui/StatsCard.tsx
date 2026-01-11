@@ -1,6 +1,6 @@
 import React from 'react';
 
-type StatsCardVariant = 'mint' | 'lilac' | 'neutral' | 'dark';
+type StatsCardVariant = 'mint' | 'lilac' | 'neutral' | 'dark' | 'warning';
 
 interface StatsCardProps {
     label: string;
@@ -11,10 +11,11 @@ interface StatsCardProps {
     compact?: boolean;
 }
 
-// Premium white cards with tinted icon chips only
+// Premium white cards with left accent + tinted icon chips
 const variantStyles: Record<StatsCardVariant, {
     bg: string;
     border: string;
+    accentBorder: string;
     labelColor: string;
     valueColor: string;
     iconBg: string;
@@ -23,6 +24,7 @@ const variantStyles: Record<StatsCardVariant, {
     mint: {
         bg: 'var(--bg-card)',
         border: 'var(--border-subtle)',
+        accentBorder: 'var(--mint)',
         labelColor: 'var(--text-muted)',
         valueColor: 'var(--text-primary)',
         iconBg: 'var(--mint-soft)',
@@ -31,6 +33,7 @@ const variantStyles: Record<StatsCardVariant, {
     lilac: {
         bg: 'var(--bg-card)',
         border: 'var(--border-subtle)',
+        accentBorder: 'var(--lilac)',
         labelColor: 'var(--text-muted)',
         valueColor: 'var(--text-primary)',
         iconBg: 'var(--lilac-soft)',
@@ -39,14 +42,25 @@ const variantStyles: Record<StatsCardVariant, {
     neutral: {
         bg: 'var(--bg-card)',
         border: 'var(--border-subtle)',
+        accentBorder: 'var(--border-default)',
         labelColor: 'var(--text-muted)',
         valueColor: 'var(--text-primary)',
         iconBg: 'var(--bg-card-muted)',
         iconColor: 'var(--text-secondary)'
     },
+    warning: {
+        bg: 'var(--bg-card)',
+        border: 'var(--border-subtle)',
+        accentBorder: 'var(--danger)',
+        labelColor: 'var(--text-muted)',
+        valueColor: 'var(--text-primary)',
+        iconBg: 'var(--danger-soft)',
+        iconColor: 'var(--danger-text)'
+    },
     dark: {
         bg: 'var(--nav-bg)',
         border: 'rgba(255, 255, 255, 0.06)',
+        accentBorder: 'var(--lilac)',
         labelColor: 'rgba(255, 255, 255, 0.6)',
         valueColor: 'rgba(255, 255, 255, 0.95)',
         iconBg: 'rgba(255, 255, 255, 0.08)',
@@ -69,6 +83,7 @@ export function StatsCard({
             style={{
                 background: styles.bg,
                 border: `1px solid ${styles.border}`,
+                borderLeft: `4px solid ${styles.accentBorder}`,
                 borderRadius: 'var(--radius-card)',
                 padding: compact ? '16px 20px' : '20px 24px',
                 boxShadow: 'var(--shadow-card)',
@@ -78,19 +93,19 @@ export function StatsCard({
                 flexDirection: 'column',
                 justifyContent: 'space-between'
             }}
-            className="hover:shadow-[var(--shadow-card-hover)] hover:translate-y-[-2px]"
+            className="hover:shadow-[var(--shadow-card-hover)] hover:translate-y-[-1px]"
         >
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                     {/* Label - smaller and muted */}
                     <p
                         style={{
-                            fontSize: 'var(--text-meta)',
+                            fontSize: '10px',
                             fontWeight: 600,
                             textTransform: 'uppercase',
                             letterSpacing: '0.06em',
                             color: styles.labelColor,
-                            marginBottom: '12px'
+                            marginBottom: '8px'
                         }}
                     >
                         {label}
@@ -99,11 +114,11 @@ export function StatsCard({
                     <div
                         style={{
                             fontFamily: 'var(--font-display)',
-                            fontSize: compact ? '32px' : 'var(--text-kpi)',
-                            fontWeight: 800,
+                            fontSize: compact ? '32px' : '36px',
+                            fontWeight: 700,
                             color: styles.valueColor,
-                            letterSpacing: '-0.02em',
-                            lineHeight: 'var(--line-height-tight)',
+                            letterSpacing: '-0.03em',
+                            lineHeight: 1.1,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap'
@@ -114,9 +129,9 @@ export function StatsCard({
                     {trend && (
                         <p
                             style={{
-                                fontSize: 'var(--text-small)',
+                                fontSize: '12px',
                                 color: 'var(--text-secondary)',
-                                marginTop: '12px'
+                                marginTop: '8px'
                             }}
                         >
                             {trend}
@@ -129,7 +144,8 @@ export function StatsCard({
                         style={{
                             background: styles.iconBg,
                             color: styles.iconColor,
-                            padding: '12px',
+                            width: '36px',
+                            height: '36px',
                             borderRadius: 'var(--radius-md)',
                             flexShrink: 0,
                             marginLeft: '16px',
