@@ -27,12 +27,15 @@
   --nav-bloom-blue: radial-gradient(ellipse 80% 40% at 45% -8%, rgba(80, 120, 200, 0.10) 0%, transparent 45%);
 
   /* ─────────────────────────────────────────
-     CTA TOKENS (Selfhood Near-Black)
+     CTA TOKENS (Brand Blue #5482ED)
      ───────────────────────────────────────── */
-  --cta-primary-bg: #1A1A1A;
-  --cta-primary-bg-hover: #2A2A2A;
-  --cta-primary-bg-active: #0A0A0A;
-  --cta-primary-text: #ffffff;
+  --cta-primary-bg: #5482ED;
+  --cta-primary-bg-hover: #4673DB;
+  --cta-primary-bg-active: #3E66C7;
+  --cta-primary-bg-disabled: rgba(84, 130, 237, 0.35);
+  --cta-primary-text: #FFFFFF;
+  --cta-primary-text-disabled: rgba(255, 255, 255, 0.75);
+  --cta-primary-ring: rgba(84, 130, 237, 0.35);
 
   /* ─────────────────────────────────────────
      CANVAS TOKENS (Selfhood Pure White System)
@@ -534,6 +537,18 @@ h4,
   background: var(--cta-primary-bg-active);
   transform: translateY(0);
   box-shadow: var(--shadow-xs);
+}
+
+.btn-primary:focus-visible {
+  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--cta-primary-ring);
+}
+
+.btn-primary:disabled {
+  background: var(--cta-primary-bg-disabled);
+  color: var(--cta-primary-text-disabled);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-secondary {
