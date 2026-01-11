@@ -391,6 +391,7 @@ const NavSection = ({
 
 // ─────────────────────────────────────────
 // NavItem Component (Premium Styling)
+// Active Pill: Radial Gradient Highlight (Figma Match)
 // ─────────────────────────────────────────
 
 const NavItem = ({
@@ -408,57 +409,76 @@ const NavItem = ({
 }) => {
     const [isHovered, setIsHovered] = useState(false);
 
+    // ─────────────────────────────────────────
+    // Gradient Definitions (Figma Reference)
+    // ─────────────────────────────────────────
+    // Stop 1: #5482ED at 0% (full opacity)
+    // Stop 2: #2453E9 at 100% (0 opacity)
+    // Placement: top-left biased (glows behind icon/text)
+    
+    const activeGradient = `radial-gradient(circle at 20% 30%, rgba(84, 130, 237, 1) 0%, rgba(36, 83, 233, 0.35) 45%, rgba(36, 83, 233, 0) 100%)`;
+    const hoverGradient = `radial-gradient(circle at 20% 30%, rgba(84, 130, 237, 0.25) 0%, rgba(36, 83, 233, 0) 85%)`;
+
     const getStyles = () => {
         if (isActive) {
-            // Active pill: taller, larger radius, soft glassy background, subtle shadow
+            // Active pill: radial gradient glow from top-left, subtle stroke
             return {
-                background: 'rgba(255, 255, 255, 0.07)',
-                border: '1px solid rgba(255, 255, 255, 0.09)',
-                color: 'rgba(255, 255, 255, 0.94)',
-                iconColor: 'rgba(255, 255, 255, 0.96)',
-                boxShadow: 'var(--nav-pill-shadow)'
-            };
-        }
-        if (isHovered) {
-            return {
-                background: 'var(--nav-hover-bg)',
-                border: '1px solid transparent',
-                color: 'var(--nav-text)',
-                iconColor: 'rgba(255, 255, 255, 0.75)',
+                background: activeGradient,
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                color: '#FFFFFF',
+                iconColor: '#FFFFFF',
+                fontWeight: 600,
                 boxShadow: 'none'
             };
         }
+        if (isHovered) {
+            // Hover: very subtle version of the glow
+            return {
+                background: hoverGradient,
+                border: '1px solid transparent',
+                color: 'rgba(255, 255, 255, 0.80)',
+                iconColor: 'rgba(255, 255, 255, 0.70)',
+                fontWeight: 450,
+                boxShadow: 'none'
+            };
+        }
+        // Inactive: muted state
         return {
             background: 'transparent',
             border: '1px solid transparent',
-            color: 'var(--nav-text-muted)',
-            iconColor: 'rgba(255, 255, 255, 0.38)',
+            color: 'rgba(255, 255, 255, 0.58)',
+            iconColor: 'rgba(255, 255, 255, 0.45)',
+            fontWeight: 450,
             boxShadow: 'none'
         };
     };
 
     const styles = getStyles();
 
-    // Active pill uses larger padding for "card-like" feel
-    const paddingClass = isActive
-        ? (collapsed ? 'justify-center px-3 py-3.5' : 'px-4 py-3.5')
-        : (collapsed ? 'justify-center px-3 py-3' : 'px-4 py-3');
+    // Fixed height: 56px via padding (12px top/bottom + content)
+    // Padding: 12px 16px, Gap: 12px, Border-radius: 22px
+    const heightStyle = {
+        height: collapsed ? '56px' : '56px',
+        padding: collapsed ? '0 12px' : '12px 16px',
+    };
 
     return (
         <Link
             href={href}
             className={`
-                flex items-center gap-3.5 
-                ${paddingClass}
-                rounded-[20px]
+                flex items-center
                 transition-all duration-200
                 relative
             `}
             style={{
+                ...heightStyle,
+                gap: '12px',
+                borderRadius: '22px',
                 background: styles.background,
                 border: styles.border,
                 color: styles.color,
-                boxShadow: styles.boxShadow
+                boxShadow: styles.boxShadow,
+                justifyContent: collapsed ? 'center' : 'flex-start',
             }}
             title={collapsed ? label : undefined}
             onMouseEnter={() => setIsHovered(true)}
@@ -466,7 +486,7 @@ const NavItem = ({
         >
             {/* Icon */}
             <div
-                className="shrink-0 transition-colors duration-200"
+                className="shrink-0 flex items-center justify-center transition-colors duration-200"
                 style={{ color: styles.iconColor }}
             >
                 {icon}
@@ -476,7 +496,10 @@ const NavItem = ({
             {!collapsed && (
                 <span
                     className="text-[13px] whitespace-nowrap"
-                    style={{ fontWeight: isActive ? 500 : 450 }}
+                    style={{ 
+                        fontWeight: styles.fontWeight,
+                        letterSpacing: 'normal'
+                    }}
                 >
                     {label}
                 </span>
