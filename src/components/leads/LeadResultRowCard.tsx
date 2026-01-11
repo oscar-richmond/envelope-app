@@ -195,38 +195,14 @@ export default function LeadResultRowCard({
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                             onClick={(e) => handleClick(e, onViewThread)}
-                            className="transition-all hover:opacity-80"
-                            style={{
-                                background: hasThread ? 'var(--lilac-soft)' : 'var(--surface-1)',
-                                color: hasThread ? 'var(--lilac-text)' : 'var(--text-muted)',
-                                borderRadius: 'var(--radius-md)',
-                                border: hasThread ? '1px solid var(--chip-lilac-border)' : '1px solid var(--border-soft)',
-                                width: '40px',
-                                height: '40px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0
-                            }}
+                            className={`icon-btn ${hasThread ? 'icon-btn-lilac' : ''}`}
                             title={hasThread ? "View thread" : "No thread yet"}
                         >
                             <MessageSquare size={16} />
                         </button>
                         <button
                             onClick={(e) => handleClick(e, onDelete)}
-                            className="transition-all hover:opacity-80"
-                            style={{
-                                background: 'var(--danger-soft)',
-                                color: 'var(--danger-text)',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--chip-danger-border)',
-                                width: '40px',
-                                height: '40px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0
-                            }}
+                            className="icon-btn icon-btn-danger"
                             title="Remove lead"
                         >
                             <Trash2 size={16} />
@@ -238,5 +214,3 @@ export default function LeadResultRowCard({
         </div>
     );
 }
-
-

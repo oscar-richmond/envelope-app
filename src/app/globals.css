@@ -555,6 +555,86 @@ h4,
   box-shadow: var(--shadow-md);
 }
 
+/* Icon Button (Circular/Square) */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.icon-btn:hover {
+  background: var(--bg-card-muted);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.icon-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-page), 0 0 0 4px var(--lilac);
+}
+
+/* Icon Button Variants */
+.icon-btn-lilac {
+  background: var(--lilac-soft);
+  border-color: var(--chip-lilac-border);
+  color: var(--lilac-text);
+}
+
+.icon-btn-lilac:hover {
+  background: var(--lilac);
+  color: var(--lilac-text);
+  border-color: var(--lilac);
+}
+
+.icon-btn-danger {
+  background: var(--danger-soft);
+  border-color: var(--chip-danger-border);
+  color: var(--danger-text);
+}
+
+.icon-btn-danger:hover {
+  background: #fecaca;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.icon-btn-mint {
+  background: var(--mint-soft);
+  border-color: var(--chip-mint-border);
+  color: var(--mint-text);
+}
+
+.icon-btn-mint:hover {
+  background: var(--mint);
+  color: var(--mint-text);
+  border-color: var(--mint);
+}
+
+/* Active states for all buttons */
+.btn:active,
+.btn-primary:active,
+.btn-secondary:active,
+.btn-ghost:active,
+.btn-danger:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
+}
+
 /* ========================================
    BADGE / PILL COMPONENT (V2)
    ======================================== */
