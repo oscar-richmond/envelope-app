@@ -391,7 +391,7 @@ const NavSection = ({
 
 // ─────────────────────────────────────────
 // NavItem Component (Premium Styling)
-// Active Pill: Radial Gradient Highlight (Figma Match)
+// Active Pill: Subtle, Flat, Dark with Blue Outline
 // ─────────────────────────────────────────
 
 const NavItem = ({
@@ -410,31 +410,32 @@ const NavItem = ({
     const [isHovered, setIsHovered] = useState(false);
 
     // ─────────────────────────────────────────
-    // Gradient Definitions (Figma Reference)
+    // Active Pill Styling (Refined: Subtle, Flat, Dark)
     // ─────────────────────────────────────────
-    // Stop 1: #5482ED at 0% (full opacity)
-    // Stop 2: #2453E9 at 100% (0 opacity)
-    // Placement: top-left biased (glows behind icon/text)
-    
-    const activeGradient = `radial-gradient(circle at 20% 30%, rgba(84, 130, 237, 1) 0%, rgba(36, 83, 233, 0.35) 45%, rgba(36, 83, 233, 0) 100%)`;
-    const hoverGradient = `radial-gradient(circle at 20% 30%, rgba(84, 130, 237, 0.25) 0%, rgba(36, 83, 233, 0) 85%)`;
+    // - Mostly dark grey fill with faint tonal variation
+    // - Thin muted blue outline stroke
+    // - No heavy glow or bloom
+    // - Softened white for text/icons
+
+    // Subtle dark gradient: slight tonal variation, not vibrant
+    const activeFill = `linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 40%, rgba(0,0,0,0.10) 100%)`;
 
     const getStyles = () => {
         if (isActive) {
-            // Active pill: radial gradient glow from top-left, subtle stroke
+            // Active pill: flat dark fill, thin blue outline, no glow
             return {
-                background: activeGradient,
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                color: '#FFFFFF',
-                iconColor: '#FFFFFF',
+                background: activeFill,
+                border: '1px solid rgba(84, 130, 237, 0.55)',
+                color: 'rgba(255, 255, 255, 0.92)',
+                iconColor: 'rgba(255, 255, 255, 0.95)',
                 fontWeight: 600,
-                boxShadow: 'none'
+                boxShadow: '0 6px 18px rgba(0, 0, 0, 0.18)'
             };
         }
         if (isHovered) {
-            // Hover: very subtle version of the glow
+            // Hover: very subtle lift, no strong glow
             return {
-                background: hoverGradient,
+                background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid transparent',
                 color: 'rgba(255, 255, 255, 0.80)',
                 iconColor: 'rgba(255, 255, 255, 0.70)',
@@ -496,7 +497,7 @@ const NavItem = ({
             {!collapsed && (
                 <span
                     className="text-[13px] whitespace-nowrap"
-                    style={{ 
+                    style={{
                         fontWeight: styles.fontWeight,
                         letterSpacing: 'normal'
                     }}
