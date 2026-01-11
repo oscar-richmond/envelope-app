@@ -411,23 +411,26 @@ const NavItem = ({
         if (isActive) {
             return {
                 background: 'var(--nav-pill-active)',
-                color: '#FFFFFF',
-                iconColor: '#FFFFFF',
-                boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.12)'
+                border: '1px solid var(--nav-pill-border)',
+                color: 'rgba(255, 255, 255, 0.95)',
+                iconColor: 'rgba(255, 255, 255, 0.95)',
+                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.22)'
             };
         }
         if (isHovered) {
             return {
                 background: 'var(--nav-hover-bg)',
+                border: '1px solid transparent',
                 color: 'var(--nav-text)',
-                iconColor: 'rgba(255, 255, 255, 0.7)',
+                iconColor: 'rgba(255, 255, 255, 0.75)',
                 boxShadow: 'none'
             };
         }
         return {
             background: 'transparent',
+            border: '1px solid transparent',
             color: 'var(--nav-text-muted)',
-            iconColor: 'rgba(255, 255, 255, 0.4)',
+            iconColor: 'rgba(255, 255, 255, 0.38)',
             boxShadow: 'none'
         };
     };
@@ -439,13 +442,14 @@ const NavItem = ({
             href={href}
             className={`
                 flex items-center gap-3 
-                ${collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'}
-                rounded-[10px]
+                ${collapsed ? 'justify-center px-3 py-3' : 'px-4 py-3'}
+                rounded-[16px]
                 transition-all duration-200
                 relative
             `}
             style={{
                 background: styles.background,
+                border: styles.border,
                 color: styles.color,
                 boxShadow: styles.boxShadow
             }}
@@ -465,7 +469,7 @@ const NavItem = ({
 
             {/* Label */}
             {!collapsed && (
-                <span className="text-sm font-medium whitespace-nowrap">
+                <span className="text-[13px] font-medium whitespace-nowrap">
                     {label}
                 </span>
             )}
