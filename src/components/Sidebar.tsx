@@ -78,8 +78,14 @@ const Sidebar = () => {
 
     if (!mounted) return (
         <aside
-            className="w-[280px] shrink-0"
-            style={{ padding: '20px 0 20px 20px' }}
+            style={{
+                position: 'fixed',
+                top: '20px',
+                left: '20px',
+                bottom: '20px',
+                width: '260px',
+                zIndex: 50
+            }}
         >
             <div
                 className="h-full rounded-[24px]"
@@ -88,197 +94,215 @@ const Sidebar = () => {
         </aside>
     );
 
+    const navWidth = isCollapsed ? 68 : 260;
+
     return (
-        <aside
-            className={`
-                ${isCollapsed ? 'w-[88px]' : 'w-[280px]'} 
-                shrink-0 transition-all duration-300 ease-out
-            `}
-            style={{ padding: '20px 0 20px 20px' }}
-        >
-            <div
-                className="h-full flex flex-col relative group"
+        <>
+            {/* CSS variable for layout offset */}
+            <style>{`:root { --sidebar-width: ${navWidth + 40}px; }`}</style>
+
+            <aside
                 style={{
-                    background: 'var(--nav-bg)',
-                    borderRadius: '24px',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    overflow: 'hidden'
+                    position: 'fixed',
+                    top: '20px',
+                    left: '20px',
+                    bottom: '20px',
+                    width: `${navWidth}px`,
+                    zIndex: 50,
+                    transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
             >
-                {/* Logo Section */}
                 <div
-                    className={`
-                        flex items-center shrink-0 transition-all duration-300
-                        ${isCollapsed ? 'justify-center px-4 py-6' : 'px-6 py-6'}
-                    `}
-                    style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}
+                    className="h-full flex flex-col relative group"
+                    style={{
+                        background: 'var(--nav-bg)',
+                        borderRadius: '24px',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        overflow: 'hidden'
+                    }}
                 >
-                    {isCollapsed ? (
-                        <div
-                            className="w-10 h-10 rounded-[14px] flex items-center justify-center"
-                            style={{ background: 'var(--lilac)' }}
-                        >
-                            <span className="font-bold text-white text-lg">E</span>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-3">
+                    {/* Logo Section - Fixed at top */}
+                    <div
+                        className={`
+                            flex items-center shrink-0 transition-all duration-300
+                            ${isCollapsed ? 'justify-center px-4 py-6' : 'px-6 py-6'}
+                        `}
+                        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}
+                    >
+                        {isCollapsed ? (
                             <div
-                                className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0"
+                                className="w-10 h-10 rounded-[14px] flex items-center justify-center"
                                 style={{ background: 'var(--lilac)' }}
                             >
                                 <span className="font-bold text-white text-lg">E</span>
                             </div>
-                            <span
-                                className="text-lg font-semibold tracking-tight"
-                                style={{ color: 'rgba(255, 255, 255, 0.95)' }}
-                            >
-                                Envelope
-                            </span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Collapse Toggle */}
-                <button
-                    onClick={toggle}
-                    className="
-                        absolute -right-3 top-8
-                        w-6 h-6 rounded-full
-                        flex items-center justify-center
-                        opacity-0 group-hover:opacity-100 
-                        transition-all duration-200
-                        cursor-pointer z-10
-                    "
-                    style={{
-                        background: 'var(--nav-bg)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-                    }}
-                >
-                    {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-                </button>
-
-                {/* Navigation */}
-                <nav className="flex-1 px-3 py-4 overflow-y-auto">
-                    {Object.entries(groupedNavItems).map(([group, items]) => (
-                        <NavSection key={group} title={group} collapsed={isCollapsed}>
-                            {items.map((item) => (
-                                <NavItem
-                                    key={item.route}
-                                    href={item.route}
-                                    icon={<item.icon size={18} />}
-                                    label={item.label}
-                                    collapsed={isCollapsed}
-                                    isActive={isActive(item.route)}
-                                />
-                            ))}
-                        </NavSection>
-                    ))}
-                </nav>
-
-                {/* User Profile Section */}
-                <div
-                    className={`
-                        p-3 shrink-0 transition-all duration-300
-                        ${isCollapsed ? 'flex flex-col items-center gap-2' : ''}
-                    `}
-                    style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}
-                >
-                    {isCollapsed ? (
-                        <>
-                            <div
-                                className="w-10 h-10 rounded-[12px] flex items-center justify-center overflow-hidden"
-                                style={{ background: 'rgba(255, 255, 255, 0.08)' }}
-                                title={session?.user?.name || 'User'}
-                            >
-                                {session?.user?.image ? (
-                                    <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                    <UserIcon size={16} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-                                )}
-                            </div>
-                            <button
-                                onClick={handleSignOut}
-                                className="
-                                    w-10 h-10 rounded-[12px]
-                                    flex items-center justify-center
-                                    transition-all duration-200
-                                "
-                                style={{
-                                    color: 'rgba(255, 255, 255, 0.5)',
-                                    background: 'transparent'
-                                }}
-                                title="Sign Out"
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'transparent';
-                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
-                                }}
-                            >
-                                <LogOut size={18} />
-                            </button>
-                        </>
-                    ) : (
-                        <div
-                            className="flex items-center gap-3 px-3 py-2 rounded-[14px] transition-all duration-200"
-                            style={{ background: 'rgba(255, 255, 255, 0.04)' }}
-                        >
-                            <div
-                                className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 overflow-hidden"
-                                style={{ background: 'rgba(255, 255, 255, 0.08)' }}
-                            >
-                                {session?.user?.image ? (
-                                    <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                    <UserIcon size={16} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p
-                                    className="text-sm font-medium truncate"
+                        ) : (
+                            <div className="flex items-center gap-3">
+                                <div
+                                    className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0"
+                                    style={{ background: 'var(--lilac)' }}
+                                >
+                                    <span className="font-bold text-white text-lg">E</span>
+                                </div>
+                                <span
+                                    className="text-lg font-semibold tracking-tight"
                                     style={{ color: 'rgba(255, 255, 255, 0.95)' }}
                                 >
-                                    {session?.user?.name || 'User'}
-                                </p>
-                                <p
-                                    className="text-xs truncate"
-                                    style={{ color: 'rgba(255, 255, 255, 0.5)' }}
-                                >
-                                    {session?.user?.email}
-                                </p>
+                                    Envelope
+                                </span>
                             </div>
-                            <button
-                                onClick={handleSignOut}
-                                className="
-                                    p-2 rounded-[10px]
-                                    transition-all duration-200
-                                "
-                                style={{
-                                    color: 'rgba(255, 255, 255, 0.5)',
-                                    background: 'transparent'
-                                }}
-                                title="Sign Out"
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'transparent';
-                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
-                                }}
+                        )}
+                    </div>
+
+                    {/* Collapse Toggle */}
+                    <button
+                        onClick={toggle}
+                        className="
+                            absolute -right-3 top-8
+                            w-6 h-6 rounded-full
+                            flex items-center justify-center
+                            opacity-0 group-hover:opacity-100 
+                            transition-all duration-200
+                            cursor-pointer z-10
+                        "
+                        style={{
+                            background: 'var(--nav-bg)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: 'rgba(255, 255, 255, 0.6)',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                        }}
+                    >
+                        {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+                    </button>
+
+                    {/* Navigation - Scrollable middle section */}
+                    <nav
+                        className="flex-1 px-3 py-4 overflow-y-auto"
+                        style={{
+                            minHeight: 0, // Important for flex child overflow
+                            scrollbarWidth: 'thin',
+                            scrollbarColor: 'rgba(255,255,255,0.2) transparent'
+                        }}
+                    >
+                        {Object.entries(groupedNavItems).map(([group, items]) => (
+                            <NavSection key={group} title={group} collapsed={isCollapsed}>
+                                {items.map((item) => (
+                                    <NavItem
+                                        key={item.route}
+                                        href={item.route}
+                                        icon={<item.icon size={18} />}
+                                        label={item.label}
+                                        collapsed={isCollapsed}
+                                        isActive={isActive(item.route)}
+                                    />
+                                ))}
+                            </NavSection>
+                        ))}
+                    </nav>
+
+                    {/* User Profile Section - Fixed at bottom */}
+                    <div
+                        className={`
+                            p-3 shrink-0 transition-all duration-300
+                            ${isCollapsed ? 'flex flex-col items-center gap-2' : ''}
+                        `}
+                        style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}
+                    >
+                        {isCollapsed ? (
+                            <>
+                                <div
+                                    className="w-10 h-10 rounded-[12px] flex items-center justify-center overflow-hidden"
+                                    style={{ background: 'rgba(255, 255, 255, 0.08)' }}
+                                    title={session?.user?.name || 'User'}
+                                >
+                                    {session?.user?.image ? (
+                                        <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <UserIcon size={16} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                                    )}
+                                </div>
+                                <button
+                                    onClick={handleSignOut}
+                                    className="
+                                        w-10 h-10 rounded-[12px]
+                                        flex items-center justify-center
+                                        transition-all duration-200
+                                    "
+                                    style={{
+                                        color: 'rgba(255, 255, 255, 0.5)',
+                                        background: 'transparent'
+                                    }}
+                                    title="Sign Out"
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
+                                    }}
+                                >
+                                    <LogOut size={18} />
+                                </button>
+                            </>
+                        ) : (
+                            <div
+                                className="flex items-center gap-3 px-3 py-2 rounded-[14px] transition-all duration-200"
+                                style={{ background: 'rgba(255, 255, 255, 0.04)' }}
                             >
-                                <LogOut size={16} />
-                            </button>
-                        </div>
-                    )}
+                                <div
+                                    className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 overflow-hidden"
+                                    style={{ background: 'rgba(255, 255, 255, 0.08)' }}
+                                >
+                                    {session?.user?.image ? (
+                                        <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <UserIcon size={16} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p
+                                        className="text-sm font-medium truncate"
+                                        style={{ color: 'rgba(255, 255, 255, 0.95)' }}
+                                    >
+                                        {session?.user?.name || 'User'}
+                                    </p>
+                                    <p
+                                        className="text-xs truncate"
+                                        style={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                                    >
+                                        {session?.user?.email}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={handleSignOut}
+                                    className="
+                                        p-2 rounded-[10px]
+                                        transition-all duration-200
+                                    "
+                                    style={{
+                                        color: 'rgba(255, 255, 255, 0.5)',
+                                        background: 'transparent'
+                                    }}
+                                    title="Sign Out"
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
+                                    }}
+                                >
+                                    <LogOut size={16} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
-        </aside>
+            </aside>
+        </>
     );
 };
 

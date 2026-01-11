@@ -26,9 +26,17 @@ export default async function AppLayout({
     }
 
     return (
-        <div className="flex min-h-screen bg-[var(--background)]">
+        <div className="min-h-screen bg-[var(--background)]">
             <Sidebar />
-            <main className="flex-1 overflow-auto flex flex-col">
+            <main
+                className="min-h-screen overflow-auto flex flex-col transition-all duration-300"
+                style={{
+                    marginLeft: 'var(--sidebar-width, 300px)',
+                    paddingRight: '20px',
+                    paddingTop: '20px',
+                    paddingBottom: '20px'
+                }}
+            >
                 <CompanyViewerProvider>
                     <CompanyOverviewModalProvider>
                         <CompanyInspectorWrapper>
