@@ -7,16 +7,21 @@
 
 :root {
   /* ─────────────────────────────────────────
-     NAV/SIDEBAR TOKENS (Selfhood Pure Black)
-     Monochrome palette - whites/greys only
+     NAV/SIDEBAR TOKENS (Figma Exact Values)
+     Glassmorphism with dark charcoal base
      ───────────────────────────────────────── */
-  --nav-bg: #0A0A0A;
-  --nav-bg-hover: rgba(255, 255, 255, 0.06);
-  --nav-bg-active: rgba(255, 255, 255, 0.12);
-  --nav-text: rgba(255, 255, 255, 0.65);
-  --nav-text-active: rgba(255, 255, 255, 0.95);
+  --nav-bg: #1C212F;
+  --nav-bg-opacity: rgba(28, 33, 47, 0.60);
+  --nav-hover-bg: rgba(255, 255, 255, 0.06);
+  --nav-active-bg: #32333E;
+  --nav-text: #98999E;
+  --nav-text-active: #FFFFFF;
+  --nav-text-muted: #666666;
+  --nav-icon: #98999E;
+  --nav-icon-active: #FFFFFF;
   --nav-divider: rgba(255, 255, 255, 0.08);
-  --nav-border: rgba(255, 255, 255, 0.06);
+  --nav-border-start: #6E85B8;
+  --nav-border-end: #253666;
 
   /* ─────────────────────────────────────────
      CTA TOKENS (Selfhood Near-Black)

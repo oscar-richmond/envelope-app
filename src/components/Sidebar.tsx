@@ -83,18 +83,18 @@ const Sidebar = () => {
                 top: '20px',
                 left: '20px',
                 bottom: '20px',
-                width: '260px',
+                width: '256px',
                 zIndex: 50
             }}
         >
             <div
-                className="h-full rounded-[24px]"
+                className="h-full rounded-[28px]"
                 style={{ background: 'var(--nav-bg)' }}
             />
         </aside>
     );
 
-    const navWidth = isCollapsed ? 68 : 260;
+    const navWidth = isCollapsed ? 72 : 256;
 
     return (
         <>
@@ -115,41 +115,44 @@ const Sidebar = () => {
                 <div
                     className="h-full flex flex-col relative group"
                     style={{
-                        background: 'var(--nav-bg)',
-                        borderRadius: '24px',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        background: 'var(--nav-bg-opacity)',
+                        backdropFilter: 'blur(24px)',
+                        WebkitBackdropFilter: 'blur(24px)',
+                        borderRadius: '28px',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15)',
+                        border: '0.5px solid',
+                        borderImage: 'linear-gradient(180deg, var(--nav-border-start), var(--nav-border-end)) 1',
                         overflow: 'hidden'
                     }}
                 >
-                    {/* Logo Section - Fixed at top */}
+                    {/* Logo Section - Figma branding style */}
                     <div
                         className={`
                             flex items-center shrink-0 transition-all duration-300
-                            ${isCollapsed ? 'justify-center px-4 py-6' : 'px-6 py-6'}
+                            ${isCollapsed ? 'justify-center px-4 py-6' : 'px-5 py-5'}
                         `}
                         style={{ borderBottom: '1px solid var(--nav-divider)' }}
                     >
                         {isCollapsed ? (
                             <div
-                                className="w-10 h-10 rounded-[14px] flex items-center justify-center"
-                                style={{ background: 'rgba(255, 255, 255, 0.12)' }}
+                                className="w-9 h-9 rounded-[10px] flex items-center justify-center"
+                                style={{ background: 'rgba(255, 255, 255, 0.08)' }}
                             >
-                                <span className="font-bold text-white text-lg">E</span>
+                                <span className="font-bold text-white text-base">E</span>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-3">
-                                <div
-                                    className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0"
-                                    style={{ background: 'rgba(255, 255, 255, 0.12)' }}
-                                >
-                                    <span className="font-bold text-white text-lg">E</span>
-                                </div>
+                            <div className="flex flex-col">
                                 <span
-                                    className="text-lg font-semibold tracking-tight"
+                                    className="text-sm font-bold tracking-[0.08em] uppercase"
                                     style={{ color: 'var(--nav-text-active)' }}
                                 >
-                                    Envelope
+                                    ENVELOPE
+                                </span>
+                                <span
+                                    className="text-[11px] mt-0.5"
+                                    style={{ color: 'var(--nav-text)' }}
+                                >
+                                    by Selfhood
                                 </span>
                             </div>
                         )}
@@ -343,13 +346,13 @@ const NavSection = ({
     <div className="py-2">
         {!collapsed && (
             <p
-                className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.1em]"
-                style={{ color: 'rgba(255, 255, 255, 0.35)' }}
+                className="px-4 mb-2 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: 'var(--nav-text)' }}
             >
                 {title}
             </p>
         )}
-        <div className="space-y-1">
+        <div className="space-y-0.5 px-2">
             {children}
         </div>
     </div>
@@ -377,22 +380,22 @@ const NavItem = ({
     const getStyles = () => {
         if (isActive) {
             return {
-                background: 'var(--nav-bg-active)',
+                background: 'var(--nav-active-bg)',
                 color: 'var(--nav-text-active)',
-                iconColor: 'var(--nav-text-active)'
+                iconColor: 'var(--nav-icon-active)'
             };
         }
         if (isHovered) {
             return {
-                background: 'var(--nav-bg-hover)',
-                color: 'rgba(255, 255, 255, 0.85)',
-                iconColor: 'rgba(255, 255, 255, 0.75)'
+                background: 'var(--nav-hover-bg)',
+                color: '#CCCCCC',
+                iconColor: '#BBBBBB'
             };
         }
         return {
             background: 'transparent',
             color: 'var(--nav-text)',
-            iconColor: 'rgba(255, 255, 255, 0.50)'
+            iconColor: 'var(--nav-icon)'
         };
     };
 
@@ -416,13 +419,7 @@ const NavItem = ({
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            {/* Active indicator - monochrome */}
-            {isActive && !collapsed && (
-                <div
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
-                    style={{ background: 'rgba(255, 255, 255, 0.9)' }}
-                />
-            )}
+            {/* Active indicator - Figma uses pill background only, no accent bar */}
 
             {/* Icon */}
             <div
