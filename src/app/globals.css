@@ -19,6 +19,14 @@
   --nav-border: #1a2536;
 
   /* ─────────────────────────────────────────
+     CTA TOKENS (Primary = Nav Colour Match)
+     ───────────────────────────────────────── */
+  --cta-primary-bg: var(--nav-bg);
+  --cta-primary-bg-hover: var(--nav-bg-hover);
+  --cta-primary-bg-active: #060a10;
+  --cta-primary-text: #ffffff;
+
+  /* ─────────────────────────────────────────
      CANVAS TOKENS (Softened for White UI)
      Used only for main content area
      ───────────────────────────────────────── */
@@ -474,14 +482,20 @@ h4,
 }
 
 .btn-primary {
-  background: var(--text-primary);
-  color: white;
+  background: var(--cta-primary-bg);
+  color: var(--cta-primary-text);
 }
 
 .btn-primary:hover {
-  background: #000000;
+  background: var(--cta-primary-bg-hover);
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active {
+  background: var(--cta-primary-bg-active);
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
 }
 
 .btn-secondary {

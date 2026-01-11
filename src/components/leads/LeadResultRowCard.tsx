@@ -140,45 +140,54 @@ export default function LeadResultRowCard({
 
                 {/* 3. Actions Panel */}
                 <div
-                    className="flex items-center gap-3 h-full"
+                    className="flex items-center h-full"
                     style={{
                         background: 'var(--bg-card-muted)',
                         borderRadius: 'var(--radius-xl)',
                         border: '1px solid var(--border-soft)',
-                        padding: '12px 14px',
-                        minWidth: '240px'
+                        padding: '10px 12px',
+                        gap: '10px',
+                        minWidth: '260px',
+                        flexShrink: 0
                     }}
                 >
                     {/* Main CTAs */}
-                    <div className="flex gap-2 flex-1 min-w-0">
-                        <Link
-                            href={`/leads/${lead.id}`}
-                            className="flex-1 text-sm font-semibold px-3 py-2.5 flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
-                            style={{
-                                background: 'var(--text-primary)',
-                                color: 'white',
-                                borderRadius: 'var(--radius-button)',
-                                minHeight: '40px'
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            Open
-                        </Link>
-                        <button
-                            onClick={(e) => handleClick(e, onCompose)}
-                            className="flex-1 text-sm font-semibold px-3 py-2.5 flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
-                            style={{
-                                background: 'var(--lilac-soft)',
-                                color: 'var(--lilac-text)',
-                                borderRadius: 'var(--radius-button)',
-                                border: '1px solid var(--chip-lilac-border)',
-                                minHeight: '40px'
-                            }}
-                            title="Compose outreach"
-                        >
-                            <PenTool size={14} /> Msg
-                        </button>
-                    </div>
+                    <Link
+                        href={`/leads/${lead.id}`}
+                        className="btn btn-primary text-sm font-semibold px-4 flex items-center justify-center gap-1.5"
+                        style={{
+                            minWidth: '70px',
+                            height: '40px',
+                            flex: '0 0 auto'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        Open
+                    </Link>
+                    <button
+                        onClick={(e) => handleClick(e, onCompose)}
+                        className="text-sm font-semibold px-4 flex items-center justify-center gap-1.5 transition-all"
+                        style={{
+                            background: 'var(--lilac-soft)',
+                            color: 'var(--lilac-text)',
+                            borderRadius: 'var(--radius-button)',
+                            border: '1px solid var(--chip-lilac-border)',
+                            height: '40px',
+                            minWidth: '70px',
+                            flex: '0 0 auto'
+                        }}
+                        title="Compose outreach"
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'var(--lilac)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'var(--lilac-soft)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                    >
+                        <PenTool size={14} /> Msg
+                    </button>
 
                     {/* Divider */}
                     <div
