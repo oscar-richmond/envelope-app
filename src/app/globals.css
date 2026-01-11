@@ -7,21 +7,24 @@
 
 :root {
   /* ─────────────────────────────────────────
-     NAV/SIDEBAR TOKENS (Figma Exact Values)
-     Glassmorphism with dark charcoal base
+     NAV/SIDEBAR TOKENS (Figma Alignment)
+     Isolated tokens - do NOT affect global app
      ───────────────────────────────────────── */
-  --nav-bg: #1C212F;
-  --nav-bg-opacity: rgba(28, 33, 47, 0.60);
-  --nav-hover-bg: rgba(255, 255, 255, 0.06);
-  --nav-active-bg: #32333E;
-  --nav-text: #98999E;
-  --nav-text-active: #FFFFFF;
-  --nav-text-muted: #666666;
-  --nav-icon: #98999E;
-  --nav-icon-active: #FFFFFF;
-  --nav-divider: rgba(255, 255, 255, 0.08);
-  --nav-border-start: #6E85B8;
-  --nav-border-end: #253666;
+  --nav-bg: rgba(28, 33, 47, 0.80);
+  --nav-bg-solid: #1C212F;
+  --nav-border: rgba(255, 255, 255, 0.10);
+  --nav-text: rgba(255, 255, 255, 0.88);
+  --nav-text-muted: rgba(255, 255, 255, 0.55);
+  --nav-text-label: rgba(255, 255, 255, 0.45);
+  --nav-pill-bg: rgba(255, 255, 255, 0.06);
+  --nav-pill-active: rgba(255, 255, 255, 0.08);
+  --nav-hover-bg: rgba(255, 255, 255, 0.04);
+  --nav-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.2);
+  --nav-divider: rgba(255, 255, 255, 0.06);
+
+  /* Radial gradient bloom overlays */
+  --nav-bloom-purple: radial-gradient(ellipse 140% 80% at 10% 0%, rgba(130, 90, 200, 0.25) 0%, rgba(130, 90, 200, 0.06) 40%, transparent 65%);
+  --nav-bloom-blue: radial-gradient(ellipse 100% 50% at 50% -5%, rgba(90, 140, 220, 0.12) 0%, transparent 55%);
 
   /* ─────────────────────────────────────────
      CTA TOKENS (Selfhood Near-Black)

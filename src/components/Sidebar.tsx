@@ -101,30 +101,29 @@ const Sidebar = () => {
             {/* CSS variable for layout offset */}
             <style>{`:root { --sidebar-width: ${navWidth + 40}px; }`}</style>
 
-            {/* Sidebar CSS for gradient bloom */}
+            {/* Sidebar CSS for gradient bloom - uses tokens from globals.css */}
             <style>{`
                 .sidebar-container {
                     position: relative;
                     height: 100%;
                     display: flex;
                     flex-direction: column;
-                    background: rgba(28, 33, 47, 0.85);
+                    background: var(--nav-bg);
                     border-radius: 28px;
-                    border: 1px solid rgba(255, 255, 255, 0.12);
-                    box-shadow: 
-                        0 12px 40px rgba(0, 0, 0, 0.4),
-                        0 4px 16px rgba(0, 0, 0, 0.25);
+                    border: 1px solid var(--nav-border);
+                    box-shadow: var(--nav-shadow);
                     overflow: hidden;
                 }
                 
+                /* Radial gradient bloom overlay - matches Figma purple/blue glow */
                 .sidebar-container::before {
                     content: '';
                     position: absolute;
                     inset: 0;
                     border-radius: 28px;
                     background: 
-                        radial-gradient(ellipse 120% 80% at 15% 5%, rgba(140, 100, 220, 0.28) 0%, rgba(140, 100, 220, 0.08) 35%, transparent 60%),
-                        radial-gradient(ellipse 100% 60% at 60% 0%, rgba(100, 160, 255, 0.15) 0%, transparent 50%);
+                        var(--nav-bloom-purple),
+                        var(--nav-bloom-blue);
                     pointer-events: none;
                     z-index: 0;
                 }
@@ -169,14 +168,14 @@ const Sidebar = () => {
                             ) : (
                                 <div className="flex flex-col">
                                     <span
-                                        className="text-sm font-bold tracking-[0.08em] uppercase"
-                                        style={{ color: 'var(--nav-text-active)' }}
+                                        className="text-[13px] font-bold tracking-[0.10em] uppercase"
+                                        style={{ color: '#FFFFFF' }}
                                     >
                                         ENVELOPE
                                     </span>
                                     <span
                                         className="text-[11px] mt-0.5"
-                                        style={{ color: 'var(--nav-text)' }}
+                                        style={{ color: 'var(--nav-text-muted)' }}
                                     >
                                         by Selfhood
                                     </span>
@@ -374,11 +373,11 @@ const NavSection = ({
     collapsed: boolean;
     children: React.ReactNode;
 }) => (
-    <div className="py-2">
+    <div className="py-3">
         {!collapsed && (
             <p
-                className="px-4 mb-2 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                style={{ color: 'var(--nav-text)' }}
+                className="px-4 mb-2 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                style={{ color: 'var(--nav-text-label)' }}
             >
                 {title}
             </p>
@@ -411,24 +410,24 @@ const NavItem = ({
     const getStyles = () => {
         if (isActive) {
             return {
-                background: 'rgba(255, 255, 255, 0.08)',
+                background: 'var(--nav-pill-active)',
                 color: '#FFFFFF',
                 iconColor: '#FFFFFF',
-                boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.10), 0 2px 8px rgba(0, 0, 0, 0.15)'
+                boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.12)'
             };
         }
         if (isHovered) {
             return {
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'rgba(255, 255, 255, 0.9)',
-                iconColor: 'rgba(255, 255, 255, 0.8)',
+                background: 'var(--nav-hover-bg)',
+                color: 'var(--nav-text)',
+                iconColor: 'rgba(255, 255, 255, 0.7)',
                 boxShadow: 'none'
             };
         }
         return {
             background: 'transparent',
-            color: 'rgba(255, 255, 255, 0.55)',
-            iconColor: 'rgba(255, 255, 255, 0.45)',
+            color: 'var(--nav-text-muted)',
+            iconColor: 'rgba(255, 255, 255, 0.4)',
             boxShadow: 'none'
         };
     };
