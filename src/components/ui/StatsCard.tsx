@@ -11,7 +11,7 @@ interface StatsCardProps {
     compact?: boolean;
 }
 
-// Block-fill style variants using locked palette
+// Premium white cards with tinted icon chips only
 const variantStyles: Record<StatsCardVariant, {
     bg: string;
     border: string;
@@ -21,31 +21,31 @@ const variantStyles: Record<StatsCardVariant, {
     iconColor: string;
 }> = {
     mint: {
-        bg: 'var(--mint-soft)',
-        border: 'rgba(166, 244, 179, 0.25)',
-        labelColor: 'var(--mint-text)',
+        bg: 'var(--bg-card)',
+        border: 'var(--border-subtle)',
+        labelColor: 'var(--text-muted)',
         valueColor: 'var(--text-primary)',
-        iconBg: 'var(--mint-weak)',
+        iconBg: 'var(--mint-soft)',
         iconColor: 'var(--mint-text)'
     },
     lilac: {
-        bg: 'var(--lilac-soft)',
-        border: 'rgba(184, 166, 255, 0.25)',
-        labelColor: 'var(--lilac-text)',
+        bg: 'var(--bg-card)',
+        border: 'var(--border-subtle)',
+        labelColor: 'var(--text-muted)',
         valueColor: 'var(--text-primary)',
-        iconBg: 'var(--lilac-weak)',
+        iconBg: 'var(--lilac-soft)',
         iconColor: 'var(--lilac-text)'
     },
     neutral: {
-        bg: 'var(--surface-2)',
-        border: 'var(--border-soft)',
+        bg: 'var(--bg-card)',
+        border: 'var(--border-subtle)',
         labelColor: 'var(--text-muted)',
         valueColor: 'var(--text-primary)',
-        iconBg: 'var(--surface-3)',
-        iconColor: 'var(--text-muted)'
+        iconBg: 'var(--bg-card-muted)',
+        iconColor: 'var(--text-secondary)'
     },
     dark: {
-        bg: 'var(--ink)',
+        bg: 'var(--nav-bg)',
         border: 'rgba(255, 255, 255, 0.06)',
         labelColor: 'rgba(255, 255, 255, 0.6)',
         valueColor: 'rgba(255, 255, 255, 0.95)',
@@ -69,39 +69,41 @@ export function StatsCard({
             style={{
                 background: styles.bg,
                 border: `1px solid ${styles.border}`,
-                borderRadius: 'var(--radius-xl)',
-                padding: compact ? 'var(--space-4)' : 'var(--space-5)',
+                borderRadius: 'var(--radius-card)',
+                padding: compact ? '16px 20px' : '20px 24px',
                 boxShadow: 'var(--shadow-card)',
-                transition: 'all var(--duration-med) var(--ease-out)',
+                transition: 'all 0.2s ease-out',
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between'
             }}
-            className="hover:shadow-[var(--shadow-card-hover)]"
+            className="hover:shadow-[var(--shadow-card-hover)] hover:translate-y-[-2px]"
         >
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
+                    {/* Label - smaller and muted */}
                     <p
                         style={{
-                            fontSize: '12px',
+                            fontSize: 'var(--text-meta)',
                             fontWeight: 600,
                             textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
+                            letterSpacing: '0.06em',
                             color: styles.labelColor,
-                            marginBottom: '8px'
+                            marginBottom: '12px'
                         }}
                     >
                         {label}
                     </p>
+                    {/* KPI Value - large and bold */}
                     <div
                         style={{
                             fontFamily: 'var(--font-display)',
-                            fontSize: compact ? '28px' : '36px',
-                            fontWeight: 700,
+                            fontSize: compact ? '32px' : 'var(--text-kpi)',
+                            fontWeight: 800,
                             color: styles.valueColor,
                             letterSpacing: '-0.02em',
-                            lineHeight: 1.1,
+                            lineHeight: 'var(--line-height-tight)',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap'
@@ -112,25 +114,28 @@ export function StatsCard({
                     {trend && (
                         <p
                             style={{
-                                fontSize: '13px',
-                                color: styles.labelColor,
-                                marginTop: '8px',
-                                opacity: 0.8
+                                fontSize: 'var(--text-small)',
+                                color: 'var(--text-secondary)',
+                                marginTop: '12px'
                             }}
                         >
                             {trend}
                         </p>
                     )}
                 </div>
+                {/* Tinted icon chip */}
                 {icon && (
                     <div
                         style={{
                             background: styles.iconBg,
                             color: styles.iconColor,
-                            padding: '10px',
+                            padding: '12px',
                             borderRadius: 'var(--radius-md)',
                             flexShrink: 0,
-                            marginLeft: '12px'
+                            marginLeft: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                         }}
                     >
                         {icon}
@@ -143,7 +148,7 @@ export function StatsCard({
 
 export function StatsGrid({ children, className }: { children: React.ReactNode, className?: string }) {
     return (
-        <div className={`grid grid-cols-1 gap-4 mb-6 ${className || 'sm:grid-cols-2 lg:grid-cols-4'}`}>
+        <div className={`grid grid-cols-1 gap-5 mb-8 ${className || 'sm:grid-cols-2 lg:grid-cols-4'}`}>
             {children}
         </div>
     );
