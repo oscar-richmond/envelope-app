@@ -13,6 +13,7 @@ import ThreadViewer from '@/components/ThreadViewer';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { CompanyNameLink } from '@/components/company/CompanyNameLink';
+import { displayName } from '@/lib/utils/displayName';
 
 // Types
 type UniboxQueue = 'NEEDS_REPLY' | 'FOLLOW_UP_DUE' | 'WAITING' | 'REPLIED' | 'BOUNCED';
