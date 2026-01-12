@@ -91,18 +91,20 @@ export async function GET(req: NextRequest) {
                     // Extract body snippet for analysis
                     const snippet = reply.snippet || "";
 
-                    // NEW: Intent-based classification
+                    // Intent-based classification with action mapping
                     let sentimentData: any = {};
                     try {
                         const analysis = await sentimentService.classifyReplyIntent(snippet, email.subject);
                         sentimentData = {
                             replyIntent: analysis.intent,
-                            replySentiment: analysis.intent, // Keep backward compat
+                            replySentiment: analysis.intent, // Legacy compat
+                            suggestedAction: analysis.suggestedAction,
                             replySummary: analysis.summary,
                             replyConfidence: analysis.confidence,
+                            objectionType: analysis.objectionType,
                             returnDate: analysis.returnDate
                         };
-                        debug.push(`!! Intent: ${analysis.intent} (${analysis.confidence}% confidence)`);
+                        debug.push(`!! Intent: ${analysis.intent} -> Action: ${analysis.suggestedAction} (${analysis.confidence}% confidence)`);
                     } catch (err) {
                         console.error("Intent classification failed during cron", err);
                         debug.push(`!! Analysis Failed: ${err}`);
@@ -172,6 +174,8 @@ export async function GET(req: NextRequest) {
                             lastCheckedAt: new Date(),
                             lastInboundAt: new Date(), // Unibox: track inbound timestamp
                             replySentiment: sentimentData['replySentiment'],
+                            suggestedAction: sentimentData['suggestedAction'],
+                            objectionType: sentimentData['objectionType'],
                             replySummary: sentimentData['replySummary'],
                             replyConfidence: sentimentData['replyConfidence'],
                             ...intentData

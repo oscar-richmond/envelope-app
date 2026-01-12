@@ -37,6 +37,8 @@ interface SentEmailWithQueue {
     nextFollowUpAt?: string | null;
     replyDetectedAt?: string | null;
     replyIntent?: string | null;
+    suggestedAction?: string | null;
+    objectionType?: string | null;
     replySentiment?: string | null;
     replySummary?: string | null;
     replyConfidence?: number | null;
@@ -57,6 +59,21 @@ interface SentEmailWithQueue {
         } | null;
     };
 }
+
+// Intent badge styling
+const INTENT_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+    POSITIVE: { bg: 'rgba(16, 185, 129, 0.15)', text: 'rgb(5, 150, 105)', label: 'Interested' },
+    NEUTRAL_QUESTION: { bg: 'rgba(59, 130, 246, 0.15)', text: 'rgb(37, 99, 235)', label: 'Question' },
+    OBJECTION: { bg: 'rgba(245, 158, 11, 0.15)', text: 'rgb(180, 120, 20)', label: 'Objection' },
+    NOT_INTERESTED: { bg: 'rgba(239, 68, 68, 0.15)', text: 'rgb(220, 38, 38)', label: 'Not Interested' },
+    WRONG_PERSON: { bg: 'rgba(139, 92, 246, 0.15)', text: 'rgb(124, 58, 237)', label: 'Wrong Person' },
+    AUTO_REPLY: { bg: 'rgba(107, 114, 128, 0.15)', text: 'rgb(75, 85, 99)', label: 'Auto-Reply' },
+    UNCLEAR: { bg: 'rgba(107, 114, 128, 0.15)', text: 'rgb(107, 114, 128)', label: 'Unclear' },
+    // Legacy mappings
+    INTERESTED: { bg: 'rgba(16, 185, 129, 0.15)', text: 'rgb(5, 150, 105)', label: 'Interested' },
+    NOT_NOW: { bg: 'rgba(245, 158, 11, 0.15)', text: 'rgb(180, 120, 20)', label: 'Not Now' },
+    REFERRAL: { bg: 'rgba(139, 92, 246, 0.15)', text: 'rgb(124, 58, 237)', label: 'Referral' }
+};
 
 // Tab configuration
 const TABS: { key: UniboxQueue | 'ALL'; label: string; icon: React.ReactNode }[] = [
@@ -372,10 +389,15 @@ function EmailRow({
                 </div>
             </td>
 
-            {/* Status + Next Action */}
+            {/* Status + Intent */}
             <td className="py-4 align-top">
-                <QueueBadge queue={email.computedQueue} />
-                <NextActionLabel queue={email.computedQueue} email={email} />
+                <div className="flex flex-col gap-1.5">
+                    <QueueBadge queue={email.computedQueue} />
+                    {email.replyIntent && email.replyIntent !== 'UNCLEAR' && (
+                        <IntentBadge intent={email.replyIntent} confidence={email.replyConfidence} />
+                    )}
+                    <NextActionLabel queue={email.computedQueue} email={email} />
+                </div>
             </td>
 
             {/* Arrow */}
@@ -406,6 +428,26 @@ function QueueBadge({ queue }: { queue: UniboxQueue }) {
     return (
         <span className={`badge ${className}`}>
             {label}
+        </span>
+    );
+}
+
+// ─────────────────────────────────────────
+// Intent Badge Component
+// ─────────────────────────────────────────
+
+function IntentBadge({ intent, confidence }: { intent: string; confidence?: number | null }) {
+    const style = INTENT_STYLES[intent] || INTENT_STYLES['UNCLEAR'];
+
+    return (
+        <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full"
+            style={{ background: style.bg, color: style.text }}
+        >
+            {style.label}
+            {confidence && confidence > 0 && (
+                <span className="opacity-60">{confidence}%</span>
+            )}
         </span>
     );
 }

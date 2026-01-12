@@ -242,7 +242,9 @@ model SentEmail {
 
   // Analysis
   replySentiment  String?   // Legacy: INTERESTED, NOT_INTERESTED, OOO, OTHER
-  replyIntent     String?   // New: INTERESTED, NOT_NOW, NOT_INTERESTED, REFERRAL, AUTO_REPLY, UNCLEAR
+  replyIntent     String?   // POSITIVE, NEUTRAL_QUESTION, OBJECTION, NOT_INTERESTED, WRONG_PERSON, AUTO_REPLY, UNCLEAR
+  suggestedAction String?   // DRAFT_REPLY, SEND_BOOKING_LINK, HANDLE_OBJECTION, REQUEST_REFERRAL, MARK_CLOSED, WAIT_RETURN, REVIEW
+  objectionType   String?   // For OBJECTION intent - budget, timing, existing_provider, etc
   replySummary    String?   
   replyConfidence Int?      // 0-100
   

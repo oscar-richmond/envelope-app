@@ -329,6 +329,29 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                     </div>
                 )}
 
+                {/* Suggested Action Banner */}
+                {thread?.email?.suggestedAction && thread.email.suggestedAction !== 'REVIEW' && (
+                    <SuggestedActionBanner
+                        action={thread.email.suggestedAction}
+                        intent={thread.email.replyIntent}
+                        objectionType={thread.email.objectionType}
+                        onAction={() => {
+                            // Handle action button click
+                            switch (thread.email.suggestedAction) {
+                                case 'SEND_BOOKING_LINK':
+                                case 'DRAFT_REPLY':
+                                case 'HANDLE_OBJECTION':
+                                case 'REQUEST_REFERRAL':
+                                    handleSuggestReply();
+                                    break;
+                                case 'MARK_CLOSED':
+                                    // TODO: Implement close thread
+                                    break;
+                            }
+                        }}
+                    />
+                )}
+
                 {/* AI Error */}
                 {aiError && (
                     <div
@@ -682,4 +705,122 @@ function formatRelativeTime(timestamp: string): string {
     if (diffMs < 86400000) return `${Math.floor(diffMs / 3600000)}h ago`;
     if (diffMs < 172800000) return 'Yesterday';
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * Suggested Action Banner with CTA
+ */
+const ACTION_CONFIG: Record<string, {
+    label: string;
+    description: string;
+    cta: string;
+    bg: string;
+    border: string;
+    color: string;
+    icon: string;
+}> = {
+    SEND_BOOKING_LINK: {
+        label: 'Ready to book',
+        description: 'They expressed interest in a call or meeting.',
+        cta: 'Draft Reply with Booking Link',
+        bg: 'rgba(16, 185, 129, 0.08)',
+        border: 'rgba(16, 185, 129, 0.3)',
+        color: 'rgb(5, 150, 105)',
+        icon: '📅'
+    },
+    DRAFT_REPLY: {
+        label: 'Reply needed',
+        description: 'They asked a question that needs a response.',
+        cta: 'Generate Reply',
+        bg: 'rgba(59, 130, 246, 0.08)',
+        border: 'rgba(59, 130, 246, 0.3)',
+        color: 'rgb(37, 99, 235)',
+        icon: '💬'
+    },
+    HANDLE_OBJECTION: {
+        label: 'Handle objection',
+        description: 'They raised a concern that could be addressed.',
+        cta: 'Draft Response',
+        bg: 'rgba(245, 158, 11, 0.08)',
+        border: 'rgba(245, 158, 11, 0.3)',
+        color: 'rgb(180, 120, 20)',
+        icon: '🤔'
+    },
+    REQUEST_REFERRAL: {
+        label: 'Wrong person',
+        description: 'They indicated they\'re not the right contact.',
+        cta: 'Ask for Referral',
+        bg: 'rgba(139, 92, 246, 0.08)',
+        border: 'rgba(139, 92, 246, 0.3)',
+        color: 'rgb(124, 58, 237)',
+        icon: '👋'
+    },
+    MARK_CLOSED: {
+        label: 'Not interested',
+        description: 'They declined - close gracefully.',
+        cta: 'Draft Polite Close',
+        bg: 'rgba(239, 68, 68, 0.08)',
+        border: 'rgba(239, 68, 68, 0.3)',
+        color: 'rgb(220, 38, 38)',
+        icon: '🚪'
+    },
+    WAIT_RETURN: {
+        label: 'Out of office',
+        description: 'They\'re away - wait for their return.',
+        cta: 'Set Reminder',
+        bg: 'rgba(107, 114, 128, 0.08)',
+        border: 'rgba(107, 114, 128, 0.3)',
+        color: 'rgb(75, 85, 99)',
+        icon: '⏰'
+    }
+};
+
+function SuggestedActionBanner({
+    action,
+    intent,
+    objectionType,
+    onAction
+}: {
+    action: string;
+    intent?: string | null;
+    objectionType?: string | null;
+    onAction: () => void;
+}) {
+    const config = ACTION_CONFIG[action];
+    if (!config) return null;
+
+    let description = config.description;
+    if (action === 'HANDLE_OBJECTION' && objectionType) {
+        description = `They raised a concern about ${objectionType.replace('_', ' ')}.`;
+    }
+
+    return (
+        <div
+            className="px-6 py-4 flex items-center gap-4"
+            style={{
+                background: config.bg,
+                borderBottom: `1px solid ${config.border}`
+            }}
+        >
+            <span className="text-2xl">{config.icon}</span>
+            <div className="flex-1">
+                <p className="text-sm font-semibold" style={{ color: config.color }}>
+                    {config.label}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {description}
+                </p>
+            </div>
+            <button
+                onClick={onAction}
+                className="px-4 py-2 text-sm font-semibold rounded-lg transition-all hover:opacity-90"
+                style={{
+                    background: config.color,
+                    color: 'white'
+                }}
+            >
+                {config.cta}
+            </button>
+        </div>
+    );
 }
