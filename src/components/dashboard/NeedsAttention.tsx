@@ -13,7 +13,7 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
     if (loading) {
         return (
             <div
-                className="h-64 animate-pulse rounded-[var(--radius-card)]"
+                className="h-64 animate-pulse rounded-2xl"
                 style={{ background: 'var(--bg-card-muted)' }}
             />
         );
@@ -80,9 +80,15 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
 
     if (items.length === 0) {
         return (
-            <div className="hero-surface hero-surface-mint h-full flex flex-col items-center justify-center text-center p-8">
+            <div
+                className="h-full flex flex-col items-center justify-center text-center p-8 rounded-2xl"
+                style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-soft)'
+                }}
+            >
                 <div
-                    className="w-14 h-14 rounded-[var(--radius-lg)] flex items-center justify-center mb-4"
+                    className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
                     style={{ background: 'var(--mint-soft)', color: 'var(--mint-text)' }}
                 >
                     <CheckCircle2 size={28} strokeWidth={1.75} />
@@ -101,15 +107,17 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
     }
 
     return (
-        <div className="hero-surface h-full flex flex-col overflow-hidden">
+        <div
+            className="h-full flex flex-col overflow-hidden rounded-2xl"
+            style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-soft)'
+            }}
+        >
             {/* Header */}
             <div
                 className="px-6 py-5 flex items-center justify-between"
-                style={{
-                    background: 'rgba(255, 255, 255, 0.6)',
-                    borderBottom: '1px solid var(--border-soft)',
-                    backdropFilter: 'blur(8px)'
-                }}
+                style={{ borderBottom: '1px solid var(--border-soft)' }}
             >
                 <div>
                     <h3
@@ -123,7 +131,7 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
                     </p>
                 </div>
                 <span
-                    className="text-xs font-bold px-2.5 py-1 rounded-[var(--radius-badge)]"
+                    className="text-xs font-bold px-2.5 py-1 rounded-full"
                     style={{
                         background: 'var(--status-danger-bg)',
                         color: 'var(--status-danger-text)'
@@ -142,21 +150,14 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
                     return (
                         <div
                             key={item.id}
-                            className="px-6 py-4 flex items-center justify-between transition-colors"
+                            className="px-6 py-4 flex items-center justify-between transition-colors hover:bg-gray-50"
                             style={{
-                                borderBottom: i < items.length - 1 ? '1px solid var(--border-soft)' : 'none',
-                                background: 'rgba(255, 255, 255, 0.5)'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
+                                borderBottom: i < items.length - 1 ? '1px solid var(--border-soft)' : 'none'
                             }}
                         >
                             <div className="flex items-center gap-4">
                                 <div
-                                    className="w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center shrink-0"
+                                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: style.bg, color: style.color }}
                                 >
                                     <Icon size={20} strokeWidth={1.75} />
@@ -169,7 +170,7 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
                                         {item.title}
                                     </p>
                                     <span
-                                        className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-[var(--radius-badge)]"
+                                        className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
                                         style={{ background: style.badgeBg, color: style.badgeColor }}
                                     >
                                         {item.status}
