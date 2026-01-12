@@ -1,5 +1,6 @@
 import { SignInForm } from '@/components/auth/SignInForm';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Search, TrendingUp, Mail, Users, BarChart3 } from 'lucide-react';
 
 export default function SignInPage() {
@@ -32,11 +33,13 @@ export default function SignInPage() {
                     <div className="relative z-10">
                         {/* Brand Logo */}
                         <div className="mb-4">
-                            <img
+                            <Image
                                 src="/branding/envelope-logo-dark.png"
                                 alt="Envelope"
+                                width={233}
+                                height={71}
                                 className="h-8 md:h-9 w-auto"
-                                style={{ maxHeight: '36px' }}
+                                priority
                             />
                         </div>
 
