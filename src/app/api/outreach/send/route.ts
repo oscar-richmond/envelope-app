@@ -73,7 +73,8 @@ export async function POST(req: NextRequest) {
                 bodyText: plainBody,
                 bodyHtml: message,
                 status: "SENT", // The new message starts as SENT (waiting for reply)
-                sentAt: new Date()
+                sentAt: new Date(),
+                lastOutboundAt: new Date() // Unibox: track outbound timestamp
             }
         });
 

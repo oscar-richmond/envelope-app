@@ -273,6 +273,13 @@ model SentEmail {
   followUpPriorityScore Int?      // 0-100 priority for queue ordering
   followUpReasonSummary String?   // e.g. "High opportunity, overdue 2 days"
   
+  // Unibox Queue Tracking
+  lastInboundAt         DateTime? // Timestamp of last inbound message in thread
+  lastOutboundAt        DateTime? // Timestamp of last outbound message (us)
+  deliveryError         String?   // Bounce/failure reason if any
+  closedAt              DateTime? // When manually marked closed
+  closedReason          String?   // Optional close reason
+  
   // Relations
   followUpQueueItems    FollowUpQueueItem[]
   
@@ -282,6 +289,8 @@ model SentEmail {
   @@index([status])
   @@index([nextFollowUpAt])
   @@index([followUpPriorityScore])
+  @@index([lastInboundAt])
+  @@index([lastOutboundAt])
 }
 
 model FollowUpQueueItem {

@@ -170,6 +170,7 @@ export async function GET(req: NextRequest) {
                             status: newStatus,
                             replyDetectedAt: new Date(),
                             lastCheckedAt: new Date(),
+                            lastInboundAt: new Date(), // Unibox: track inbound timestamp
                             replySentiment: sentimentData['replySentiment'],
                             replySummary: sentimentData['replySummary'],
                             replyConfidence: sentimentData['replyConfidence'],
@@ -274,6 +275,7 @@ export async function GET(req: NextRequest) {
                                 status: 'REPLIED',
                                 replyDetectedAt: new Date(),
                                 lastCheckedAt: new Date(),
+                                lastInboundAt: new Date(), // Unibox: track inbound timestamp
                                 ...sentimentData
                             }
                         });

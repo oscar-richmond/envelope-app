@@ -2,53 +2,113 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Mail, ArrowRight, Clock, AlertCircle, CheckCircle, MessageSquare, RefreshCw, XCircle, ChevronRight } from 'lucide-react';
+import {
+    Mail, RefreshCw, MessageSquare, ChevronRight, Search,
+    ArrowUpDown, Clock, AlertCircle, CheckCircle, XCircle,
+    ArrowUp, Send, Building2
+} from 'lucide-react';
 import ThreadViewer from '@/components/ThreadViewer';
-import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 
-interface StatusCounts {
-    actionNeeded: number;
+// Types
+type UniboxQueue = 'NEEDS_REPLY' | 'FOLLOW_UP_DUE' | 'WAITING' | 'REPLIED' | 'BOUNCED';
+type SortBy = 'priority' | 'recency';
+
+interface QueueCounts {
+    all: number;
+    needsReply: number;
+    followUpDue: number;
     waiting: number;
     replied: number;
-    closed: number;
-    all: number;
+    bounced: number;
 }
 
-export default function InboxPage() {
-    const [emails, setEmails] = useState<any[]>([]);
-    const [counts, setCounts] = useState<StatusCounts>({ actionNeeded: 0, waiting: 0, replied: 0, closed: 0, all: 0 });
-    const [filter, setFilter] = useState('ACTION_NEEDED'); // Default to ACTION NEEDED
+interface SentEmailWithQueue {
+    id: number;
+    subject: string;
+    formattedTo: string;
+    bodyText: string;
+    sentAt: string;
+    status: string;
+    computedQueue: UniboxQueue;
+    nextFollowUpAt?: string | null;
+    replyDetectedAt?: string | null;
+    replyIntent?: string | null;
+    replySentiment?: string | null;
+    replySummary?: string | null;
+    replyConfidence?: number | null;
+    lastInboundAt?: string | null;
+    lastOutboundAt?: string | null;
+    updatedAt: string;
+    lead: {
+        id: number;
+        companyName: string;
+        industry?: string | null;
+        websiteUrl?: string | null;
+        companyProspect?: {
+            id: number;
+            displayBrandName?: string | null;
+            websiteDomain?: string | null;
+            contactPriorityBand?: string | null;
+            financialActivityBand?: string | null;
+        } | null;
+    };
+}
+
+// Tab configuration
+const TABS: { key: UniboxQueue | 'ALL'; label: string; icon: React.ReactNode }[] = [
+    { key: 'ALL', label: 'All', icon: <Mail size={14} /> },
+    { key: 'NEEDS_REPLY', label: 'Needs Reply', icon: <AlertCircle size={14} /> },
+    { key: 'FOLLOW_UP_DUE', label: 'Follow-Up Due', icon: <Clock size={14} /> },
+    { key: 'WAITING', label: 'Waiting', icon: <Send size={14} /> },
+    { key: 'REPLIED', label: 'Replied', icon: <CheckCircle size={14} /> },
+    { key: 'BOUNCED', label: 'Bounced', icon: <XCircle size={14} /> }
+];
+
+export default function UniboxPage() {
+    const [emails, setEmails] = useState<SentEmailWithQueue[]>([]);
+    const [counts, setCounts] = useState<QueueCounts>({
+        all: 0, needsReply: 0, followUpDue: 0, waiting: 0, replied: 0, bounced: 0
+    });
+    const [queue, setQueue] = useState<UniboxQueue | 'ALL'>('NEEDS_REPLY');
+    const [sortBy, setSortBy] = useState<SortBy>('priority');
+    const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
 
-    useEffect(() => {
-        fetchEmails();
-    }, [filter]);
-
-    async function fetchEmails() {
+    // Fetch emails with debounced search
+    const fetchEmails = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/outreach/sent?filter=${filter}`);
+            const params = new URLSearchParams({
+                queue,
+                sort: sortBy,
+                ...(search && { search })
+            });
+            const res = await fetch(`/api/outreach/sent?${params}`);
             const data = await res.json();
             if (data.sentEmails) setEmails(data.sentEmails);
             if (data.counts) setCounts(data.counts);
         } catch (e) {
-            console.error(e);
+            console.error('Fetch failed:', e);
         } finally {
             setLoading(false);
         }
-    }
+    }, [queue, sortBy, search]);
+
+    useEffect(() => {
+        const debounce = setTimeout(fetchEmails, search ? 300 : 0);
+        return () => clearTimeout(debounce);
+    }, [fetchEmails]);
 
     async function syncReplies() {
         setSyncing(true);
         try {
-            const res = await fetch('/api/cron/check-replies');
-            const data = await res.json();
-            console.log('Sync result:', data);
+            await fetch('/api/cron/check-replies');
             await fetchEmails();
         } catch (e) {
             console.error('Sync failed:', e);
@@ -57,19 +117,24 @@ export default function InboxPage() {
         }
     }
 
-    // Tab configuration with proper order
-    const tabs = [
-        { key: 'ACTION_NEEDED', label: 'Action Needed', count: counts.actionNeeded },
-        { key: 'WAITING', label: 'Waiting', count: counts.waiting },
-        { key: 'REPLIED', label: 'Replied', count: counts.replied },
-        { key: 'ALL', label: 'All', count: counts.all }
-    ];
+    // Get count for a queue
+    const getCount = (q: UniboxQueue | 'ALL'): number => {
+        switch (q) {
+            case 'ALL': return counts.all;
+            case 'NEEDS_REPLY': return counts.needsReply;
+            case 'FOLLOW_UP_DUE': return counts.followUpDue;
+            case 'WAITING': return counts.waiting;
+            case 'REPLIED': return counts.replied;
+            case 'BOUNCED': return counts.bounced;
+            default: return 0;
+        }
+    };
 
     return (
         <div className="page-container">
             <PageHeader
                 title="Inbox"
-                subtitle="Track replies and manage follow-ups"
+                subtitle="Action-based email queues"
                 actions={
                     <>
                         <button
@@ -88,20 +153,26 @@ export default function InboxPage() {
                 }
             />
 
-            {/* Overview Stats */}
+            {/* Stats Overview */}
             <div className="mb-8">
                 <StatsGrid>
                     <StatsCard
-                        label="Action Needed"
-                        value={counts.actionNeeded}
+                        label="Needs Reply"
+                        value={counts.needsReply}
                         variant="warning"
                         icon={<AlertCircle size={20} />}
+                    />
+                    <StatsCard
+                        label="Follow-Up Due"
+                        value={counts.followUpDue}
+                        variant="info"
+                        icon={<Clock size={20} />}
                     />
                     <StatsCard
                         label="Waiting"
                         value={counts.waiting}
                         variant="neutral"
-                        icon={<Clock size={20} />}
+                        icon={<Send size={20} />}
                     />
                     <StatsCard
                         label="Replied"
@@ -109,53 +180,84 @@ export default function InboxPage() {
                         variant="mint"
                         icon={<CheckCircle size={20} />}
                     />
-                    <StatsCard
-                        label="Closed"
-                        value={counts.closed}
-                        variant="neutral"
-                        icon={<XCircle size={20} />}
-                    />
                 </StatsGrid>
             </div>
 
-            {/* Tabs */}
-            <div className="flex items-center gap-1 mb-6">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.key}
-                        onClick={() => setFilter(tab.key)}
-                        className={`px-4 py-2 text-sm font-medium rounded-full transition-all flex items-center gap-2 border ${filter === tab.key
-                            ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                            }`}
-                    >
-                        {tab.label}
-                        {tab.count > 0 && (
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${filter === tab.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-                                }`}>
-                                {tab.count}
-                            </span>
-                        )}
-                    </button>
-                ))}
+            {/* Tabs + Controls */}
+            <div className="flex items-center justify-between mb-6 gap-4">
+                {/* Queue Tabs */}
+                <div className="flex items-center gap-1 flex-wrap">
+                    {TABS.map((tab) => {
+                        const count = getCount(tab.key);
+                        const isActive = queue === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => setQueue(tab.key)}
+                                className={`px-4 py-2 text-sm font-medium rounded-full transition-all flex items-center gap-2 border ${isActive
+                                        ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                    }`}
+                            >
+                                {tab.icon}
+                                {tab.label}
+                                {count > 0 && (
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                                        }`}>
+                                        {count}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Controls */}
+                <div className="flex items-center gap-3">
+                    {/* Search */}
+                    <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                    </div>
+
+                    {/* Sort Dropdown */}
+                    <div className="relative">
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as SortBy)}
+                            className="appearance-none pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-lg bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                            <option value="priority">Priority</option>
+                            <option value="recency">Recency</option>
+                        </select>
+                        <ArrowUpDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                </div>
             </div>
 
-            {/* Table */}
+            {/* Email Table */}
             <div className="card table-container">
                 <table className="table">
                     <thead>
                         <tr>
-                            <th className="w-[25%] pl-6">Recipient</th>
-                            <th className="w-[35%]">Subject & Summary</th>
-                            <th className="w-[15%]">Sent</th>
-                            <th className="w-[15%]">Status</th>
+                            <th className="w-[22%] pl-6">Company</th>
+                            <th className="w-[18%]">Recipients</th>
+                            <th className="w-[25%]">Subject</th>
+                            <th className="w-[12%]">Last Activity</th>
+                            <th className="w-[13%]">Status</th>
                             <th className="w-[10%] text-right pr-6"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {loading ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                                     <div className="flex flex-col items-center gap-2">
                                         <RefreshCw className="animate-spin text-gray-300" size={24} />
                                         <span>Loading conversations...</span>
@@ -164,66 +266,17 @@ export default function InboxPage() {
                             </tr>
                         ) : emails.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-16 text-center">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center">
-                                            <Mail className="text-gray-300" size={24} />
-                                        </div>
-                                        <p className="text-gray-500 font-medium">
-                                            {filter === 'ACTION_NEEDED'
-                                                ? 'You\'re all caught up!'
-                                                : 'No emails found for this filter.'}
-                                        </p>
-                                    </div>
+                                <td colSpan={6} className="px-6 py-16 text-center">
+                                    <EmptyState queue={queue} />
                                 </td>
                             </tr>
                         ) : (
                             emails.map((email) => (
-                                <tr key={email.id}
+                                <EmailRow
+                                    key={email.id}
+                                    email={email}
                                     onClick={() => setSelectedThreadId(email.id)}
-                                    className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
-                                >
-                                    <td className="pl-6 py-4 align-top">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 shrink-0">
-                                                {email.lead.companyName.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <div className="font-semibold text-gray-900 text-sm">{email.lead.companyName}</div>
-                                                <div className="text-xs text-gray-400 truncate max-w-[150px]">{email.formattedTo}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="py-4 align-top">
-                                        <div className="text-gray-900 font-medium text-sm truncate max-w-[400px] mb-0.5">{email.subject}</div>
-                                        <div className="text-xs text-gray-500 truncate max-w-[400px]">{email.bodyText.substring(0, 80)}...</div>
-                                        {/* AI Summary - Only show if valid */}
-                                        <div className="mt-2">
-                                            <AISummary summary={email.replySummary} status={email.status} />
-                                        </div>
-                                    </td>
-                                    <td className="py-4 align-top">
-                                        <div className="text-sm text-gray-500 font-medium">
-                                            {new Date(email.sentAt).toLocaleDateString()}
-                                        </div>
-                                        <div className="text-xs text-gray-400 mt-0.5">
-                                            {new Date(email.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </div>
-                                    </td>
-                                    <td className="py-4 align-top">
-                                        <StatusBadge
-                                            status={email.status}
-                                            nextFollowUpAt={email.nextFollowUpAt}
-                                            replySentiment={email.replySentiment}
-                                            replyIntent={email.replyIntent}
-                                        />
-                                    </td>
-                                    <td className="pr-6 py-4 text-right align-middle">
-                                        <button className="text-gray-400 group-hover:text-indigo-600 transition-colors">
-                                            <ChevronRight size={20} />
-                                        </button>
-                                    </td>
-                                </tr>
+                                />
                             ))
                         )}
                     </tbody>
@@ -242,123 +295,209 @@ export default function InboxPage() {
     );
 }
 
-/**
- * AI Summary - Only displays if valid summary exists
- * Never shows "failed", "error", etc.
- */
-function AISummary({ summary, status }: { summary: string | null; status: string }) {
-    // Only show for replied emails with a valid summary
-    if (status !== 'REPLIED') return null;
-    if (!summary) return null;
+// ─────────────────────────────────────────
+// Email Row Component
+// ─────────────────────────────────────────
 
-    // Never show failure messages to users
-    const lowerSummary = summary.toLowerCase();
-    if (lowerSummary.includes('failed') ||
-        lowerSummary.includes('error') ||
-        lowerSummary.includes('analysis') ||
-        summary.length < 5) {
-        return null;
-    }
+function EmailRow({
+    email,
+    onClick
+}: {
+    email: SentEmailWithQueue;
+    onClick: () => void;
+}) {
+    const companyName = email.lead.companyProspect?.displayBrandName || email.lead.companyName;
+    const initials = companyName.substring(0, 2).toUpperCase();
+
+    // Extract email address from formatted string
+    const recipientEmail = email.formattedTo.match(/<(.+)>/)?.[1] || email.formattedTo;
+    const recipientName = email.formattedTo.replace(/<.+>/, '').trim();
+
+    // Last activity time
+    const lastActivity = email.lastInboundAt || email.lastOutboundAt || email.updatedAt;
 
     return (
-        <div className="inline-flex items-start gap-1.5 text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1.5 rounded-lg max-w-[90%]">
-            <MessageSquare size={12} className="mt-0.5 shrink-0" />
-            <span className="leading-snug">{summary}</span>
+        <tr
+            onClick={onClick}
+            className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
+        >
+            {/* Company */}
+            <td className="pl-6 py-4 align-top">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 shrink-0">
+                        {initials}
+                    </div>
+                    <div className="min-w-0">
+                        <div className="font-semibold text-gray-900 text-sm truncate max-w-[160px]">
+                            {companyName}
+                        </div>
+                        {email.lead.industry && (
+                            <div className="text-[11px] text-gray-400 truncate max-w-[160px]">
+                                {email.lead.industry}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </td>
+
+            {/* Recipients */}
+            <td className="py-4 align-top">
+                <div className="text-sm text-gray-700 truncate max-w-[150px]">
+                    {recipientName || recipientEmail}
+                </div>
+                {recipientName && (
+                    <div className="text-xs text-gray-400 truncate max-w-[150px]">
+                        {recipientEmail}
+                    </div>
+                )}
+            </td>
+
+            {/* Subject */}
+            <td className="py-4 align-top">
+                <div className="text-gray-900 font-medium text-sm truncate max-w-[280px] mb-0.5">
+                    {email.subject}
+                </div>
+                <div className="text-xs text-gray-500 truncate max-w-[280px]">
+                    {email.bodyText.substring(0, 60)}...
+                </div>
+            </td>
+
+            {/* Last Activity */}
+            <td className="py-4 align-top">
+                <div className="text-sm text-gray-600">
+                    {formatRelativeTime(lastActivity)}
+                </div>
+                <div className="text-[11px] text-gray-400">
+                    {email.lastInboundAt ? 'Inbound' : 'Outbound'}
+                </div>
+            </td>
+
+            {/* Status + Next Action */}
+            <td className="py-4 align-top">
+                <QueueBadge queue={email.computedQueue} />
+                <NextActionLabel queue={email.computedQueue} email={email} />
+            </td>
+
+            {/* Arrow */}
+            <td className="pr-6 py-4 text-right align-middle">
+                <button className="text-gray-400 group-hover:text-indigo-600 transition-colors">
+                    <ChevronRight size={20} />
+                </button>
+            </td>
+        </tr>
+    );
+}
+
+// ─────────────────────────────────────────
+// Queue Badge Component
+// ─────────────────────────────────────────
+
+function QueueBadge({ queue }: { queue: UniboxQueue }) {
+    const config = {
+        NEEDS_REPLY: { label: 'Needs Reply', className: 'badge-warning' },
+        FOLLOW_UP_DUE: { label: 'Follow-Up Due', className: 'badge-info bg-amber-100 text-amber-700' },
+        WAITING: { label: 'Waiting', className: 'badge-info bg-gray-100 text-gray-600' },
+        REPLIED: { label: 'Replied', className: 'badge-success' },
+        BOUNCED: { label: 'Bounced', className: 'badge-error bg-red-100 text-red-600' }
+    };
+
+    const { label, className } = config[queue] || { label: queue, className: 'badge-neutral' };
+
+    return (
+        <span className={`badge ${className}`}>
+            {label}
+        </span>
+    );
+}
+
+// ─────────────────────────────────────────
+// Next Action Label
+// ─────────────────────────────────────────
+
+function NextActionLabel({ queue, email }: { queue: UniboxQueue; email: SentEmailWithQueue }) {
+    let label = '';
+
+    switch (queue) {
+        case 'NEEDS_REPLY':
+            label = 'Reply needed';
+            break;
+        case 'FOLLOW_UP_DUE':
+            label = 'Approve follow-up';
+            break;
+        case 'WAITING':
+            if (email.nextFollowUpAt) {
+                const days = Math.ceil((new Date(email.nextFollowUpAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                if (days <= 0) label = 'Follow-up overdue';
+                else if (days === 1) label = 'Follow-up tomorrow';
+                else label = `Follow-up in ${days}d`;
+            } else {
+                label = 'Waiting for reply';
+            }
+            break;
+        case 'REPLIED':
+            if (email.replyIntent === 'INTERESTED') label = 'Interested lead';
+            else if (email.replyIntent === 'NOT_NOW') label = 'Follow up later';
+            else label = 'Review response';
+            break;
+        case 'BOUNCED':
+            label = 'Delivery failed';
+            break;
+    }
+
+    if (!label) return null;
+
+    return (
+        <span className="text-[10px] font-medium text-gray-400 pl-1 uppercase tracking-wide block mt-1">
+            {label}
+        </span>
+    );
+}
+
+// ─────────────────────────────────────────
+// Empty State
+// ─────────────────────────────────────────
+
+function EmptyState({ queue }: { queue: UniboxQueue | 'ALL' }) {
+    const messages: Record<UniboxQueue | 'ALL', { title: string; subtitle: string }> = {
+        ALL: { title: 'No emails yet', subtitle: 'Send your first outreach to get started.' },
+        NEEDS_REPLY: { title: "You're all caught up!", subtitle: 'No emails need a reply right now.' },
+        FOLLOW_UP_DUE: { title: 'No follow-ups due', subtitle: 'Your follow-up queue is clear.' },
+        WAITING: { title: 'Nothing waiting', subtitle: 'All threads have been responded to.' },
+        REPLIED: { title: 'No replies yet', subtitle: 'Replies will appear here when detected.' },
+        BOUNCED: { title: 'No bounces', subtitle: 'All emails delivered successfully.' }
+    };
+
+    const { title, subtitle } = messages[queue];
+
+    return (
+        <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center">
+                <Mail className="text-gray-300" size={24} />
+            </div>
+            <div>
+                <p className="text-gray-700 font-medium">{title}</p>
+                <p className="text-gray-400 text-sm">{subtitle}</p>
+            </div>
         </div>
     );
 }
 
-/**
- * Status Badge with contextual hints
- * Updated to use new 6-category intent classification
- */
-function StatusBadge({
-    status,
-    nextFollowUpAt,
-    replySentiment,
-    replyIntent
-}: {
-    status: string;
-    nextFollowUpAt?: string | null;
-    replySentiment?: string | null;
-    replyIntent?: string | null;
-}) {
-    // Intent-aware hint labels
-    const getIntentLabel = (): string | null => {
-        const intent = replyIntent || replySentiment;
-        if (!intent) return null;
+// ─────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────
 
-        switch (intent) {
-            case 'INTERESTED': return 'Interested';
-            case 'NOT_NOW': return 'Not now';
-            case 'NOT_INTERESTED': return 'Not interested';
-            case 'REFERRAL': return 'Referral received';
-            case 'AUTO_REPLY': case 'OOO': return 'Out of office';
-            case 'UNCLEAR': return 'Needs review';
-            default: return null;
-        }
-    };
+function formatRelativeTime(timestamp: string): string {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
-    // Calculate contextual hint
-    const getContextHint = () => {
-        if (status === 'FOLLOW_UP_DUE' || status === 'ACTION_NEEDED') {
-            return 'Response required';
-        }
-        if (status === 'REPLIED' || status === 'CLOSED') {
-            const intentLabel = getIntentLabel();
-            if (intentLabel) return intentLabel;
-            return 'Review needed';
-        }
-        if ((status === 'SENT' || status === 'FOLLOWED_UP' || status === 'WAITING') && nextFollowUpAt) {
-            const days = Math.ceil((new Date(nextFollowUpAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-            if (days === 0) return 'Follow-up today';
-            if (days === 1) return 'Follow-up tomorrow';
-            if (days > 0) return `Follow-up in ${days} days`;
-            return 'Follow-up overdue';
-        }
-        return null;
-    };
-
-    const hint = getContextHint();
-
-    // Status display
-    let badge = null;
-
-    if (status === 'REPLIED') {
-        badge = (
-            <span className="badge badge-success">
-                Reply received
-            </span>
-        );
-    } else if (status === 'FOLLOW_UP_DUE' || status === 'ACTION_NEEDED') {
-        badge = (
-            <span className="badge badge-warning">
-                Action Needed
-            </span>
-        );
-    } else if (status === 'CLOSED') {
-        badge = (
-            <span className="badge badge-neutral">
-                Closed
-            </span>
-        );
-    } else {
-        // SENT, FOLLOWED_UP, WAITING → Waiting
-        badge = (
-            <span className="badge badge-info bg-gray-100 text-gray-600">
-                Waiting
-            </span>
-        );
-    }
-
-    return (
-        <div className="flex flex-col gap-1.5 items-start">
-            {badge}
-            {hint && (
-                <span className="text-[10px] font-medium text-gray-400 pl-1 uppercase tracking-wide">
-                    {hint}
-                </span>
-            )}
-        </div>
-    );
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
 }
