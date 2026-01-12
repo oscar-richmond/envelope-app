@@ -197,3 +197,68 @@ export function getCompanyDisplayName(company: CompanyLike | null | undefined): 
 export function displayName(company: CompanyLike | null | undefined): string {
     return getCompanyDisplayName(company).displayName;
 }
+
+/**
+ * Normalise a name for comparison purposes
+ * Removes legal suffixes, punctuation, extra spaces, and lowercases
+ */
+export function normaliseForComparison(name: string): string {
+    if (!name) return '';
+
+    let normalised = name
+        .toLowerCase()
+        .trim()
+        // Remove common legal suffixes
+        .replace(/\s+(limited|ltd|llp|plc|inc|llc|corp|corporation|co\.?|company)\.?$/gi, '')
+        // Remove punctuation
+        .replace(/[.,'"!?;:()]/g, '')
+        // Collapse multiple spaces
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    return normalised;
+}
+
+/**
+ * Check if there's a meaningful mismatch between display name and legal name
+ * Returns false if names are essentially the same after normalisation
+ */
+export function isMeaningfulMismatch(displayName: string | null | undefined, legalName: string | null | undefined): boolean {
+    if (!displayName || !legalName) return false;
+
+    const normDisplay = normaliseForComparison(displayName);
+    const normLegal = normaliseForComparison(legalName);
+
+    // If they're the same after normalisation, no mismatch
+    if (normDisplay === normLegal) return false;
+
+    // Check if one contains the other (partial match)
+    if (normLegal.includes(normDisplay) || normDisplay.includes(normLegal)) {
+        // Only meaningful if there's significant additional content
+        const lengthDiff = Math.abs(normLegal.length - normDisplay.length);
+        if (lengthDiff < 5) return false; // Minor difference, not meaningful
+    }
+
+    return true;
+}
+
+/**
+ * Extended interface with company number for tooltip display
+ */
+export interface CompanyWithNumber extends CompanyLike {
+    companyNumber?: string | null;
+}
+
+/**
+ * Get full display info including mismatch status for tooltip
+ */
+export function getCompanyDisplayInfo(company: CompanyWithNumber | null | undefined): DisplayNameResult & { hasMismatch: boolean; companyNumber?: string } {
+    const result = getCompanyDisplayName(company);
+    const hasMismatch = isMeaningfulMismatch(result.displayName, result.legalName);
+
+    return {
+        ...result,
+        hasMismatch,
+        companyNumber: company?.companyNumber || undefined
+    };
+}

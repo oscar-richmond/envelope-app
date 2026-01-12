@@ -1,7 +1,6 @@
 import { Building2, Plus, PenTool, Database, X, Eye, Maximize2 } from 'lucide-react';
-import { CompanyNameLink } from '@/components/company/CompanyNameLink';
+import { CompanyName } from '@/components/company/CompanyName';
 import MetricTile from './MetricTile';
-import { displayName } from '@/lib/utils/displayName';
 
 interface ProspectResultRowCardProps {
     company: any;
@@ -121,10 +120,11 @@ export default function ProspectResultRowCard({
 
                 {/* 1. Company Identity (Fixed 360px) */}
                 <div className="flex flex-col gap-2 pr-6 min-w-0 max-w-[380px] py-1">
-                    <CompanyNameLink
+                    <CompanyName
+                        company={c}
                         prospectId={c.id}
-                        name={displayName(c)}
-                        className="font-bold text-lg transition truncate leading-snug block w-full cursor-pointer"
+                        variant="row"
+                        className="font-bold text-lg truncate leading-snug block w-full"
                         style={{
                             fontFamily: 'var(--font-display)',
                             color: 'var(--text-primary)',
