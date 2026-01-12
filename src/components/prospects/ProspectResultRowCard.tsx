@@ -116,7 +116,7 @@ export default function ProspectResultRowCard({
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr_260px] gap-6 items-center h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr_auto] gap-4 items-center h-full">
 
                 {/* 1. Company Identity (Fixed 360px) */}
                 <div className="flex flex-col gap-2 pr-6 min-w-0 max-w-[380px] py-1">
@@ -265,6 +265,7 @@ export default function ProspectResultRowCard({
 
                 {/* 3. Action Stack (Fixed Width Container) */}
                 <div
+                    className="justify-self-end"
                     style={{
                         display: 'flex',
                         flexDirection: 'column',
