@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
-    X, ExternalLink, Maximize2, Copy,
+    X, ExternalLink, Maximize2, Copy, Minimize2, Check,
     Monitor, TrendingUp, Target, Mail,
     RefreshCw, Send, Plus, ChevronRight,
-    Users, MessageSquare
+    Users, MessageSquare, Tag
 } from 'lucide-react';
 import { useCompanyViewer } from '@/components/modals/CompanyViewerProvider';
 import CompanyLogo from '@/components/ui/CompanyLogo';
@@ -176,6 +177,7 @@ interface CompanyOverviewModalProps {
 
 export default function CompanyOverviewModal({ leadId, prospectId, onClose }: CompanyOverviewModalProps) {
     const { togglePin } = useCompanyViewer();
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'overview' | 'contacts' | 'thread'>('overview');
@@ -183,6 +185,33 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
 
     const [isWebsiteModalOpen, setIsWebsiteModalOpen] = useState(false);
     const [isFinancialModalOpen, setIsFinancialModalOpen] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [showTagPicker, setShowTagPicker] = useState(false);
+
+    // Copy link handler
+    const handleCopyLink = async () => {
+        const companyId = data?.companyProspectId || prospectId || leadId;
+        const url = `${window.location.origin}/company/${companyId}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (e) {
+            console.error('Copy failed:', e);
+        }
+    };
+
+    // Compose outreach handler
+    const handleComposeOutreach = () => {
+        const companyId = data?.companyProspectId || prospectId;
+        if (resolvedLeadId) {
+            router.push(`/outreach?leadId=${resolvedLeadId}`);
+        } else if (companyId) {
+            router.push(`/outreach?companyId=${companyId}`);
+        }
+        onClose();
+    };
 
     useEffect(() => {
         async function fetchData() {
@@ -257,7 +286,8 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                 <div className="absolute inset-0" onClick={onClose} />
 
                 <div
-                    className="relative z-10 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
+                    className={`relative z-10 w-full flex flex-col overflow-hidden transition-all duration-300 ${isExpanded ? 'max-w-[95vw] max-h-[95vh]' : 'max-w-5xl max-h-[90vh]'
+                        }`}
                     style={{
                         background: 'var(--bg-card)',
                         borderRadius: 'var(--radius-2xl)',
@@ -282,10 +312,26 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                             />
                             <div>
                                 <h2
-                                    className="text-2xl font-bold flex items-center gap-3"
+                                    className="text-2xl font-bold flex items-center gap-3 cursor-pointer group/name"
                                     style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
                                 >
-                                    {data.companyName}
+                                    {data.websiteUrl ? (
+                                        <a
+                                            href={data.websiteUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="hover:underline hover:text-[var(--accent-blue)] transition-colors"
+                                        >
+                                            {data.companyName}
+                                        </a>
+                                    ) : (
+                                        <Link
+                                            href={data.companyProspectId ? `/company/${data.companyProspectId}` : '#'}
+                                            className="hover:underline hover:text-[var(--accent-blue)] transition-colors"
+                                        >
+                                            {data.companyName}
+                                        </Link>
+                                    )}
                                 </h2>
                                 <div
                                     className="flex items-center gap-3 text-sm mt-1.5"
@@ -318,27 +364,28 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                             <button
-                                className="p-2.5 transition-all rounded-[var(--radius-md)]"
-                                style={{ color: 'var(--text-muted)', background: 'transparent' }}
-                                title="Copy Link"
+                                onClick={handleCopyLink}
+                                className="p-2.5 transition-all rounded-[var(--radius-md)] hover:bg-[var(--bg-card-muted)]"
+                                style={{ color: copied ? 'var(--accent-mint-text)' : 'var(--text-muted)', background: 'transparent' }}
+                                title={copied ? 'Copied!' : 'Copy Link'}
                             >
-                                <Copy size={18} />
+                                {copied ? <Check size={18} /> : <Copy size={18} />}
                             </button>
-                            <Link
-                                href={data.companyProspectId ? `/company/${data.companyProspectId}` : `/company/${prospectId || leadId}`}
-                                className="p-2.5 transition-all rounded-[var(--radius-md)]"
+                            <button
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="p-2.5 transition-all rounded-[var(--radius-md)] hover:bg-[var(--bg-card-muted)]"
                                 style={{ color: 'var(--text-muted)', background: 'transparent' }}
-                                title="Open Full Workspace"
+                                title={isExpanded ? 'Exit Full Screen' : 'Expand'}
                             >
-                                <Maximize2 size={18} />
-                            </Link>
+                                {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                            </button>
                             <button
                                 onClick={onClose}
-                                className="p-2.5 transition-all rounded-[var(--radius-md)]"
+                                className="p-2.5 transition-all rounded-[var(--radius-md)] hover:bg-[var(--bg-card-muted)]"
                                 style={{ color: 'var(--text-muted)', background: 'transparent' }}
-                                title="Close"
+                                title="Close (ESC)"
                             >
                                 <X size={20} />
                             </button>
@@ -601,24 +648,28 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                         </div>
                         <div className="flex items-center gap-3">
                             <button
-                                className="px-4 py-2.5 text-sm font-semibold flex items-center gap-2 transition-all"
+                                onClick={() => setShowTagPicker(!showTagPicker)}
+                                className="px-4 py-2.5 text-sm font-semibold flex items-center gap-2 transition-all hover:bg-[var(--bg-card-muted)]"
                                 style={{
                                     background: 'var(--bg-card)',
                                     border: '1px solid var(--border-default)',
                                     borderRadius: 'var(--radius-button)',
                                     color: 'var(--text-primary)'
                                 }}
+                                title="Add a tag to this company"
                             >
-                                <Plus size={16} /> Add Tag
+                                <Tag size={16} /> Add Tag
                             </button>
                             <button
-                                className="px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-all"
+                                onClick={handleComposeOutreach}
+                                className="px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-all hover:opacity-90"
                                 style={{
                                     background: 'var(--text-primary)',
                                     color: 'white',
                                     borderRadius: 'var(--radius-button)',
                                     boxShadow: 'var(--shadow-card)'
                                 }}
+                                title="Open email composer"
                             >
                                 <Send size={16} /> Compose Outreach
                             </button>
