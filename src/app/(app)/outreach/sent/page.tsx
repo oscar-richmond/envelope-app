@@ -165,7 +165,7 @@ export default function UniboxPage() {
                     <StatsCard
                         label="Follow-Up Due"
                         value={counts.followUpDue}
-                        variant="info"
+                        variant="lilac"
                         icon={<Clock size={20} />}
                     />
                     <StatsCard
@@ -195,8 +195,8 @@ export default function UniboxPage() {
                                 key={tab.key}
                                 onClick={() => setQueue(tab.key)}
                                 className={`px-4 py-2 text-sm font-medium rounded-full transition-all flex items-center gap-2 border ${isActive
-                                        ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-                                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                    ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                                     }`}
                             >
                                 {tab.icon}
