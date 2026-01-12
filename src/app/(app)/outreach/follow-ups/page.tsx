@@ -372,8 +372,8 @@ export default function FollowUpQueuePage() {
                             <div className="flex gap-2">
                                 {currentItem.company.financialBand && (
                                     <span className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1 ${currentItem.company.financialBand === 'excellent' ? 'bg-green-100 text-green-700' :
-                                            currentItem.company.financialBand === 'good' ? 'bg-emerald-100 text-emerald-700' :
-                                                'bg-gray-100 text-gray-600'
+                                        currentItem.company.financialBand === 'good' ? 'bg-emerald-100 text-emerald-700' :
+                                            'bg-gray-100 text-gray-600'
                                         }`}>
                                         <DollarSign size={10} />
                                         {currentItem.company.financialBand}
@@ -381,11 +381,28 @@ export default function FollowUpQueuePage() {
                                 )}
                                 {currentItem.company.opportunityBand && (
                                     <span className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1 ${currentItem.company.opportunityBand === 'High' ? 'bg-indigo-100 text-indigo-700' :
-                                            currentItem.company.opportunityBand === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                                                'bg-gray-100 text-gray-600'
+                                        currentItem.company.opportunityBand === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                                            'bg-gray-100 text-gray-600'
                                         }`}>
                                         <TrendingUp size={10} />
                                         {currentItem.company.opportunityBand}
+                                    </span>
+                                )}
+                                {/* Follow-up step badge */}
+                                <span className="text-xs px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 font-medium">
+                                    FU{currentItem.followUpNumber}
+                                </span>
+                                {/* Overdue badge */}
+                                {currentItem.priority.isOverdue && (
+                                    <span className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-700 flex items-center gap-1">
+                                        <Clock size={10} />
+                                        Overdue
+                                    </span>
+                                )}
+                                {!currentItem.priority.isOverdue && (
+                                    <span className="text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                                        <Clock size={10} />
+                                        Due Today
                                     </span>
                                 )}
                             </div>
@@ -402,8 +419,8 @@ export default function FollowUpQueuePage() {
                                     onClick={() => handleToneChange(tone)}
                                     disabled={regenerating}
                                     className={`text-xs px-3 py-1.5 rounded-full transition-all disabled:opacity-50 ${selectedTone === tone
-                                            ? 'bg-gray-900 text-white'
-                                            : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+                                        ? 'bg-gray-900 text-white'
+                                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
                                         }`}
                                     title={TONE_LABELS[tone].description}
                                 >

@@ -267,13 +267,14 @@ model SentEmail {
   notesUpdatedAt    DateTime? // Last edit timestamp
   
   // Follow Up Logic
-  followUpCount         Int       @default(0) // 0 = Initial, 1 = First FU sent, 2 = Second FU sent
+  followUpCount         Int       @default(0) // 0 = Initial, 1 = First FU sent, 2 = Second, 3 = Third
   nextFollowUpAt        DateTime? // When the next follow-up is due
   lastFollowUpSentAt    DateTime?
   followUpSnoozedUntil  DateTime? // If snoozed, when to resurface
   followUpSkipped       Boolean   @default(false)
   followUpPriorityScore Int?      // 0-100 priority for queue ordering
   followUpReasonSummary String?   // e.g. "High opportunity, overdue 2 days"
+  followUpStatus        String    @default("ELIGIBLE") // ELIGIBLE, DRAFT_READY, PAUSED, CLOSED, EXHAUSTED
   
   // Unibox Queue Tracking
   lastInboundAt         DateTime? // Timestamp of last inbound message in thread
