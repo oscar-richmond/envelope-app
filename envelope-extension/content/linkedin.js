@@ -1,22 +1,22 @@
 // Envelope Chrome Extension - LinkedIn Content Script with Injected UI
 
 (function () {
-    // Only run on LinkedIn profile or company pages
-    const url = window.location.href;
-    const isProfilePage = url.includes('linkedin.com/in/');
-    const isCompanyPage = url.includes('linkedin.com/company/');
+  // Only run on LinkedIn profile or company pages
+  const url = window.location.href;
+  const isProfilePage = url.includes('linkedin.com/in/');
+  const isCompanyPage = url.includes('linkedin.com/company/');
 
-    if (!isProfilePage && !isCompanyPage) return;
+  if (!isProfilePage && !isCompanyPage) return;
 
-    // Don't inject if already present
-    if (document.getElementById('envelope-capture-bar')) return;
+  // Don't inject if already present
+  if (document.getElementById('envelope-capture-bar')) return;
 
-    console.log('[Envelope] Injecting capture bar on LinkedIn page');
+  console.log('[Envelope] Injecting capture bar on LinkedIn page');
 
-    // Create the floating capture bar
-    const bar = document.createElement('div');
-    bar.id = 'envelope-capture-bar';
-    bar.innerHTML = `
+  // Create the floating capture bar
+  const bar = document.createElement('div');
+  bar.id = 'envelope-capture-bar';
+  bar.innerHTML = `
     <style>
       #envelope-capture-bar {
         position: fixed;
@@ -187,116 +187,146 @@
     </div>
   `;
 
-    document.body.appendChild(bar);
+  document.body.appendChild(bar);
 
-    // Get page data
-    function getPageData() {
-        const data = {
-            type: isProfilePage ? 'linkedin_person' : 'linkedin_company',
-            sourceUrl: window.location.href,
-            companyName: '',
-            contactName: '',
-            jobTitle: '',
-            website: '',
-            linkedinUrl: window.location.href
-        };
+  // Get page data
+  function getPageData() {
+    const data = {
+      type: isProfilePage ? 'linkedin_person' : 'linkedin_company',
+      sourceUrl: window.location.href,
+      companyName: '',
+      contactName: '',
+      jobTitle: '',
+      website: '',
+      linkedinUrl: window.location.href
+    };
 
-        if (isProfilePage) {
-            // Person profile
-            const nameEl = document.querySelector('h1.text-heading-xlarge');
-            const titleEl = document.querySelector('.text-body-medium.break-words');
+    if (isProfilePage) {
+      // Person profile
+      const nameEl = document.querySelector('h1.text-heading-xlarge');
+      const titleEl = document.querySelector('.text-body-medium.break-words');
 
-            data.contactName = nameEl?.textContent?.trim() || '';
-            data.jobTitle = titleEl?.textContent?.trim() || '';
+      data.contactName = nameEl?.textContent?.trim() || '';
+      data.jobTitle = titleEl?.textContent?.trim() || '';
 
-            // Get company from experience
-            const experienceSection = document.querySelector('#experience');
-            if (experienceSection) {
-                const companyEl = experienceSection.querySelector('.t-bold span[aria-hidden="true"]');
-                data.companyName = companyEl?.textContent?.trim() || '';
-            }
+      // Get company from experience
+      const experienceSection = document.querySelector('#experience');
+      if (experienceSection) {
+        const companyEl = experienceSection.querySelector('.t-bold span[aria-hidden="true"]');
+        data.companyName = companyEl?.textContent?.trim() || '';
+      }
 
-            // Fallback
-            if (!data.companyName && data.jobTitle) {
-                const match = data.jobTitle.match(/at\s+(.+)$/i);
-                if (match) data.companyName = match[1].trim();
-            }
-        } else {
-            // Company page
-            const nameEl = document.querySelector('h1.org-top-card-summary__title');
-            const websiteEl = document.querySelector('a[data-test-id="about-us-link"]');
+      // Fallback: try headline
+      if (!data.companyName && data.jobTitle) {
+        const match = data.jobTitle.match(/(?:at|@)\s+(.+?)(?:\s*[|·•]|$)/i);
+        if (match) data.companyName = match[1].trim();
+      }
 
-            data.companyName = nameEl?.textContent?.trim() || '';
-            if (!data.companyName) {
-                const altName = document.querySelector('.org-top-card-summary__title span');
-                data.companyName = altName?.textContent?.trim() || '';
-            }
-            data.website = websiteEl?.href || '';
+      // Last resort: try any company link in the page
+      if (!data.companyName) {
+        const companyLink = document.querySelector('a[href*="/company/"]');
+        if (companyLink) {
+          data.companyName = companyLink.textContent?.trim() || 'Unknown Company';
         }
+      }
+    } else {
+      // Company page
+      const nameEl = document.querySelector('h1.org-top-card-summary__title');
+      const websiteEl = document.querySelector('a[data-test-id="about-us-link"]');
 
-        return data;
-    }
+      data.companyName = nameEl?.textContent?.trim() || '';
+      if (!data.companyName) {
+        const altName = document.querySelector('.org-top-card-summary__title span');
+        data.companyName = altName?.textContent?.trim() || '';
+      }
 
-    // Show toast
-    function showToast(message, isError = false) {
-        const existing = document.querySelector('.envelope-toast');
-        if (existing) existing.remove();
+      // More fallbacks for company name
+      if (!data.companyName) {
+        // Try page title
+        const pageTitle = document.querySelector('h1')?.textContent?.trim();
+        if (pageTitle) data.companyName = pageTitle;
+      }
 
-        const toast = document.createElement('div');
-        toast.className = `envelope-toast${isError ? ' error' : ''}`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-
-        setTimeout(() => toast.remove(), 3000);
-    }
-
-    // Handle actions via message passing to extension
-    async function handleAction(action) {
-        const data = getPageData();
-
-        // Disable buttons
-        document.getElementById('envelope-btn-save').disabled = true;
-        document.getElementById('envelope-btn-compose').disabled = true;
-
-        try {
-            // Send message to extension
-            const response = await chrome.runtime.sendMessage({
-                action: 'capture',
-                compose: action === 'compose',
-                data: data
-            });
-
-            if (response?.success) {
-                showToast(response.message || 'Saved to Envelope!');
-
-                if (action === 'compose' && response.composeUrl) {
-                    window.open(response.composeUrl, '_blank');
-                }
-            } else {
-                throw new Error(response?.error || 'Capture failed');
-            }
-        } catch (e) {
-            console.error('[Envelope] Capture error:', e);
-            showToast(e.message || 'Failed to save', true);
-        } finally {
-            document.getElementById('envelope-btn-save').disabled = false;
-            document.getElementById('envelope-btn-compose').disabled = false;
+      if (!data.companyName) {
+        // Extract from URL
+        const urlMatch = window.location.href.match(/linkedin\.com\/company\/([^\/\?]+)/);
+        if (urlMatch) {
+          data.companyName = urlMatch[1].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
+      }
+
+      data.website = websiteEl?.href || '';
     }
 
-    // Event listeners
-    document.getElementById('envelope-btn-save').addEventListener('click', () => handleAction('save'));
-    document.getElementById('envelope-btn-compose').addEventListener('click', () => handleAction('compose'));
-    document.getElementById('envelope-btn-close').addEventListener('click', () => {
-        bar.remove();
-        // Remember dismissal for this session
-        sessionStorage.setItem('envelope-bar-dismissed', 'true');
-    });
-
-    // Check if dismissed this session
-    if (sessionStorage.getItem('envelope-bar-dismissed') === 'true') {
-        bar.style.display = 'none';
+    // Final fallback
+    if (!data.companyName) {
+      data.companyName = 'Unknown Company';
     }
 
-    console.log('[Envelope] Capture bar ready');
+    console.log('[Envelope] Extracted data:', data);
+    return data;
+  }
+
+  // Show toast
+  function showToast(message, isError = false) {
+    const existing = document.querySelector('.envelope-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `envelope-toast${isError ? ' error' : ''}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 3000);
+  }
+
+  // Handle actions via message passing to extension
+  async function handleAction(action) {
+    const data = getPageData();
+
+    // Disable buttons
+    document.getElementById('envelope-btn-save').disabled = true;
+    document.getElementById('envelope-btn-compose').disabled = true;
+
+    try {
+      // Send message to extension
+      const response = await chrome.runtime.sendMessage({
+        action: 'capture',
+        compose: action === 'compose',
+        data: data
+      });
+
+      if (response?.success) {
+        showToast(response.message || 'Saved to Envelope!');
+
+        if (action === 'compose' && response.composeUrl) {
+          window.open(response.composeUrl, '_blank');
+        }
+      } else {
+        throw new Error(response?.error || 'Capture failed');
+      }
+    } catch (e) {
+      console.error('[Envelope] Capture error:', e);
+      showToast(e.message || 'Failed to save', true);
+    } finally {
+      document.getElementById('envelope-btn-save').disabled = false;
+      document.getElementById('envelope-btn-compose').disabled = false;
+    }
+  }
+
+  // Event listeners
+  document.getElementById('envelope-btn-save').addEventListener('click', () => handleAction('save'));
+  document.getElementById('envelope-btn-compose').addEventListener('click', () => handleAction('compose'));
+  document.getElementById('envelope-btn-close').addEventListener('click', () => {
+    bar.remove();
+    // Remember dismissal for this session
+    sessionStorage.setItem('envelope-bar-dismissed', 'true');
+  });
+
+  // Check if dismissed this session
+  if (sessionStorage.getItem('envelope-bar-dismissed') === 'true') {
+    bar.style.display = 'none';
+  }
+
+  console.log('[Envelope] Capture bar ready');
 })();
