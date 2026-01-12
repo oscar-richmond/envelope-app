@@ -62,19 +62,19 @@ interface SentEmailWithQueue {
     };
 }
 
-// Intent badge styling
+// Intent badge styling - uses CSS variable tokens from globals.css
 const INTENT_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-    POSITIVE: { bg: 'rgba(16, 185, 129, 0.15)', text: 'rgb(5, 150, 105)', label: 'Interested' },
-    NEUTRAL_QUESTION: { bg: 'rgba(59, 130, 246, 0.15)', text: 'rgb(37, 99, 235)', label: 'Question' },
-    OBJECTION: { bg: 'rgba(245, 158, 11, 0.15)', text: 'rgb(180, 120, 20)', label: 'Objection' },
-    NOT_INTERESTED: { bg: 'rgba(239, 68, 68, 0.15)', text: 'rgb(220, 38, 38)', label: 'Not Interested' },
-    WRONG_PERSON: { bg: 'rgba(139, 92, 246, 0.15)', text: 'rgb(124, 58, 237)', label: 'Wrong Person' },
-    AUTO_REPLY: { bg: 'rgba(107, 114, 128, 0.15)', text: 'rgb(75, 85, 99)', label: 'Auto-Reply' },
-    UNCLEAR: { bg: 'rgba(107, 114, 128, 0.15)', text: 'rgb(107, 114, 128)', label: 'Unclear' },
+    POSITIVE: { bg: 'var(--status-success-bg)', text: 'var(--status-success-text)', label: 'Interested' },
+    NEUTRAL_QUESTION: { bg: 'var(--status-info-bg)', text: 'var(--status-info-text)', label: 'Question' },
+    OBJECTION: { bg: 'var(--status-warning-bg)', text: 'var(--status-warning-text)', label: 'Objection' },
+    NOT_INTERESTED: { bg: 'var(--status-danger-bg)', text: 'var(--status-danger-text)', label: 'Not Interested' },
+    WRONG_PERSON: { bg: 'var(--status-purple-bg)', text: 'var(--status-purple-text)', label: 'Wrong Person' },
+    AUTO_REPLY: { bg: 'var(--status-neutral-bg)', text: 'var(--status-neutral-text)', label: 'Auto-Reply' },
+    UNCLEAR: { bg: 'var(--status-neutral-bg)', text: 'var(--status-neutral-text)', label: 'Unclear' },
     // Legacy mappings
-    INTERESTED: { bg: 'rgba(16, 185, 129, 0.15)', text: 'rgb(5, 150, 105)', label: 'Interested' },
-    NOT_NOW: { bg: 'rgba(245, 158, 11, 0.15)', text: 'rgb(180, 120, 20)', label: 'Not Now' },
-    REFERRAL: { bg: 'rgba(139, 92, 246, 0.15)', text: 'rgb(124, 58, 237)', label: 'Referral' }
+    INTERESTED: { bg: 'var(--status-success-bg)', text: 'var(--status-success-text)', label: 'Interested' },
+    NOT_NOW: { bg: 'var(--status-warning-bg)', text: 'var(--status-warning-text)', label: 'Not Now' },
+    REFERRAL: { bg: 'var(--status-purple-bg)', text: 'var(--status-purple-text)', label: 'Referral' }
 };
 
 // Tab configuration
@@ -206,7 +206,20 @@ export default function UniboxPage() {
                     {counts.followUpDue > 0 && (
                         <Link
                             href="/outreach/follow-ups"
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-[#5482ED] font-semibold rounded-xl transition-all border-2 border-[#5482ED] hover:shadow-[0_4px_12px_rgba(84,130,237,0.25)] hover:border-[#4372DD] active:translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-[#5482ED] focus:ring-offset-2 cursor-pointer"
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-white font-semibold rounded-xl transition-all border-2 active:translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer"
+                            style={{
+                                color: 'var(--brand)',
+                                borderColor: 'var(--brand)',
+                                boxShadow: 'none'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.boxShadow = '0 4px 12px var(--brand-glow)';
+                                e.currentTarget.style.borderColor = 'var(--brand-hover)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.boxShadow = 'none';
+                                e.currentTarget.style.borderColor = 'var(--brand)';
+                            }}
                         >
                             <Send size={16} />
                             Review Queue

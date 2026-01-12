@@ -22,7 +22,7 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
     div.className = `fixed bottom-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-300`;
     div.style.background = type === 'success' ? 'var(--accent-mint-bg)' : 'var(--error-light)';
     div.style.color = type === 'success' ? 'var(--accent-mint-text)' : 'var(--error-text)';
-    div.style.border = type === 'success' ? '1px solid rgba(166, 244, 179, 0.3)' : '1px solid rgba(255, 77, 77, 0.3)';
+    div.style.border = type === 'success' ? '1px solid var(--chip-mint-border)' : '1px solid var(--chip-danger-border)';
     div.textContent = message;
     document.body.appendChild(div);
     setTimeout(() => div.remove(), 3000);

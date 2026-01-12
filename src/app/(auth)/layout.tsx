@@ -6,33 +6,33 @@ export default function AuthLayout({
 }>) {
     return (
         <div className="min-h-screen flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
-            {/* Premium Background */}
+            {/* Premium Background - uses --hero-gradient token */}
             <div
                 className="absolute inset-0 -z-10"
                 style={{
-                    background: 'linear-gradient(135deg, #fafbfd 0%, #f5f7fa 50%, #f8fafb 100%)'
+                    background: 'var(--hero-gradient)'
                 }}
             />
 
-            {/* Gradient Blobs */}
+            {/* Gradient Blobs - use --blob-* tokens */}
             <div
                 className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full -z-10 animate-in fade-in duration-1000"
                 style={{
-                    background: 'radial-gradient(circle, rgba(84, 130, 237, 0.08) 0%, transparent 70%)',
+                    background: 'var(--blob-brand)',
                     filter: 'blur(80px)'
                 }}
             />
             <div
                 className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] rounded-full -z-10 animate-in fade-in duration-1000 delay-200"
                 style={{
-                    background: 'radial-gradient(circle, rgba(166, 244, 179, 0.06) 0%, transparent 70%)',
+                    background: 'var(--blob-mint)',
                     filter: 'blur(80px)'
                 }}
             />
             <div
                 className="absolute top-[30%] right-[20%] w-[30%] h-[30%] rounded-full -z-10 animate-in fade-in duration-1000 delay-300"
                 style={{
-                    background: 'radial-gradient(circle, rgba(184, 166, 255, 0.05) 0%, transparent 70%)',
+                    background: 'var(--blob-lilac)',
                     filter: 'blur(60px)'
                 }}
             />

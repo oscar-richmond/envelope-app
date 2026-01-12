@@ -48,6 +48,43 @@
   --cta-dark-ring: rgba(26, 26, 26, 0.25);
 
   /* ─────────────────────────────────────────
+     BRAND TOKENS (Primary Blue - Single Source)
+     ───────────────────────────────────────── */
+  --brand: #5482ED;
+  --brand-hover: #4673DB;
+  --brand-active: #3E66C7;
+  --brand-soft: rgba(84, 130, 237, 0.08);
+  --brand-softer: rgba(84, 130, 237, 0.04);
+  --brand-border: rgba(84, 130, 237, 0.15);
+  --brand-glow: rgba(84, 130, 237, 0.25);
+  --brand-text: #5482ED;
+
+  /* ─────────────────────────────────────────
+     GRADIENT TOKENS (Derived from Nav)
+     ───────────────────────────────────────── */
+  --hero-gradient: linear-gradient(135deg, #fafbfd 0%, #f5f7fa 50%, #f8fafb 100%);
+  --card-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, transparent 50%);
+  --blob-brand: radial-gradient(circle, rgba(84, 130, 237, 0.08) 0%, transparent 70%);
+  --blob-mint: radial-gradient(circle, rgba(166, 244, 179, 0.06) 0%, transparent 70%);
+  --blob-lilac: radial-gradient(circle, rgba(184, 166, 255, 0.05) 0%, transparent 70%);
+
+  /* ─────────────────────────────────────────
+     STATUS BADGE TOKENS (Unified Semantic Colors)
+     ───────────────────────────────────────── */
+  --status-success-bg: rgba(16, 185, 129, 0.15);
+  --status-success-text: rgb(5, 150, 105);
+  --status-warning-bg: rgba(245, 158, 11, 0.15);
+  --status-warning-text: rgb(180, 120, 20);
+  --status-danger-bg: rgba(239, 68, 68, 0.15);
+  --status-danger-text: rgb(220, 38, 38);
+  --status-info-bg: rgba(59, 130, 246, 0.15);
+  --status-info-text: rgb(37, 99, 235);
+  --status-neutral-bg: rgba(107, 114, 128, 0.15);
+  --status-neutral-text: rgb(75, 85, 99);
+  --status-purple-bg: rgba(139, 92, 246, 0.15);
+  --status-purple-text: rgb(124, 58, 237);
+
+  /* ─────────────────────────────────────────
      CANVAS TOKENS (Selfhood Pure White System)
      Used only for main content area
      ───────────────────────────────────────── */

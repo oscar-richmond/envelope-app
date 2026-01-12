@@ -12,10 +12,10 @@ export default function SignInPage() {
                 <div
                     className="relative"
                     style={{
-                        background: 'white',
-                        borderRadius: '24px',
-                        border: '1px solid rgba(84, 130, 237, 0.15)',
-                        boxShadow: '0 4px 24px -4px rgba(0, 0, 0, 0.08), 0 24px 48px -12px rgba(84, 130, 237, 0.12)',
+                        background: 'var(--bg-card)',
+                        borderRadius: 'var(--radius-card)',
+                        border: '1px solid var(--brand-border)',
+                        boxShadow: '0 4px 24px -4px rgba(0, 0, 0, 0.08), 0 24px 48px -12px var(--brand-glow)',
                         padding: '40px 36px',
                         overflow: 'hidden'
                     }}
@@ -24,8 +24,8 @@ export default function SignInPage() {
                     <div
                         className="absolute inset-0 pointer-events-none"
                         style={{
-                            background: 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, transparent 50%)',
-                            borderRadius: '24px'
+                            background: 'var(--card-gradient)',
+                            borderRadius: 'var(--radius-card)'
                         }}
                     />
 
@@ -146,9 +146,9 @@ function PreviewCard({
     color: 'blue' | 'lilac' | 'mint';
 }) {
     const colors = {
-        blue: { bg: 'rgba(84, 130, 237, 0.08)', border: 'rgba(84, 130, 237, 0.15)', iconBg: 'rgba(84, 130, 237, 0.12)', text: '#5482ED' },
-        lilac: { bg: 'rgba(184, 166, 255, 0.08)', border: 'rgba(184, 166, 255, 0.15)', iconBg: 'rgba(184, 166, 255, 0.12)', text: '#8B5CF6' },
-        mint: { bg: 'rgba(166, 244, 179, 0.08)', border: 'rgba(166, 244, 179, 0.2)', iconBg: 'rgba(166, 244, 179, 0.15)', text: '#059669' }
+        blue: { bg: 'var(--brand-soft)', border: 'var(--brand-border)', iconBg: 'rgba(84, 130, 237, 0.12)', text: 'var(--brand)' },
+        lilac: { bg: 'var(--lilac-soft)', border: 'rgba(184, 166, 255, 0.15)', iconBg: 'var(--lilac-weak)', text: 'var(--lilac-strong)' },
+        mint: { bg: 'var(--mint-soft)', border: 'rgba(166, 244, 179, 0.2)', iconBg: 'var(--mint-weak)', text: 'var(--mint-text)' }
     };
     const c = colors[color];
 
