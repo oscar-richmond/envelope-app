@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Send, Clock, X, ArrowLeft, CheckCircle, Building2,
-    Globe, MapPin, TrendingUp, Palette, DollarSign,
+    Globe, MapPin, TrendingUp, DollarSign,
     ChevronRight, ExternalLink, RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
@@ -286,7 +286,7 @@ export default function FollowUpQueuePage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[80vh]">
-                <div className="text-gray-400 animate-pulse">Loading follow-ups...</div>
+                <div style={{ color: 'var(--text-muted)' }} className="animate-pulse">Loading follow-ups...</div>
             </div>
         );
     }
@@ -294,30 +294,32 @@ export default function FollowUpQueuePage() {
     // Empty state - All caught up!
     if (queue.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
-                <div className="bg-green-100 text-green-600 w-20 h-20 rounded-full flex items-center justify-center mb-8">
+            <div className="hero-surface hero-surface-mint flex flex-col items-center justify-center min-h-[80vh] mx-4 md:mx-auto max-w-xl my-12 p-12">
+                <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center mb-8"
+                    style={{ background: 'var(--mint-soft)', color: 'var(--mint-text)' }}
+                >
                     <CheckCircle size={40} strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-3">You're all caught up.</h1>
-                <p className="text-gray-500 mb-8 text-center max-w-md">
+                <h1
+                    className="text-3xl font-bold mb-3"
+                    style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                >
+                    You're all caught up.
+                </h1>
+                <p className="mb-8 text-center max-w-md" style={{ color: 'var(--text-secondary)' }}>
                     {completedCount > 0
                         ? `You completed ${completedCount} follow-up${completedCount !== 1 ? 's' : ''} this session.`
                         : 'No follow-ups are due right now.'}
                 </p>
                 <div className="flex gap-3">
-                    <Link
-                        href="/outreach/sent"
-                        className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-lg font-medium flex items-center gap-2 shadow-sm"
-                    >
-                        <ArrowLeft size={18} />
+                    <Link href="/outreach/sent" className="btn btn-secondary">
+                        <ArrowLeft size={18} strokeWidth={1.75} />
                         Back to Inbox
                     </Link>
-                    <Link
-                        href="/prospects"
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 shadow-sm"
-                    >
+                    <Link href="/prospects" className="btn btn-primary">
                         Find more leads
-                        <ChevronRight size={18} />
+                        <ChevronRight size={18} strokeWidth={1.75} />
                     </Link>
                 </div>
             </div>
@@ -327,21 +329,36 @@ export default function FollowUpQueuePage() {
     const progress = totalCount > 0 ? completedCount + 1 : 0;
 
     return (
-        <div className={`min-h-screen bg-gray-50 transition-opacity duration-200 ${transitioning ? 'opacity-50' : 'opacity-100'}`}>
+        <div
+            className={`min-h-screen transition-opacity duration-200 ${transitioning ? 'opacity-50' : 'opacity-100'}`}
+            style={{ background: 'var(--bg-page)' }}
+        >
             {/* Header */}
-            <header className="bg-white border-b border-gray-200 px-6 py-4">
+            <header
+                className="px-6 py-4 sticky top-0 z-10"
+                style={{
+                    background: 'var(--bg-card)',
+                    borderBottom: '1px solid var(--border-soft)'
+                }}
+            >
                 <div className="max-w-3xl mx-auto flex items-center justify-between">
                     <div>
-                        <h1 className="text-lg font-semibold text-gray-900">Follow-Up Queue</h1>
-                        <p className="text-sm text-gray-500">{queue.length} follow-up{queue.length !== 1 ? 's' : ''} remaining</p>
+                        <h1
+                            className="text-lg font-semibold"
+                            style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                        >
+                            Follow-Up Queue
+                        </h1>
+                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                            {queue.length} follow-up{queue.length !== 1 ? 's' : ''} remaining
+                        </p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-400">{progress} / {totalCount + completedCount}</span>
-                        <Link
-                            href="/outreach/sent"
-                            className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                            <X size={20} />
+                        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                            {progress} / {totalCount + completedCount}
+                        </span>
+                        <Link href="/outreach/sent" className="icon-btn icon-btn-ghost">
+                            <X size={18} strokeWidth={1.75} />
                         </Link>
                     </div>
                 </div>
@@ -349,18 +366,40 @@ export default function FollowUpQueuePage() {
 
             {/* Main Card */}
             <main className="max-w-3xl mx-auto p-6">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div
+                    className="overflow-hidden"
+                    style={{
+                        background: 'var(--bg-card)',
+                        borderRadius: 'var(--radius-card)',
+                        border: '1px solid var(--border-soft)',
+                        boxShadow: 'var(--shadow-md)'
+                    }}
+                >
                     {/* Company Context */}
-                    <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                    <div
+                        className="px-6 py-5"
+                        style={{
+                            background: 'var(--bg-card-muted)',
+                            borderBottom: '1px solid var(--border-soft)'
+                        }}
+                    >
                         <div className="flex items-start justify-between">
                             <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
-                                    <Building2 size={24} />
+                                <div
+                                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)' }}
+                                >
+                                    <Building2 size={24} style={{ color: 'var(--text-muted)' }} />
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-lg text-gray-900">{currentItem.company.name}</h2>
+                                    <h2
+                                        className="font-semibold text-lg"
+                                        style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                                    >
+                                        {currentItem.company.name}
+                                    </h2>
                                     {currentItem.company.location && (
-                                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                                        <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                                             <MapPin size={12} />
                                             {currentItem.company.location}
                                         </p>
@@ -372,7 +411,10 @@ export default function FollowUpQueuePage() {
                                                 : `https://${currentItem.company.websiteUrl}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1 mt-1"
+                                            className="text-sm flex items-center gap-1 mt-1 transition-colors"
+                                            style={{ color: 'var(--brand)' }}
+                                            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--brand-hover)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--brand)'}
                                         >
                                             <Globe size={12} />
                                             Visit website
@@ -383,38 +425,78 @@ export default function FollowUpQueuePage() {
                             </div>
 
                             {/* Compact Badges */}
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap justify-end">
                                 {currentItem.company.financialBand && (
-                                    <span className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1 ${currentItem.company.financialBand === 'excellent' ? 'bg-green-100 text-green-700' :
-                                        currentItem.company.financialBand === 'good' ? 'bg-emerald-100 text-emerald-700' :
-                                            'bg-gray-100 text-gray-600'
-                                        }`}>
+                                    <span
+                                        className="text-xs px-2.5 py-1 rounded-[var(--radius-badge)] flex items-center gap-1 font-medium"
+                                        style={{
+                                            background: currentItem.company.financialBand === 'excellent' || currentItem.company.financialBand === 'good'
+                                                ? 'var(--mint-soft)'
+                                                : 'var(--bg-card-muted)',
+                                            color: currentItem.company.financialBand === 'excellent' || currentItem.company.financialBand === 'good'
+                                                ? 'var(--mint-text)'
+                                                : 'var(--text-secondary)',
+                                            border: `1px solid ${currentItem.company.financialBand === 'excellent' || currentItem.company.financialBand === 'good'
+                                                ? 'var(--chip-mint-border)'
+                                                : 'var(--border-soft)'}`
+                                        }}
+                                    >
                                         <DollarSign size={10} />
                                         {currentItem.company.financialBand}
                                     </span>
                                 )}
                                 {currentItem.company.opportunityBand && (
-                                    <span className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1 ${currentItem.company.opportunityBand === 'High' ? 'bg-indigo-100 text-indigo-700' :
-                                        currentItem.company.opportunityBand === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                                            'bg-gray-100 text-gray-600'
-                                        }`}>
+                                    <span
+                                        className="text-xs px-2.5 py-1 rounded-[var(--radius-badge)] flex items-center gap-1 font-medium"
+                                        style={{
+                                            background: currentItem.company.opportunityBand === 'High'
+                                                ? 'var(--lilac-soft)'
+                                                : 'var(--bg-card-muted)',
+                                            color: currentItem.company.opportunityBand === 'High'
+                                                ? 'var(--lilac-text)'
+                                                : 'var(--text-secondary)',
+                                            border: `1px solid ${currentItem.company.opportunityBand === 'High'
+                                                ? 'var(--chip-lilac-border)'
+                                                : 'var(--border-soft)'}`
+                                        }}
+                                    >
                                         <TrendingUp size={10} />
                                         {currentItem.company.opportunityBand}
                                     </span>
                                 )}
                                 {/* Follow-up step badge */}
-                                <span className="text-xs px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 font-medium">
+                                <span
+                                    className="text-xs px-2.5 py-1 rounded-[var(--radius-badge)] font-semibold"
+                                    style={{
+                                        background: 'var(--lilac-soft)',
+                                        color: 'var(--lilac-text)',
+                                        border: '1px solid var(--chip-lilac-border)'
+                                    }}
+                                >
                                     FU{currentItem.followUpNumber}
                                 </span>
-                                {/* Overdue badge */}
-                                {currentItem.priority.isOverdue && (
-                                    <span className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-700 flex items-center gap-1">
+                                {/* Overdue/Due badge */}
+                                {currentItem.priority.isOverdue ? (
+                                    <span
+                                        className="text-xs px-2.5 py-1 rounded-[var(--radius-badge)] flex items-center gap-1 font-medium"
+                                        style={{
+                                            background: 'var(--danger-soft)',
+                                            color: 'var(--danger-text)',
+                                            border: '1px solid var(--chip-danger-border)'
+                                        }}
+                                    >
                                         <Clock size={10} />
                                         Overdue
                                     </span>
-                                )}
-                                {!currentItem.priority.isOverdue && (
-                                    <span className="text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                                ) : (
+                                    <span
+                                        className="text-xs px-2.5 py-1 rounded-[var(--radius-badge)] flex items-center gap-1 font-medium"
+                                        style={{
+                                            background: 'var(--brand-soft)',
+                                            color: 'var(--brand)',
+                                            border: '1px solid var(--brand-border)'
+                                        }}
+                                    >
                                         <Clock size={10} />
                                         Due Today
                                     </span>
@@ -424,18 +506,26 @@ export default function FollowUpQueuePage() {
                     </div>
 
                     {/* Tone Selector */}
-                    <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                    <div
+                        className="px-6 py-3 flex items-center justify-between"
+                        style={{
+                            background: 'var(--bg-card-muted)',
+                            borderBottom: '1px solid var(--border-soft)'
+                        }}
+                    >
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">Tone:</span>
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Tone:</span>
                             {(Object.keys(TONE_LABELS) as ToneVariant[]).map(tone => (
                                 <button
                                     key={tone}
                                     onClick={() => handleToneChange(tone)}
                                     disabled={regenerating}
-                                    className={`text-xs px-3 py-1.5 rounded-full transition-all disabled:opacity-50 ${selectedTone === tone
-                                        ? 'bg-gray-900 text-white'
-                                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
-                                        }`}
+                                    className="text-xs px-3 py-1.5 rounded-full transition-all disabled:opacity-50"
+                                    style={{
+                                        background: selectedTone === tone ? 'var(--nav-bg)' : 'var(--bg-card)',
+                                        color: selectedTone === tone ? 'white' : 'var(--text-secondary)',
+                                        border: selectedTone === tone ? 'none' : '1px solid var(--border-soft)'
+                                    }}
                                     title={TONE_LABELS[tone].description}
                                 >
                                     {TONE_LABELS[tone].label}
@@ -445,7 +535,8 @@ export default function FollowUpQueuePage() {
                         <button
                             onClick={handleRegenerate}
                             disabled={regenerating}
-                            className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-white transition-all disabled:opacity-50"
+                            className="text-xs flex items-center gap-1 px-2 py-1 rounded transition-all disabled:opacity-50"
+                            style={{ color: 'var(--text-muted)' }}
                         >
                             <RefreshCw size={12} className={regenerating ? 'animate-spin' : ''} />
                             Regenerate
@@ -453,14 +544,32 @@ export default function FollowUpQueuePage() {
                     </div>
 
                     {/* Original Email Context */}
-                    <div className="px-6 py-3 border-b border-gray-100 bg-blue-50/50">
+                    <div
+                        className="px-6 py-3"
+                        style={{
+                            background: 'var(--brand-weak)',
+                            borderBottom: '1px solid var(--brand-border)'
+                        }}
+                    >
                         <details className="group">
-                            <summary className="cursor-pointer text-xs font-medium text-blue-700 flex items-center gap-2">
+                            <summary
+                                className="cursor-pointer text-xs font-medium flex items-center gap-2"
+                                style={{ color: 'var(--brand)' }}
+                            >
                                 <ChevronRight size={14} className="transition-transform group-open:rotate-90" />
                                 View Original Email (sent {formatDate(currentItem.originalEmail.sentAt)})
                             </summary>
-                            <div className="mt-3 p-4 bg-white rounded-lg border border-blue-100 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto">
-                                <div className="text-xs text-gray-400 mb-2">Subject: {currentItem.originalEmail.subject}</div>
+                            <div
+                                className="mt-3 p-4 rounded-lg text-sm leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto"
+                                style={{
+                                    background: 'var(--bg-card)',
+                                    border: '1px solid var(--brand-border)',
+                                    color: 'var(--text-primary)'
+                                }}
+                            >
+                                <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                                    Subject: {currentItem.originalEmail.subject}
+                                </div>
                                 {currentItem.originalEmail.bodyText}
                             </div>
                         </details>
@@ -469,26 +578,34 @@ export default function FollowUpQueuePage() {
                     {/* Gmail-Style Composer */}
                     <div className="p-6">
                         {/* To Field */}
-                        <div className="flex items-center gap-3 py-3 border-b border-gray-100">
-                            <label className="text-sm text-gray-400 w-12">To</label>
+                        <div
+                            className="flex items-center gap-3 py-3"
+                            style={{ borderBottom: '1px solid var(--border-soft)' }}
+                        >
+                            <label className="text-sm w-12" style={{ color: 'var(--text-muted)' }}>To</label>
                             <input
                                 type="email"
                                 value={editedTo}
                                 onChange={(e) => setEditedTo(e.target.value)}
                                 disabled={!isEditing}
-                                className="flex-1 text-sm text-gray-700 bg-transparent border-none focus:outline-none focus:ring-0 disabled:text-gray-500"
+                                className="flex-1 text-sm bg-transparent border-none focus:outline-none focus:ring-0"
+                                style={{ color: isEditing ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                             />
                         </div>
 
                         {/* Subject Field */}
-                        <div className="flex items-center gap-3 py-3 border-b border-gray-100">
-                            <label className="text-sm text-gray-400 w-12">Subject</label>
+                        <div
+                            className="flex items-center gap-3 py-3"
+                            style={{ borderBottom: '1px solid var(--border-soft)' }}
+                        >
+                            <label className="text-sm w-12" style={{ color: 'var(--text-muted)' }}>Subject</label>
                             <input
                                 type="text"
                                 value={editedSubject}
                                 onChange={(e) => setEditedSubject(e.target.value)}
                                 disabled={!isEditing}
-                                className="flex-1 text-sm font-medium text-gray-800 bg-transparent border-none focus:outline-none focus:ring-0 disabled:text-gray-700"
+                                className="flex-1 text-sm font-medium bg-transparent border-none focus:outline-none focus:ring-0"
+                                style={{ color: 'var(--text-primary)' }}
                             />
                         </div>
 
@@ -499,40 +616,46 @@ export default function FollowUpQueuePage() {
                                 onChange={(e) => handleBodyChange(e.target.value)}
                                 disabled={!isEditing && !regenerating}
                                 rows={10}
-                                className={`w-full resize-none outline-none text-gray-800 leading-relaxed text-[15px] bg-transparent disabled:text-gray-700 placeholder:text-gray-400 ${regenerating ? 'opacity-50' : ''
-                                    }`}
+                                className={`w-full resize-none outline-none leading-relaxed text-[15px] bg-transparent placeholder:text-[var(--text-muted)] ${regenerating ? 'opacity-50' : ''}`}
+                                style={{ color: 'var(--text-primary)' }}
                                 placeholder="Write your follow-up..."
                             />
                         </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="px-6 py-5 border-t border-gray-100 bg-gray-50">
+                    <div
+                        className="px-6 py-5"
+                        style={{
+                            background: 'var(--bg-card-muted)',
+                            borderTop: '1px solid var(--border-soft)'
+                        }}
+                    >
                         {showSnoozeOptions ? (
                             // Snooze Options
                             <div className="flex items-center justify-center gap-3">
-                                <span className="text-sm text-gray-500 mr-2">Remind me:</span>
+                                <span className="text-sm mr-2" style={{ color: 'var(--text-secondary)' }}>Remind me:</span>
                                 <button
                                     onClick={() => handleSnooze(3)}
-                                    className="bg-white border border-gray-200 hover:border-amber-300 hover:bg-amber-50 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
+                                    className="btn btn-secondary btn-sm"
                                 >
                                     In 3 days
                                 </button>
                                 <button
                                     onClick={() => handleSnooze(7)}
-                                    className="bg-white border border-gray-200 hover:border-amber-300 hover:bg-amber-50 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
+                                    className="btn btn-secondary btn-sm"
                                 >
                                     In 7 days
                                 </button>
                                 <button
                                     onClick={handleRemove}
-                                    className="bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-500 hover:text-red-600 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
+                                    className="btn btn-danger btn-sm"
                                 >
                                     Remove
                                 </button>
                                 <button
                                     onClick={() => setShowSnoozeOptions(false)}
-                                    className="text-gray-400 hover:text-gray-600 text-sm px-3 py-2"
+                                    className="btn btn-ghost btn-sm"
                                 >
                                     Cancel
                                 </button>
@@ -542,9 +665,9 @@ export default function FollowUpQueuePage() {
                             <div className="flex items-center justify-between">
                                 <button
                                     onClick={() => setShowSnoozeOptions(true)}
-                                    className="text-gray-500 hover:text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-white transition-all"
+                                    className="btn btn-ghost"
                                 >
-                                    <Clock size={16} />
+                                    <Clock size={16} strokeWidth={1.75} />
                                     Skip / Snooze
                                 </button>
 
@@ -553,11 +676,11 @@ export default function FollowUpQueuePage() {
                                         <button
                                             onClick={handleSend}
                                             disabled={sending}
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-medium flex items-center gap-2 shadow-sm disabled:opacity-50 transition-all"
+                                            className="btn btn-primary btn-lg"
                                         >
                                             {sending ? 'Sending...' : (
                                                 <>
-                                                    <Send size={18} />
+                                                    <Send size={18} strokeWidth={1.75} />
                                                     Send Follow-Up
                                                 </>
                                             )}
@@ -566,18 +689,18 @@ export default function FollowUpQueuePage() {
                                         <>
                                             <button
                                                 onClick={() => setIsEditing(true)}
-                                                className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-5 py-3 rounded-lg font-medium transition-all"
+                                                className="btn btn-secondary"
                                             >
                                                 Edit & Send
                                             </button>
                                             <button
                                                 onClick={handleSend}
                                                 disabled={sending}
-                                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-medium flex items-center gap-2 shadow-sm disabled:opacity-50 transition-all"
+                                                className="btn btn-primary btn-lg"
                                             >
                                                 {sending ? 'Sending...' : (
                                                     <>
-                                                        <Send size={18} />
+                                                        <Send size={18} strokeWidth={1.75} />
                                                         Send Follow-Up
                                                     </>
                                                 )}
