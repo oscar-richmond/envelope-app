@@ -19,9 +19,12 @@ export interface ContactResult {
     lastName: string;
     title: string;
     email: string | null;
-    confidence: number;
+    confidence: number; // 0-100
     roleCategory: 'DECISION_MAKER' | 'MARKETING' | 'OTHER';
-    source: string;
+    source: 'website' | 'hunter' | 'places';
+    verificationStatus: 'verified' | 'likely' | 'unknown';
+    phone?: string;
+    linkedinUrl?: string;
 }
 
 export interface CompanySearchCriteria {
@@ -41,21 +44,28 @@ export interface CompanySearchProvider {
 
 export interface ContactDiscoveryProvider {
     find(domain: string): Promise<ContactResult[]>;
+    readonly name: string;
 }
 
-// --- Real Implementations only ---
+// --- Real Implementations ---
 import { CompaniesHouseProvider } from './companies-house';
 
 export const companySearchProvider = new CompaniesHouseProvider();
 
-// Placeholder for Contact Discovery (Phase 4)
-// We use a strict empty provider until implemented
-class EmptyContactDiscovery implements ContactDiscoveryProvider {
-    async find(domain: string): Promise<ContactResult[]> {
-        return [];
-    }
-}
-export const contactDiscoveryProvider = new EmptyContactDiscovery();
+// --- Contact Discovery Orchestrator ---
+import { ContactDiscoveryOrchestrator } from './contact-orchestrator';
+import { WebsiteScrapeProvider } from './website-scrape';
+import { HunterProvider } from './hunter';
+
+// Create providers
+const websiteScrapeProvider = new WebsiteScrapeProvider();
+const hunterProvider = new HunterProvider();
+
+// Create orchestrator with providers in order
+export const contactDiscoveryProvider = new ContactDiscoveryOrchestrator([
+    websiteScrapeProvider,
+    hunterProvider
+]);
 
 // --- Website Matcher (Phase 3) ---
 import { GooglePlacesWebsiteMatcher } from '../services/google-places';

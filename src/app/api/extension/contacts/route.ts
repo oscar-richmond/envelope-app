@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { contactDiscoveryProvider } from '@/lib/providers';
+import { enhancedEmailExtractor, EnhancedContact } from '@/lib/services/enhanced-email-extractor';
 
 // Generate unique request ID
 function generateRequestId(): string {
@@ -31,15 +31,12 @@ export async function GET() {
     const headers = getHeaders(requestId);
 
     try {
-        // Check if provider is configured
-        const hunterKey = process.env.HUNTER_API_KEY;
-
         return NextResponse.json({
             ok: true,
             requestId,
             time: new Date().toISOString(),
-            providerConfigured: !!hunterKey,
-            providers: ['website-scrape', hunterKey ? 'hunter' : null].filter(Boolean)
+            version: '2.0',
+            providers: ['enhanced-website-extractor']
         }, { headers });
     } catch (error: any) {
         console.error(`[Contacts Health] ${requestId} - Error:`, error);
@@ -56,20 +53,13 @@ interface ContactsRequest {
     domain?: string;
     websiteUrl?: string;
     companyName?: string;
-}
-
-interface ContactResponse {
-    name: string;
-    role: string;
-    email: string | undefined;
-    confidence: 'verified' | 'likely' | 'unknown';
-    source: string;
+    includeGuessed?: boolean;
 }
 
 // Robust domain normalization
-function normalizeDomain(input: string): { domain: string; apexDomain: string } {
+function normalizeDomain(input: string): { domain: string; websiteUrl: string } {
     if (!input || typeof input !== 'string') {
-        return { domain: '', apexDomain: '' };
+        return { domain: '', websiteUrl: '' };
     }
 
     let url = input.trim().toLowerCase();
@@ -80,52 +70,20 @@ function normalizeDomain(input: string): { domain: string; apexDomain: string } 
     }
 
     let hostname: string;
+    let origin: string;
     try {
         const parsed = new URL(url);
-        hostname = parsed.hostname;
+        hostname = parsed.hostname.replace(/^www\./, '');
+        origin = parsed.origin;
     } catch (e) {
-        // Fallback: extract domain-like string
         hostname = url
             .replace(/^https?:\/\//, '')
-            .split('/')[0]
-            .split('?')[0]
-            .split('#')[0];
+            .replace(/^www\./, '')
+            .split('/')[0];
+        origin = `https://${hostname}`;
     }
 
-    // Remove www
-    hostname = hostname.replace(/^www\./, '');
-
-    // Compute apex domain (for subdomains)
-    const parts = hostname.split('.');
-    let apexDomain = hostname;
-
-    if (parts.length > 2) {
-        const lastTwo = parts.slice(-2).join('.');
-        const commonSecondLevel = ['co.uk', 'com.au', 'co.nz', 'com.br', 'co.jp'];
-
-        if (commonSecondLevel.includes(lastTwo)) {
-            apexDomain = parts.slice(-3).join('.');
-        } else {
-            apexDomain = parts.slice(-2).join('.');
-        }
-    }
-
-    return { domain: hostname, apexDomain };
-}
-
-// Generate heuristic emails for a domain
-function generateHeuristicEmails(domain: string): ContactResponse[] {
-    const commonPrefixes = ['info', 'hello', 'contact', 'enquiries', 'sales', 'support'];
-
-    return commonPrefixes.map(prefix => ({
-        name: prefix.charAt(0).toUpperCase() + prefix.slice(1),
-        role: prefix === 'info' ? 'General' :
-            prefix === 'sales' ? 'Sales' :
-                prefix === 'support' ? 'Support' : 'General',
-        email: `${prefix}@${domain}`,
-        confidence: 'unknown' as const,
-        source: 'heuristic'
-    }));
+    return { domain: hostname, websiteUrl: origin };
 }
 
 export async function POST(request: Request) {
@@ -134,14 +92,12 @@ export async function POST(request: Request) {
 
     console.log(`[Contacts API] ${requestId} - Request received`);
 
-    // Wrap EVERYTHING in try-catch to guarantee JSON response
     try {
         // Parse request body
         let body: ContactsRequest;
         try {
             const text = await request.text();
             if (!text || text.length === 0) {
-                console.log(`[Contacts API] ${requestId} - Empty request body`);
                 return NextResponse.json({
                     success: false,
                     requestId,
@@ -160,13 +116,12 @@ export async function POST(request: Request) {
             }, { status: 400, headers });
         }
 
-        const { domain: inputDomain, websiteUrl } = body || {};
+        const { domain: inputDomain, websiteUrl, includeGuessed } = body || {};
 
         // Get domain from either field
-        const rawDomain = inputDomain || websiteUrl;
+        const rawInput = inputDomain || websiteUrl;
 
-        if (!rawDomain) {
-            console.log(`[Contacts API] ${requestId} - No domain provided`);
+        if (!rawInput) {
             return NextResponse.json({
                 success: false,
                 requestId,
@@ -176,10 +131,9 @@ export async function POST(request: Request) {
         }
 
         // Normalize domain
-        const { domain: cleanDomain, apexDomain } = normalizeDomain(rawDomain);
+        const { domain, websiteUrl: normalizedUrl } = normalizeDomain(rawInput);
 
-        if (!cleanDomain) {
-            console.log(`[Contacts API] ${requestId} - Invalid domain: ${rawDomain}`);
+        if (!domain) {
             return NextResponse.json({
                 success: false,
                 requestId,
@@ -189,135 +143,73 @@ export async function POST(request: Request) {
         }
 
         // Reject LinkedIn/directory URLs
-        if (cleanDomain.includes('linkedin.com') ||
-            cleanDomain.includes('facebook.com') ||
-            cleanDomain.includes('twitter.com')) {
-            console.log(`[Contacts API] ${requestId} - Rejected directory URL: ${cleanDomain}`);
+        if (domain.includes('linkedin.com') ||
+            domain.includes('facebook.com') ||
+            domain.includes('twitter.com')) {
             return NextResponse.json({
                 success: false,
                 requestId,
                 errorCode: 'INVALID_DOMAIN',
                 message: 'Please provide the company website, not a social media URL',
-                domain: cleanDomain
+                domain
             }, { status: 400, headers });
         }
 
-        console.log(`[Contacts API] ${requestId} - Domain: ${cleanDomain}, Apex: ${apexDomain}`);
+        console.log(`[Contacts API] ${requestId} - Extracting from: ${normalizedUrl}`);
 
-        // Track what we tried
-        const meta = {
-            providersAttempted: [] as string[],
-            providerResults: {} as Record<string, number>,
-            heuristicUsed: false,
-            cached: false
-        };
+        // Run enhanced extraction
+        const result = await enhancedEmailExtractor.extract(normalizedUrl);
 
-        let contacts: ContactResponse[] = [];
-        let providerError: string | null = null;
+        console.log(`[Contacts API] ${requestId} - Found ${result.contacts.length} contacts`);
 
-        // Try apex domain first (often more results)
-        const domainsToTry = apexDomain !== cleanDomain
-            ? [apexDomain, cleanDomain]
-            : [cleanDomain];
+        // Separate contacts by type
+        const verifiedPersons = result.contacts.filter(c => c.type === 'person' && c.confidence === 'verified');
+        const verifiedGeneric = result.contacts.filter(c => c.type === 'generic' && c.confidence === 'verified');
+        const likelyContacts = result.contacts.filter(c => c.confidence === 'likely');
 
-        for (const domainToTry of domainsToTry) {
-            if (contacts.length > 0) break;
+        // Combine verified + likely (shown by default)
+        let contactsToReturn: EnhancedContact[] = [...verifiedPersons, ...verifiedGeneric, ...likelyContacts];
 
-            console.log(`[Contacts API] ${requestId} - Trying domain: ${domainToTry}`);
-            meta.providersAttempted.push(`orchestrator(${domainToTry})`);
-
-            try {
-                // Call provider with timeout
-                const timeoutMs = 15000;
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-                try {
-                    const results = await Promise.race([
-                        contactDiscoveryProvider.find(domainToTry),
-                        new Promise<never>((_, reject) =>
-                            setTimeout(() => reject(new Error('Provider timeout')), timeoutMs)
-                        )
-                    ]);
-
-                    clearTimeout(timeoutId);
-
-                    // Ensure results is an array
-                    const safeResults = Array.isArray(results) ? results : [];
-
-                    console.log(`[Contacts API] ${requestId} - Orchestrator returned: ${safeResults.length} contacts`);
-                    meta.providerResults[domainToTry] = safeResults.length;
-
-                    if (safeResults.length > 0) {
-                        contacts = safeResults.map(c => ({
-                            name: [c?.firstName, c?.lastName].filter(Boolean).join(' ') ||
-                                (c?.email ? c.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Unknown'),
-                            role: c?.title || '',
-                            email: c?.email || undefined,
-                            confidence: (c?.verificationStatus as 'verified' | 'likely' | 'unknown') || 'unknown',
-                            source: c?.source || 'unknown'
-                        }));
-                    }
-                } catch (timeoutErr: any) {
-                    clearTimeout(timeoutId);
-                    throw timeoutErr;
-                }
-            } catch (err: any) {
-                console.error(`[Contacts API] ${requestId} - Provider error for ${domainToTry}:`, err.message);
-                providerError = err.message || 'Provider error';
-                meta.providerResults[domainToTry] = 0;
-
-                if (err.message?.includes('rate') || err.message?.includes('429')) {
-                    return NextResponse.json({
-                        success: false,
-                        requestId,
-                        errorCode: 'RATE_LIMIT',
-                        message: 'Contact lookup temporarily limited. Try again later.',
-                        domain: cleanDomain,
-                        meta
-                    }, { status: 429, headers });
-                }
-
-                if (err.message?.includes('timeout') || err.message?.includes('Timeout')) {
-                    return NextResponse.json({
-                        success: false,
-                        requestId,
-                        errorCode: 'TIMEOUT',
-                        message: 'Contact lookup timed out. Try again.',
-                        domain: cleanDomain,
-                        meta
-                    }, { status: 504, headers });
-                }
+        // Add guessed only if requested or if we found nothing
+        let guessedContacts: EnhancedContact[] = [];
+        if (contactsToReturn.length === 0 || includeGuessed) {
+            guessedContacts = enhancedEmailExtractor.generateGuessedEmails(domain);
+            if (includeGuessed) {
+                contactsToReturn = [...contactsToReturn, ...guessedContacts];
             }
         }
 
-        // If no results, add heuristic emails
-        if (contacts.length === 0) {
-            console.log(`[Contacts API] ${requestId} - No contacts found, adding heuristic emails`);
-            meta.heuristicUsed = true;
-            contacts = generateHeuristicEmails(apexDomain);
-        }
+        // Map to response format
+        const contacts = contactsToReturn.map(c => ({
+            email: c.email,
+            name: c.name || '',
+            role: c.role || '',
+            type: c.type,
+            confidence: c.confidence,
+            source: c.source,
+            evidence: c.evidence,
+            score: c.score
+        }));
 
         console.log(`[Contacts API] ${requestId} - Returning ${contacts.length} contacts`);
 
         return NextResponse.json({
             success: true,
             requestId,
-            domain: cleanDomain,
-            apexDomain,
-            provider: meta.heuristicUsed ? 'heuristic' : 'orchestrator',
+            domain,
             contacts,
+            guessedAvailable: guessedContacts.length,
             meta: {
-                counts: {
-                    contacts: contacts.length,
-                    emails: contacts.filter(c => c.email).length
-                },
-                ...meta
+                ...result.meta,
+                foundVerified: verifiedPersons.length + verifiedGeneric.length,
+                foundLikely: likelyContacts.length,
+                foundGuessed: guessedContacts.length,
+                personEmails: verifiedPersons.length,
+                genericEmails: verifiedGeneric.length
             }
         }, { headers });
 
     } catch (error: any) {
-        // This catches ANY error including import errors
         console.error(`[Contacts API] ${requestId} - Unexpected error:`, error);
         console.error(`[Contacts API] ${requestId} - Stack:`, error.stack);
 

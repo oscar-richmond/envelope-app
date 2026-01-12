@@ -141,6 +141,7 @@ model CompanyProspect {
   updatedAt               DateTime  @updatedAt
 
   discoveredEmails        ProspectEmail[]
+  listMemberships         ListCompany[]
 }
 
 model ProspectEmail {
@@ -168,6 +169,31 @@ model ProspectEmail {
   checkedAt       DateTime?
 }
 
+// --- Lists for organizing companies ---
+
+model List {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String?
+  isDefault   Boolean       @default(false)
+  companies   ListCompany[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model ListCompany {
+  id          Int             @id @default(autoincrement())
+  listId      Int
+  list        List            @relation(fields: [listId], references: [id], onDelete: Cascade)
+  prospectId  Int
+  prospect    CompanyProspect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  addedAt     DateTime        @default(now())
+  
+  @@unique([listId, prospectId])
+  @@index([listId])
+  @@index([prospectId])
+}
+
 model EmailDraft {
   id           Int      @id @default(autoincrement())
   leadId       Int
@@ -188,6 +214,7 @@ model Contact {
   lastName        String?
   title           String?
   email           String?
+  linkedInUrl     String?
   confidence      Int      @default(0) // 0-100
   roleCategory    String?  // "DECISION_MAKER", "MARKETING", "OTHER"
   isPrimary       Boolean  @default(false)

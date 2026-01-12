@@ -1,6 +1,15 @@
 // Envelope Chrome Extension - Background Service Worker
 
 const API_BASE = 'https://envelope-app-git-main-oscar-richmonds-projects.vercel.app';
+const DEBUG = true; // Set to false in production
+
+function log(...args) {
+    if (DEBUG) console.log('[Envelope]', ...args);
+}
+
+function logError(...args) {
+    console.error('[Envelope]', ...args);
+}
 
 // Listen for tab updates to catch auth callback
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
@@ -8,7 +17,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
     // Check if this is the extension callback page
     if (changeInfo.url.includes('/auth/extension-callback')) {
-        console.log('[Envelope] Detected extension callback page');
+        log('Detected extension callback page');
 
         // Wait for page to load
         setTimeout(async () => {
@@ -16,7 +25,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                 // Check if tab still exists
                 const tabStillExists = await chrome.tabs.get(tabId).catch(() => null);
                 if (!tabStillExists) {
-                    console.log('[Envelope] Auth tab already closed');
+                    log('Auth tab already closed');
                     return;
                 }
 
@@ -37,7 +46,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
                 const data = results[0]?.result;
                 if (data?.token && data?.email) {
-                    console.log('[Envelope] Token received, storing...');
+                    log('Token received, storing...');
 
                     // Store in extension storage
                     await chrome.storage.local.set({
@@ -48,15 +57,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                     // Close the auth tab
                     chrome.tabs.remove(tabId).catch(() => { });
 
-                    console.log('[Envelope] Auth complete!');
+                    log('Auth complete!');
                 }
             } catch (e) {
                 // Silently ignore - tab may be closed
                 if (!e.message?.includes('No tab')) {
-                    console.error('[Envelope] Token extraction failed:', e);
+                    logError('Token extraction failed:', e);
                 }
             }
-        }, 1500); // Wait 1.5s for page to fully load
+        }, 1500);
     }
 });
 
@@ -66,7 +75,6 @@ chrome.webNavigation?.onCompleted?.addListener(async (details) => {
 
     const tabId = details.tabId;
 
-    // Try to extract token
     setTimeout(async () => {
         try {
             const results = await chrome.scripting.executeScript({
@@ -92,12 +100,12 @@ chrome.webNavigation?.onCompleted?.addListener(async (details) => {
                 chrome.tabs.remove(tabId);
             }
         } catch (e) {
-            console.error('[Envelope] onCompleted extraction failed:', e);
+            logError('onCompleted extraction failed:', e);
         }
     }, 500);
 }, { url: [{ urlContains: 'extension-callback' }] });
 
-// Listen for messages from popup
+// Listen for messages from popup and content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'getAuthToken') {
         chrome.storage.local.get(['authToken'], (result) => {
@@ -123,23 +131,128 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-    // Handle capture requests from content script
-    if (request.action === 'capture') {
-        handleCapture(request.compose, request.data)
+    // Log parsing errors
+    if (request.action === 'logError') {
+        logParsingError(request.data)
             .then(sendResponse)
             .catch(e => sendResponse({ success: false, error: e.message }));
-        return true; // Keep channel open for async response
+        return true;
+    }
+
+    // Fetch lists
+    if (request.action === 'getLists') {
+        fetchLists()
+            .then(sendResponse)
+            .catch(e => sendResponse({ success: false, error: e.message }));
+        return true;
+    }
+
+    // Create new list
+    if (request.action === 'createList') {
+        createList(request.name)
+            .then(sendResponse)
+            .catch(e => sendResponse({ success: false, error: e.message }));
+        return true;
+    }
+
+    // Handle capture requests from content script
+    if (request.action === 'capture') {
+        handleCapture(request.compose, request.data, request.listId)
+            .then(sendResponse)
+            .catch(e => {
+                logError('Capture handler error:', e);
+                sendResponse({
+                    success: false,
+                    error: e.message || 'Capture failed',
+                    errorCode: e.code || 'UNKNOWN'
+                });
+            });
+        return true;
     }
 });
 
-// Capture handler for content script requests
-async function handleCapture(compose, data) {
-    // Get auth token
+// Log parsing errors to monitoring API
+async function logParsingError(errorData) {
+    try {
+        await fetch(`${API_BASE}/api/extension/errors`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(errorData)
+        });
+        return { success: true };
+    } catch (e) {
+        return { success: false };
+    }
+}
+
+// Fetch available lists
+async function fetchLists() {
     const { authToken } = await chrome.storage.local.get(['authToken']);
 
     if (!authToken) {
         return { success: false, error: 'Not logged in', requiresAuth: true };
     }
+
+    const res = await fetch(`${API_BASE}/api/lists`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+
+    if (!res.ok) {
+        if (res.status === 401) {
+            return { success: false, error: 'Session expired', requiresAuth: true };
+        }
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to fetch lists');
+    }
+
+    const data = await res.json();
+    return { success: true, lists: data.lists };
+}
+
+// Create a new list
+async function createList(name) {
+    const { authToken } = await chrome.storage.local.get(['authToken']);
+
+    if (!authToken) {
+        return { success: false, error: 'Not logged in', requiresAuth: true };
+    }
+
+    const res = await fetch(`${API_BASE}/api/lists`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ name })
+    });
+
+    if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to create list');
+    }
+
+    const data = await res.json();
+    return { success: true, list: data.list };
+}
+
+// Capture handler for content script requests
+async function handleCapture(compose, data, listId) {
+    log('Capture request:', { compose, type: data.type, companyName: data.companyName });
+
+    // Get auth token
+    const { authToken } = await chrome.storage.local.get(['authToken']);
+
+    if (!authToken) {
+        log('No auth token found');
+        const error = new Error('Sign in required');
+        error.code = 'AUTH_REQUIRED';
+        error.requiresAuth = true;
+        throw error;
+    }
+
+    log('Auth token present, calling API...');
+    log('API URL:', `${API_BASE}/api/extension/capture`);
 
     // Build payload
     const payload = {
@@ -155,29 +268,91 @@ async function handleCapture(compose, data) {
         }
     };
 
+    log('Payload:', JSON.stringify(payload).substring(0, 200));
+
     // Call capture API
-    const res = await fetch(`${API_BASE}/api/extension/capture`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(payload)
-    });
+    let res;
+    try {
+        res = await fetch(`${API_BASE}/api/extension/capture`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify(payload)
+        });
+    } catch (fetchError) {
+        logError('Fetch failed:', fetchError);
+        const error = new Error('Network error - check your connection');
+        error.code = 'NETWORK_ERROR';
+        throw error;
+    }
 
-    const result = await res.json();
+    log('Response status:', res.status);
 
+    // Parse response
+    let result;
+    try {
+        result = await res.json();
+    } catch (parseError) {
+        logError('Failed to parse response:', parseError);
+        const error = new Error('Invalid server response');
+        error.code = 'INVALID_RESPONSE';
+        throw error;
+    }
+
+    log('Response body:', JSON.stringify(result).substring(0, 200));
+
+    // Handle error responses with specific messages
     if (!res.ok) {
-        throw new Error(result.error || 'Capture failed');
+        const error = new Error(result.error || 'Capture failed');
+        error.code = result.code || 'UNKNOWN';
+        error.status = res.status;
+
+        // Set requiresAuth for 401
+        if (res.status === 401) {
+            error.requiresAuth = true;
+        }
+
+        throw error;
+    }
+
+    // Add to list if listId provided
+    let listName = 'Envelope';
+    if (listId && result.prospectId) {
+        try {
+            const listRes = await fetch(`${API_BASE}/api/lists/add-company`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    listId: listId,
+                    prospectId: result.prospectId
+                })
+            });
+
+            if (listRes.ok) {
+                const listResult = await listRes.json();
+                listName = listResult.listName || 'List';
+            }
+        } catch (e) {
+            logError('Failed to add to list:', e);
+            // Don't fail the whole operation
+        }
     }
 
     // Build response
     const response = {
         success: true,
         message: result.isNew
-            ? `Added ${data.companyName} to Envelope`
+            ? `Added to ${listName}`
             : `${data.companyName} updated`,
-        leadId: result.leadId
+        leadId: result.leadId,
+        prospectId: result.prospectId,
+        listName: listName,
+        openUrl: `${API_BASE}/prospects?prospectId=${result.prospectId}`
     };
 
     // Add compose URL if requested
@@ -185,7 +360,9 @@ async function handleCapture(compose, data) {
         response.composeUrl = `${API_BASE}/leads?leadId=${result.leadId}&compose=true`;
     }
 
+    log('Capture success:', response);
     return response;
 }
 
-console.log('[Envelope] Service worker initialized');
+log('Service worker initialized');
+log('API Base:', API_BASE);

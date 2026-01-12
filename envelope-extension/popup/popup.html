@@ -1,22 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=400">
+  <meta name="viewport" content="width=420">
   <title>Envelope</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css">
 </head>
+
 <body>
   <div class="container">
     <!-- Header -->
     <header class="header">
       <div class="logo">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="2" y="4" width="20" height="16" rx="2"/>
-          <path d="M22 6l-10 7L2 6"/>
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="M22 6l-10 7L2 6" />
         </svg>
         <span>Envelope</span>
       </div>
@@ -29,15 +31,13 @@
     <div id="auth-required" class="state auth-state">
       <div class="state-icon">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="8" r="4"/>
-          <path d="M20 21a8 8 0 10-16 0"/>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M20 21a8 8 0 10-16 0" />
         </svg>
       </div>
       <h2>Sign in to capture leads</h2>
-      <p>Connect your Envelope account to start capturing leads from LinkedIn and websites.</p>
-      <button id="btn-signin" class="btn btn-primary">
-        Sign in to Envelope
-      </button>
+      <p>Connect your Envelope account to start capturing leads.</p>
+      <button id="btn-signin" class="btn btn-primary">Sign in to Envelope</button>
     </div>
 
     <!-- Loading State -->
@@ -46,109 +46,178 @@
       <p>Analyzing page...</p>
     </div>
 
-    <!-- Capture Card -->
+    <!-- Main Capture Card -->
     <div id="capture-card" class="capture-card hidden">
-      <div class="context-badge" id="context-badge">
-        <span id="context-type">LinkedIn Person</span>
-      </div>
-
-      <div class="fields">
-        <!-- Company Name -->
+      <!-- Company Section -->
+      <section class="section">
         <div class="field">
           <label>Company</label>
           <input type="text" id="field-company" placeholder="Company name">
         </div>
-
-        <!-- Contact Name (for person profiles) -->
-        <div class="field" id="field-contact-row">
-          <label>Contact</label>
-          <input type="text" id="field-contact" placeholder="Full name">
-        </div>
-
-        <!-- Job Title -->
-        <div class="field" id="field-title-row">
-          <label>Title</label>
-          <input type="text" id="field-title" placeholder="Job title">
-        </div>
-
-        <!-- Website -->
         <div class="field">
           <label>Website</label>
           <input type="text" id="field-website" placeholder="example.com">
         </div>
+      </section>
 
-        <!-- Email (if detected) -->
-        <div class="field" id="field-email-row">
-          <label>Email</label>
-          <input type="email" id="field-email" placeholder="email@example.com">
+      <!-- Contacts Section -->
+      <section class="section section-contacts">
+        <div class="section-header">
+          <span class="section-title">Contacts</span>
+          <button id="btn-find-contacts" class="btn btn-small">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            Find contacts
+          </button>
         </div>
 
-        <!-- Source URL (readonly) -->
-        <div class="field field-readonly">
-          <label>Source</label>
-          <input type="text" id="field-source" readonly>
+        <!-- Contacts List -->
+        <div id="contacts-list" class="contacts-list">
+          <div class="contacts-empty">
+            <p>No contacts yet</p>
+            <span>Click "Find contacts" to search</span>
+          </div>
         </div>
-      </div>
+
+        <!-- Loading skeleton (hidden by default) -->
+        <div id="contacts-loading" class="contacts-loading hidden">
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+        </div>
+
+        <!-- Add manual contact -->
+        <button id="btn-add-manual" class="btn-add-manual">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Add contact manually
+        </button>
+
+        <!-- Select all/none (shown when 4+ contacts) -->
+        <div id="contacts-select-all" class="contacts-select-all hidden">
+          <button id="btn-select-all" class="btn-link">Select all</button>
+          <span>•</span>
+          <button id="btn-select-none" class="btn-link">Select none</button>
+        </div>
+      </section>
 
       <!-- Actions -->
-      <div class="actions">
+      <section class="section section-actions">
         <button id="btn-add" class="btn btn-primary btn-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14M5 12h14"/>
+            <path d="M12 5v14M5 12h14" />
           </svg>
           Add to Envelope
         </button>
-        <button id="btn-add-compose" class="btn btn-secondary">
+        <button id="btn-compose" class="btn btn-secondary btn-full" disabled>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14M5 12h14"/>
+            <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
           </svg>
-          Add + Compose
+          Compose
         </button>
+      </section>
+
+      <!-- Error message for contacts (inline) -->
+      <div id="contacts-error" class="contacts-error hidden">
+        <p id="contacts-error-message"></p>
+        <div class="contacts-error-actions">
+          <button id="btn-retry-contacts" class="btn btn-small">Try again</button>
+        </div>
       </div>
+
+      <!-- Details Accordion -->
+      <details class="details-accordion">
+        <summary>Details</summary>
+        <div class="details-content">
+          <div class="detail-row">
+            <span class="detail-label">Source</span>
+            <span id="detail-source" class="detail-value"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Page type</span>
+            <span id="detail-type" class="detail-value"></span>
+          </div>
+        </div>
+      </details>
+
+      <!-- Debug Accordion -->
+      <details class="details-accordion debug-accordion">
+        <summary>Debug</summary>
+        <div class="details-content">
+          <div class="detail-row">
+            <span class="detail-label">Request ID</span>
+            <span id="debug-request-id" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Domain</span>
+            <span id="debug-domain" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Apex Domain</span>
+            <span id="debug-apex" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Providers</span>
+            <span id="debug-providers" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Contacts found</span>
+            <span id="debug-count" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Heuristic used</span>
+            <span id="debug-heuristic" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Last error</span>
+            <span id="debug-error" class="detail-value">-</span>
+          </div>
+        </div>
+      </details>
     </div>
 
     <!-- Success State -->
     <div id="success" class="state hidden">
       <div class="state-icon success">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20 6L9 17l-5-5"/>
+          <path d="M20 6L9 17l-5-5" />
         </svg>
       </div>
-      <h2>Lead captured!</h2>
-      <p id="success-message">Added to your Lead Board</p>
-      <a id="view-link" href="#" target="_blank" class="btn btn-secondary">
-        View in Envelope
-      </a>
+      <h2>Added to Envelope!</h2>
+      <p id="success-message">Company and contacts saved</p>
+      <a id="view-link" href="#" target="_blank" class="btn btn-secondary">Open in Envelope</a>
     </div>
 
     <!-- Error State -->
     <div id="error" class="state hidden">
       <div class="state-icon error">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M15 9l-6 6M9 9l6 6"/>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M15 9l-6 6M9 9l6 6" />
         </svg>
       </div>
       <h2>Something went wrong</h2>
-      <p id="error-message">Failed to capture lead</p>
-      <button id="btn-retry" class="btn btn-secondary">
-        Try Again
-      </button>
+      <p id="error-message">Failed to capture</p>
+      <button id="btn-retry" class="btn btn-secondary">Try Again</button>
     </div>
 
     <!-- Unsupported Page -->
     <div id="unsupported" class="state hidden">
       <div class="state-icon">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 8v4M12 16h.01"/>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v4M12 16h.01" />
         </svg>
       </div>
       <h2>Page not supported</h2>
-      <p>Navigate to a LinkedIn profile, company page, or business website to capture leads.</p>
+      <p>Navigate to a LinkedIn profile, company page, or business website.</p>
     </div>
   </div>
 
   <script src="popup.js"></script>
 </body>
+
 </html>
