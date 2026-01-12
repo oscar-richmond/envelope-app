@@ -1,6 +1,6 @@
 // Envelope Chrome Extension - Background Service Worker
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'https://envelope-app-git-main-oscar-richmonds-projects.vercel.app';
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

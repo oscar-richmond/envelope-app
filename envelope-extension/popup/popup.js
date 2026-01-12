@@ -1,6 +1,6 @@
 // Envelope Chrome Extension - Popup Script
 
-const API_BASE = 'http://localhost:3000'; // Update for production
+const API_BASE = 'https://envelope-app-git-main-oscar-richmonds-projects.vercel.app';
 
 // DOM Elements
 const elements = {
@@ -370,8 +370,61 @@ function showError(message) {
 
 // Sign in handler
 async function handleSignIn() {
-    // Open Envelope login page
-    chrome.tabs.create({ url: `${API_BASE}/auth/extension-login` });
+    // Open extension callback page (will redirect to sign-in if needed)
+    const callbackUrl = `${API_BASE}/auth/extension-callback`;
+
+    chrome.tabs.create({ url: callbackUrl }, (tab) => {
+        // Poll for token in localStorage on the opened tab
+        const tabId = tab.id;
+        let attempts = 0;
+        const maxAttempts = 60; // 30 seconds
+
+        const pollForToken = setInterval(async () => {
+            attempts++;
+
+            if (attempts > maxAttempts) {
+                clearInterval(pollForToken);
+                return;
+            }
+
+            try {
+                // Execute script to read token from page localStorage
+                const results = await chrome.scripting.executeScript({
+                    target: { tabId },
+                    func: () => {
+                        const token = localStorage.getItem('envelope-extension-token');
+                        const email = localStorage.getItem('envelope-extension-email');
+                        if (token && email) {
+                            // Clear after reading
+                            localStorage.removeItem('envelope-extension-token');
+                            localStorage.removeItem('envelope-extension-email');
+                            return { token, email };
+                        }
+                        return null;
+                    }
+                });
+
+                const data = results[0]?.result;
+                if (data?.token && data?.email) {
+                    clearInterval(pollForToken);
+
+                    // Store in extension storage
+                    await chrome.storage.local.set({
+                        authToken: data.token,
+                        userEmail: data.email
+                    });
+
+                    // Close the auth tab
+                    chrome.tabs.remove(tabId);
+
+                    // Refresh the popup
+                    window.location.reload();
+                }
+            } catch (e) {
+                // Tab might not be ready or already closed
+            }
+        }, 500);
+    });
 }
 
 // Event listeners
