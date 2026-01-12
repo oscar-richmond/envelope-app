@@ -547,7 +547,7 @@ h4,
 }
 
 /* ========================================
-   BUTTON COMPONENT (V2)
+   BUTTON COMPONENT (V3 - Unified CTA System)
    ======================================== */
 
 .btn {
@@ -555,39 +555,64 @@ h4,
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 20px;
+  height: 44px;
+  padding: 0 20px;
   font-size: 0.875rem;
   font-weight: 600;
-  border-radius: var(--radius-button);
+  border-radius: var(--radius-pill);
   transition: all 0.15s ease;
   cursor: pointer;
   border: none;
   outline: none;
+  white-space: nowrap;
 }
 
+/* Button Sizes */
+.btn-sm {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 0.8125rem;
+  gap: 6px;
+}
+
+.btn-md {
+  height: 44px;
+  padding: 0 20px;
+  font-size: 0.875rem;
+}
+
+.btn-lg {
+  height: 52px;
+  padding: 0 28px;
+  font-size: 0.9375rem;
+  gap: 10px;
+}
+
+/* Focus ring - accessible */
 .btn:focus-visible {
-  box-shadow: 0 0 0 2px var(--bg-page), 0 0 0 4px var(--accent-blue);
+  box-shadow: 0 0 0 2px var(--bg-page), 0 0 0 4px var(--brand);
 }
 
+/* Primary - Brand Blue */
 .btn-primary {
-  background: var(--cta-primary-bg);
-  color: var(--cta-primary-text);
+  background: var(--brand);
+  color: #FFFFFF;
 }
 
 .btn-primary:hover {
-  background: var(--cta-primary-bg-hover);
+  background: var(--brand-hover);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px var(--brand-glow);
 }
 
 .btn-primary:active {
-  background: var(--cta-primary-bg-active);
-  transform: translateY(0);
-  box-shadow: var(--shadow-xs);
+  background: var(--brand-active);
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 .btn-primary:focus-visible {
-  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--cta-primary-ring);
+  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--brand);
 }
 
 .btn-primary:disabled {
@@ -612,25 +637,39 @@ h4,
 
 .btn-dark:active {
   background: var(--cta-dark-bg-active);
-  transform: translateY(0);
-  box-shadow: var(--shadow-xs);
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 .btn-dark:focus-visible {
   box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--cta-dark-ring);
 }
 
+/* Secondary - Brand Outline */
 .btn-secondary {
   background: var(--bg-card);
-  color: var(--text-primary);
-  border: 1px solid var(--border-default);
+  color: var(--brand);
+  border: 1.5px solid var(--brand);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-card-muted);
-  border-color: var(--border-strong);
+  background: var(--brand-soft);
+  border-color: var(--brand-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px var(--brand-glow);
 }
 
+.btn-secondary:active {
+  background: var(--brand-soft);
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.btn-secondary:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--brand);
+}
+
+/* Ghost - Minimal */
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
@@ -639,8 +678,15 @@ h4,
 .btn-ghost:hover {
   background: var(--bg-card-muted);
   color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
+.btn-ghost:active {
+  transform: translateY(1px);
+  background: var(--surface-active);
+}
+
+/* Tertiary - Text only */
 .btn-tertiary {
   background: transparent;
   color: var(--text-muted);
@@ -650,24 +696,43 @@ h4,
 .btn-tertiary:hover {
   background: var(--bg-card-muted);
   color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
+.btn-tertiary:active {
+  transform: translateY(1px);
+}
+
+/* Danger - Destructive actions */
 .btn-danger {
-  background: var(--accent-red-light);
-  color: var(--accent-red-text);
-  border: 1px solid transparent;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  border: 1px solid var(--chip-danger-border);
 }
 
 .btn-danger:hover {
-  background: #fee2e2;
-  border-color: #fecaca;
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
 }
 
+.btn-danger:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.btn-danger:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--danger);
+}
+
+/* Disabled state */
 .btn:disabled,
 .btn.disabled {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
+  transform: none !important;
 }
 
 /* Accent button variants */
@@ -744,9 +809,9 @@ h4,
 }
 
 .icon-btn-danger:hover {
-  background: #fecaca;
-  border-color: #f87171;
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--danger-text);
 }
 
 .icon-btn-mint {
@@ -761,14 +826,46 @@ h4,
   border-color: var(--mint);
 }
 
-/* Active states for all buttons */
-.btn:active,
-.btn-primary:active,
-.btn-secondary:active,
-.btn-ghost:active,
-.btn-danger:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-xs);
+.icon-btn-brand {
+  background: var(--brand-soft);
+  border-color: var(--brand-border);
+  color: var(--brand);
+}
+
+.icon-btn-brand:hover {
+  background: var(--brand);
+  color: #FFFFFF;
+  border-color: var(--brand);
+}
+
+.icon-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.icon-btn-ghost:hover {
+  background: var(--bg-card-muted);
+  color: var(--text-primary);
+}
+
+/* Icon Button Sizes */
+.icon-btn-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+
+.icon-btn-lg {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+}
+
+/* Icon Button Active State */
+.icon-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 /* ========================================
