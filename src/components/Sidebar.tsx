@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
     List, Settings, PlusCircle, Send, Users,
     LayoutDashboard, ChevronLeft, ChevronRight,
-    Mail, LogOut, User as UserIcon, RefreshCw, MessageCircle
+    Mail, LogOut, User as UserIcon, RefreshCw, MessageCircle, Columns3
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from "next-auth/react";
@@ -28,6 +28,7 @@ const navItems: NavItemConfig[] = [
     { label: 'Prospects', icon: Users, route: '/prospects', group: 'Main' },
     // Outreach
     { label: 'Inbox', icon: Mail, route: '/outreach/sent', group: 'Outreach' },
+    { label: 'CRM', icon: Columns3, route: '/outreach/deals', group: 'Outreach' },
     { label: 'Conversations', icon: MessageCircle, route: '/conversations', group: 'Outreach' },
     { label: 'Follow-Ups', icon: RefreshCw, route: '/outreach/follow-ups', group: 'Outreach' },
     { label: 'Queue', icon: Send, route: '/outreach', group: 'Outreach' },

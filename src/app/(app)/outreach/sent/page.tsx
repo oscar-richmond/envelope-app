@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
     Mail, RefreshCw, MessageSquare, ChevronRight, Search,
     ArrowUpDown, Clock, AlertCircle, CheckCircle, XCircle,
-    ArrowUp, Send, Building2
+    ArrowUp, Send, Building2, Columns3
 } from 'lucide-react';
 import ThreadViewer from '@/components/ThreadViewer';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -162,6 +162,10 @@ export default function UniboxPage() {
                             <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
                             {syncing ? 'Syncing...' : 'Sync Replies'}
                         </button>
+                        <Link href="/outreach/deals" className="btn btn-secondary">
+                            <Columns3 size={16} />
+                            Pipeline
+                        </Link>
                         <Link href="/outreach/follow-ups" className="btn btn-primary">
                             <MessageSquare size={16} />
                             Go to Queue

@@ -1,19 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, RefreshCw, PlusCircle, List } from 'lucide-react';
+import { Search, RefreshCw, PlusCircle, List, Columns3 } from 'lucide-react';
 
 export default function QuickActions() {
     const actions = [
         { href: '/prospects', icon: Search, label: 'Find Prospects', accent: 'mint' },
+        { href: '/outreach/deals', icon: Columns3, label: 'View Pipeline', accent: 'primary' },
         { href: '/outreach', icon: List, label: 'Review Queue', accent: 'lilac' },
-        { href: '/import', icon: PlusCircle, label: 'Import Leads', accent: 'default' },
-        { href: '/outreach/sent', icon: RefreshCw, label: 'Sync Replies', accent: 'default' }
+        { href: '/import', icon: PlusCircle, label: 'Import Leads', accent: 'default' }
     ];
 
     const accentStyles: Record<string, { iconBg: string; iconColor: string }> = {
         mint: { iconBg: 'var(--accent-mint-bg)', iconColor: 'var(--accent-mint-text)' },
         lilac: { iconBg: 'var(--accent-lilac-bg)', iconColor: 'var(--accent-lilac-text)' },
+        primary: { iconBg: 'rgb(79, 70, 229)', iconColor: 'white' },
         default: { iconBg: 'var(--bg-card-muted)', iconColor: 'var(--text-secondary)' }
     };
 
