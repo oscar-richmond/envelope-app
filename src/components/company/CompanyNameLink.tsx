@@ -8,13 +8,14 @@ interface Props {
     name: string;
     className?: string;
     style?: React.CSSProperties;
-    onCompose?: () => void;
 }
 
-export function CompanyNameLink({ prospectId, leadId, name, className = '', style, onCompose }: Props) {
+export function CompanyNameLink({ prospectId, leadId, name, className = '', style }: Props) {
     const { openCompanyOverview } = useCompanyOverviewModal();
 
-    const handleClick = () => {
+    const handleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (leadId) {
             openCompanyOverview({ leadId });
         } else if (prospectId) {
@@ -28,8 +29,11 @@ export function CompanyNameLink({ prospectId, leadId, name, className = '', styl
             onClick={handleClick}
             className={`text-left transition-colors cursor-pointer hover:text-[var(--lilac-text)] hover:underline ${className}`}
             style={style}
+            type="button"
+            aria-label={`Open ${name} company profile`}
         >
             {name}
         </button>
     );
 }
+

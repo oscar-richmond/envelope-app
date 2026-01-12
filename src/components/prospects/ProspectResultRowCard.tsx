@@ -129,7 +129,6 @@ export default function ProspectResultRowCard({
                             color: 'var(--text-primary)',
                             letterSpacing: '-0.01em'
                         }}
-                        onCompose={onDraftEmail}
                     />
 
                     {/* Compact One-Line Meta */}
