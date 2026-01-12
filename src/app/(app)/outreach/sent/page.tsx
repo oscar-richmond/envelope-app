@@ -358,9 +358,14 @@ function EmailRow({
                         {initials}
                     </div>
                     <div className="min-w-0">
-                        <div className="font-semibold text-gray-900 text-sm truncate max-w-[160px]">
+                        <a
+                            href={email.lead.companyProspectId ? `/company/${email.lead.companyProspectId}` : '#'}
+                            onClick={(e) => { if (email.lead.companyProspectId) e.stopPropagation(); }}
+                            className="font-semibold text-gray-900 text-sm truncate max-w-[160px] block hover:text-indigo-600 hover:underline transition-colors"
+                            title="Open Company Workspace"
+                        >
                             {companyName}
-                        </div>
+                        </a>
                         {email.lead.industry && (
                             <div className="text-[11px] text-gray-400 truncate max-w-[160px]">
                                 {email.lead.industry}

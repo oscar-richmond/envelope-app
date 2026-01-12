@@ -327,10 +327,10 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                 <Copy size={18} />
                             </button>
                             <Link
-                                href={`/leads/${leadId}`}
+                                href={data.companyProspectId ? `/company/${data.companyProspectId}` : `/company/${prospectId || leadId}`}
                                 className="p-2.5 transition-all rounded-[var(--radius-md)]"
                                 style={{ color: 'var(--text-muted)', background: 'transparent' }}
-                                title="Open Full Page"
+                                title="Open Full Workspace"
                             >
                                 <Maximize2 size={18} />
                             </Link>
