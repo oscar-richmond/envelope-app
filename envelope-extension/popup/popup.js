@@ -370,61 +370,9 @@ function showError(message) {
 
 // Sign in handler
 async function handleSignIn() {
-    // Open extension callback page (will redirect to sign-in if needed)
+    // Just open the callback page - background service worker will handle token extraction
     const callbackUrl = `${API_BASE}/auth/extension-callback`;
-
-    chrome.tabs.create({ url: callbackUrl }, (tab) => {
-        // Poll for token in localStorage on the opened tab
-        const tabId = tab.id;
-        let attempts = 0;
-        const maxAttempts = 60; // 30 seconds
-
-        const pollForToken = setInterval(async () => {
-            attempts++;
-
-            if (attempts > maxAttempts) {
-                clearInterval(pollForToken);
-                return;
-            }
-
-            try {
-                // Execute script to read token from page localStorage
-                const results = await chrome.scripting.executeScript({
-                    target: { tabId },
-                    func: () => {
-                        const token = localStorage.getItem('envelope-extension-token');
-                        const email = localStorage.getItem('envelope-extension-email');
-                        if (token && email) {
-                            // Clear after reading
-                            localStorage.removeItem('envelope-extension-token');
-                            localStorage.removeItem('envelope-extension-email');
-                            return { token, email };
-                        }
-                        return null;
-                    }
-                });
-
-                const data = results[0]?.result;
-                if (data?.token && data?.email) {
-                    clearInterval(pollForToken);
-
-                    // Store in extension storage
-                    await chrome.storage.local.set({
-                        authToken: data.token,
-                        userEmail: data.email
-                    });
-
-                    // Close the auth tab
-                    chrome.tabs.remove(tabId);
-
-                    // Refresh the popup
-                    window.location.reload();
-                }
-            } catch (e) {
-                // Tab might not be ready or already closed
-            }
-        }, 500);
-    });
+    chrome.tabs.create({ url: callbackUrl });
 }
 
 // Event listeners
