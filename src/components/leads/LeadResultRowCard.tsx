@@ -75,7 +75,6 @@ export default function LeadResultRowCard({
                             color: 'var(--text-primary)',
                             letterSpacing: '-0.01em'
                         }}
-                        onCompose={onCompose}
                     />
 
                     {/* Meta Line */}
