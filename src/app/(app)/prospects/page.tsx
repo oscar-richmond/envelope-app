@@ -243,12 +243,12 @@ export default function ProspectSearch() {
         const status = c.websiteMatchStatus || 'NEW';
         const isMatching = matchingMap[index];
 
-        if (isMatching) return <span className="text-xs text-blue-600 animate-pulse font-medium">Searching...</span>;
+        if (isMatching) return <span className="text-xs animate-pulse font-medium" style={{ color: 'var(--brand)' }}>Searching...</span>;
 
         if (status === 'MATCHED' || (status === 'NEW' && c.websiteUrl)) {
             return (
                 <div className="flex flex-col gap-1.5 relative group/web">
-                    <a href={c.websiteUrl} target="_blank" className="text-blue-600 hover:underline hover:text-blue-700 text-sm font-medium truncate max-w-[180px] block">
+                    <a href={c.websiteUrl} target="_blank" className="text-sm font-medium truncate max-w-[180px] block transition-colors" style={{ color: 'var(--brand)' }} onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'} onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}>
                         {c.websiteUrl.replace(/^https?:\/\/(www\.)?/, '')}
                     </a>
                     <div className="flex flex-wrap items-center gap-2">
@@ -275,13 +275,13 @@ export default function ProspectSearch() {
             return (
                 <div className="flex items-center gap-2">
                     <span className="text-gray-400 text-xs italic">{status === 'FAILED' ? 'Search Failed' : 'No Match Found'}</span>
-                    <button onClick={() => handleMatch(c, index)} className="text-xs text-blue-600 hover:underline">Retry</button>
+                    <button onClick={() => handleMatch(c, index)} className="text-xs transition-colors" style={{ color: 'var(--brand)' }} onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'} onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}>Retry</button>
                 </div>
             );
         }
 
         return (
-            <button onClick={() => handleMatch(c, index)} className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 text-xs font-medium rounded-md transition-all shadow-sm">
+            <button onClick={() => handleMatch(c, index)} className="btn btn-secondary btn-sm">
                 Find Website
             </button>
         );
@@ -463,7 +463,10 @@ export default function ProspectSearch() {
                 <div className="flex items-center gap-2 opacity-0 group-hover/web:opacity-100 transition-opacity ml-auto">
                     <button
                         onClick={() => handleReanalyze(c, c.id)}
-                        className="text-[10px] text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"
+                        className="text-[10px] p-1 rounded transition-colors"
+                        style={{ color: 'var(--text-muted)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--brand)'; e.currentTarget.style.background = 'var(--brand-soft)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
                         title="Refresh Analysis"
                     >
                         <RefreshCw size={12} />
@@ -631,7 +634,7 @@ export default function ProspectSearch() {
 
                             {isDiscovering && (
                                 <div className="text-center py-12">
-                                    <RefreshCw size={24} className="animate-spin text-blue-600 mx-auto mb-2" />
+                                    <RefreshCw size={24} className="animate-spin mx-auto mb-2" style={{ color: 'var(--brand)' }} />
                                     <p className="text-gray-500 text-sm">Scanning {viewEmails.websiteUrl}...</p>
                                 </div>
                             )}
@@ -640,7 +643,7 @@ export default function ProspectSearch() {
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center mb-2">
                                         <span className="text-xs font-bold uppercase text-gray-500">Found {emailResults.length} emails</span>
-                                        <button onClick={runDiscovery} className="text-xs text-blue-600 hover:underline">Rescan</button>
+                                        <button onClick={runDiscovery} className="text-xs transition-colors" style={{ color: 'var(--brand)' }} onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'} onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}>Rescan</button>
                                     </div>
                                     {emailResults.map((r, i) => (
                                         <div key={i} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50 bg-white">
@@ -664,7 +667,7 @@ export default function ProspectSearch() {
                                             </div>
                                             <button
                                                 onClick={() => handleUseEmail(r.email)}
-                                                className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded hover:bg-blue-100 whitespace-nowrap"
+                                                className="btn btn-secondary btn-sm"
                                             >
                                                 Use
                                             </button>

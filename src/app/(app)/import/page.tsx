@@ -83,8 +83,8 @@ export default function ImportLeads() {
                   file:mr-4 file:py-2 file:px-4
                   file:rounded-full file:border-0
                   file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100
+                  file:bg-[var(--brand-soft)] file:text-[var(--brand)]
+                  hover:file:bg-[var(--brand-weak)]
                   mx-auto max-w-xs
                 "
                     />
@@ -129,7 +129,7 @@ export default function ImportLeads() {
                         </button>
                         <button
                             onClick={() => router.push('/')}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                            className="btn btn-primary"
                         >
                             Go to Dashboard
                         </button>

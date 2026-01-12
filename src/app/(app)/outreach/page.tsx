@@ -50,8 +50,8 @@ export default function OutreachQueue() {
                             <tr key={m.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4">
                                     <span className={`text-xs font-medium px-2 py-1 rounded-full border ${m.status === 'DRAFT' ? 'bg-gray-100 text-gray-600 border-gray-200' :
-                                            m.status === 'QUEUED' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
-                                                'bg-green-50 text-green-600 border-green-200'
+                                        m.status === 'QUEUED' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
+                                            'bg-green-50 text-green-600 border-green-200'
                                         }`}>
                                         {m.status}
                                     </span>
@@ -68,7 +68,7 @@ export default function OutreachQueue() {
                                         <button
                                             onClick={() => handleSync(m.id)}
                                             disabled={!!syncing}
-                                            className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-blue-700 flex items-center gap-1"
+                                            className="btn btn-primary btn-sm"
                                         >
                                             {syncing === m.id ? <Loader2 className="animate-spin" size={12} /> : <Mail size={12} />}
                                             Sync to Gmail
