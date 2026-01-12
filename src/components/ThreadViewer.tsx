@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Loader2, Clock, Reply, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+    X, Loader2, Clock, Reply, ChevronDown, ChevronUp,
+    Sparkles, MessageSquareText, Wand2, RefreshCw,
+    Info, AlertCircle
+} from 'lucide-react';
 import RichComposer from './RichComposer';
 import StatusBadge from './StatusBadge';
 
@@ -33,9 +37,17 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
         threadId: string | null;
         partial?: boolean;
         partialReason?: string;
+        retryable?: boolean;
     } | null>(null);
 
     const [draftContent, setDraftContent] = useState('');
+
+    // AI Assist State
+    const [aiSummary, setAiSummary] = useState<string | null>(null);
+    const [summarizing, setSummarizing] = useState(false);
+    const [suggesting, setSuggesting] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -75,6 +87,74 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
         }
     }
 
+    // Get thread content as text for AI
+    function getThreadContent(): string {
+        if (!thread?.messages) return '';
+        return thread.messages.map(m =>
+            `[${m.isOutbound ? 'SENT' : 'RECEIVED'}] ${m.fromName} (${formatRelativeTime(m.timestamp)}):\n${m.body}`
+        ).join('\n\n---\n\n');
+    }
+
+    async function handleSummarize() {
+        if (!thread) return;
+        setSummarizing(true);
+        setAiError(null);
+
+        try {
+            const res = await fetch(`/api/outreach/sent/${emailId}/ai`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'summarize',
+                    threadContent: getThreadContent(),
+                    companyName: thread.company.name,
+                    contactName: thread.contact.name
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setAiSummary(data.result);
+            } else {
+                setAiError(data.error || 'Failed to summarize');
+            }
+        } catch (e) {
+            setAiError('AI service unavailable');
+        } finally {
+            setSummarizing(false);
+        }
+    }
+
+    async function handleSuggestReply() {
+        if (!thread) return;
+        setSuggesting(true);
+        setAiError(null);
+
+        try {
+            const res = await fetch(`/api/outreach/sent/${emailId}/ai`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'suggest_reply',
+                    threadContent: getThreadContent(),
+                    companyName: thread.company.name,
+                    contactName: thread.contact.name
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setDraftContent(data.result);
+            } else {
+                setAiError(data.error || 'Failed to suggest reply');
+            }
+        } catch (e) {
+            setAiError('AI service unavailable');
+        } finally {
+            setSuggesting(false);
+        }
+    }
+
     async function handleSend(html: string, plainText: string) {
         if (!thread) return;
 
@@ -95,6 +175,7 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
 
         await fetchThread();
         setDraftContent('');
+        localStorage.removeItem(`draft-${emailId}`);
         onReplySent?.();
     }
 
@@ -110,16 +191,16 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(4px)' }}>
+            style={{ background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }}>
             <div className="absolute inset-0" onClick={onClose} />
 
-            {/* Centered Modal Panel */}
+            {/* Modal Panel */}
             <div
                 className="relative z-10 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
                 style={{
                     background: 'var(--bg-card)',
-                    borderRadius: 'var(--radius-2xl)',
-                    boxShadow: 'var(--shadow-float)',
+                    borderRadius: '20px',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                     border: '1px solid var(--border-soft)'
                 }}
                 ref={containerRef}
@@ -157,7 +238,7 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                                 className="mt-3 px-4 py-2.5 text-sm font-medium truncate"
                                 style={{
                                     background: 'var(--bg-card-muted)',
-                                    borderRadius: 'var(--radius-md)',
+                                    borderRadius: '10px',
                                     border: '1px solid var(--border-soft)',
                                     color: 'var(--text-primary)'
                                 }}
@@ -166,17 +247,108 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                             </div>
                         )}
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2.5 transition-all"
+
+                    {/* Header Actions */}
+                    <div className="flex items-center gap-2">
+                        {/* AI Assist Buttons */}
+                        {thread && !loading && !error && (
+                            <>
+                                <button
+                                    onClick={handleSummarize}
+                                    disabled={summarizing}
+                                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all"
+                                    style={{
+                                        background: 'var(--bg-card-muted)',
+                                        border: '1px solid var(--border-default)',
+                                        color: 'var(--text-secondary)'
+                                    }}
+                                    title="Summarize thread"
+                                >
+                                    {summarizing ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                    ) : (
+                                        <MessageSquareText size={14} />
+                                    )}
+                                    Summarize
+                                </button>
+                                <button
+                                    onClick={handleSuggestReply}
+                                    disabled={suggesting}
+                                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1))',
+                                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                                        color: 'rgb(139, 92, 246)'
+                                    }}
+                                    title="AI suggest reply"
+                                >
+                                    {suggesting ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                    ) : (
+                                        <Wand2 size={14} />
+                                    )}
+                                    Suggest Reply
+                                </button>
+                            </>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="p-2.5 transition-all hover:bg-gray-100 rounded-lg"
+                            style={{ color: 'var(--text-muted)' }}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* AI Summary Banner */}
+                {aiSummary && (
+                    <div
+                        className="px-6 py-4 flex items-start gap-3"
                         style={{
-                            color: 'var(--text-muted)',
-                            borderRadius: 'var(--radius-md)'
+                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(59, 130, 246, 0.08))',
+                            borderBottom: '1px solid rgba(139, 92, 246, 0.2)'
                         }}
                     >
-                        <X size={20} />
-                    </button>
-                </div>
+                        <Sparkles size={16} style={{ color: 'rgb(139, 92, 246)', marginTop: 2 }} />
+                        <div className="flex-1">
+                            <p className="text-xs font-semibold mb-1" style={{ color: 'rgb(139, 92, 246)' }}>
+                                Thread Summary
+                            </p>
+                            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                                {aiSummary}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setAiSummary(null)}
+                            className="p-1 hover:bg-white/50 rounded"
+                            style={{ color: 'var(--text-muted)' }}
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                )}
+
+                {/* AI Error */}
+                {aiError && (
+                    <div
+                        className="px-6 py-3 flex items-center gap-2"
+                        style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            borderBottom: '1px solid rgba(239, 68, 68, 0.2)'
+                        }}
+                    >
+                        <AlertCircle size={14} style={{ color: 'rgb(239, 68, 68)' }} />
+                        <p className="text-sm" style={{ color: 'rgb(239, 68, 68)' }}>{aiError}</p>
+                        <button
+                            onClick={() => setAiError(null)}
+                            className="ml-auto p-1"
+                            style={{ color: 'rgb(239, 68, 68)' }}
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                )}
 
                 {/* Messages List */}
                 <div
@@ -190,17 +362,24 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                         </div>
                     ) : error ? (
                         <div className="text-center py-16">
-                            <p className="mb-3" style={{ color: 'var(--error)' }}>{error}</p>
+                            <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center"
+                                style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
+                                <AlertCircle size={24} style={{ color: 'rgb(239, 68, 68)' }} />
+                            </div>
+                            <p className="mb-4 font-medium" style={{ color: 'var(--text-primary)' }}>
+                                {error}
+                            </p>
                             <button
                                 onClick={fetchThread}
-                                className="px-4 py-2 text-sm font-semibold transition-all"
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all"
                                 style={{
                                     background: 'var(--bg-card)',
                                     border: '1px solid var(--border-default)',
-                                    borderRadius: 'var(--radius-button)',
+                                    borderRadius: '10px',
                                     color: 'var(--text-primary)'
                                 }}
                             >
+                                <RefreshCw size={14} />
                                 Try again
                             </button>
                         </div>
@@ -208,20 +387,26 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                         <>
                             {thread?.partial && thread?.partialReason && (
                                 <div
-                                    className="text-center py-2.5 px-4 mx-auto max-w-md"
+                                    className="text-center py-2.5 px-4 mx-auto max-w-md flex items-center justify-center gap-2"
                                     style={{
-                                        background: 'var(--warning-light)',
-                                        borderRadius: 'var(--radius-button)',
+                                        background: 'rgba(245, 158, 11, 0.1)',
+                                        borderRadius: '10px',
                                         border: '1px solid rgba(245, 158, 11, 0.3)'
                                     }}
                                 >
-                                    <p
-                                        className="text-xs font-semibold flex items-center justify-center gap-2"
-                                        style={{ color: 'var(--warning-text)' }}
-                                    >
-                                        <Clock size={12} />
+                                    <Info size={14} style={{ color: 'rgb(245, 158, 11)' }} />
+                                    <p className="text-xs font-medium" style={{ color: 'rgb(180, 120, 20)' }}>
                                         {thread.partialReason}
                                     </p>
+                                    {thread.retryable && (
+                                        <button
+                                            onClick={fetchThread}
+                                            className="text-xs font-medium underline ml-2"
+                                            style={{ color: 'rgb(180, 120, 20)' }}
+                                        >
+                                            Retry
+                                        </button>
+                                    )}
                                 </div>
                             )}
 
@@ -238,7 +423,7 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                     )}
                 </div>
 
-                {/* Composer (Bottom) */}
+                {/* Composer */}
                 {thread && !error && (
                     <div
                         className="p-5 shrink-0"
@@ -248,19 +433,38 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
                             boxShadow: '0 -4px 16px rgba(0, 0, 0, 0.04)'
                         }}
                     >
-                        <div className="flex items-center gap-2 mb-3">
-                            <Reply size={14} style={{ color: 'var(--text-muted)' }} />
-                            <span
-                                className="text-xs font-semibold uppercase tracking-wider"
-                                style={{ color: 'var(--text-muted)' }}
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <Reply size={14} style={{ color: 'var(--text-muted)' }} />
+                                <span
+                                    className="text-xs font-semibold uppercase tracking-wider"
+                                    style={{ color: 'var(--text-muted)' }}
+                                >
+                                    Reply to {thread.contact.name}
+                                </span>
+                            </div>
+                            {/* Regenerate button in composer area */}
+                            <button
+                                onClick={handleSuggestReply}
+                                disabled={suggesting}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all hover:opacity-80"
+                                style={{
+                                    background: 'transparent',
+                                    color: 'rgb(139, 92, 246)'
+                                }}
                             >
-                                Reply to {thread.contact.name}
-                            </span>
+                                {suggesting ? (
+                                    <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                    <Wand2 size={12} />
+                                )}
+                                {draftContent ? 'Regenerate' : 'AI Draft'}
+                            </button>
                         </div>
                         <div
                             className="overflow-hidden transition-all"
                             style={{
-                                borderRadius: 'var(--radius-xl)',
+                                borderRadius: '14px',
                                 border: '1px solid var(--border-default)',
                                 boxShadow: 'var(--shadow-card)'
                             }}
@@ -282,86 +486,108 @@ export default function ThreadViewer({ emailId, onClose, onReplySent }: ThreadVi
 }
 
 /**
- * Gmail-style Message Card with collapsible history
+ * Gmail-style Message Card with collapsible quoted text
  */
 function MessageCard({ message, isLast }: { message: ThreadMessage; isLast: boolean }) {
     const [showQuoted, setShowQuoted] = useState(false);
-    const { mainBody, quotedText } = parseMessageBody(message.body);
+    const [showDetails, setShowDetails] = useState(false);
+    const { mainBody, quotedText, headers } = parseMessageBody(message.body, message);
     const hasQuoted = quotedText.length > 0;
 
     const isOutbound = message.isOutbound;
 
-    // Accent colors based on direction
     const bubbleStyle = isOutbound ? {
-        background: 'var(--accent-lilac-bg)',
-        border: '1px solid rgba(184, 166, 255, 0.3)',
-        borderRadius: 'var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl)'
+        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(59, 130, 246, 0.08))',
+        border: '1px solid rgba(139, 92, 246, 0.2)',
+        borderRadius: '16px 16px 4px 16px'
     } : {
         background: 'var(--bg-card)',
         border: '1px solid var(--border-soft)',
-        borderRadius: 'var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm)',
-        boxShadow: 'var(--shadow-card)'
+        borderRadius: '16px 16px 16px 4px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
     };
 
     const avatarStyle = isOutbound ? {
-        background: 'var(--accent-lilac)',
+        background: 'linear-gradient(135deg, rgb(139, 92, 246), rgb(59, 130, 246))',
         color: 'white'
     } : {
-        background: 'var(--accent-mint-bg)',
-        color: 'var(--accent-mint-text)'
+        background: 'linear-gradient(135deg, rgb(16, 185, 129), rgb(6, 182, 212))',
+        color: 'white'
     };
 
     return (
         <div className={`flex gap-4 ${isOutbound ? 'flex-row-reverse' : 'flex-row'}`}>
             {/* Avatar */}
             <div
-                className="w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center shrink-0 text-sm font-bold"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold shadow-sm"
                 style={avatarStyle}
             >
-                {message.fromName[0]?.toUpperCase()}
+                {message.fromName[0]?.toUpperCase() || '?'}
             </div>
 
             {/* Bubble */}
             <div className={`flex flex-col max-w-[80%] ${isOutbound ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-baseline gap-2 mb-2 px-1">
-                    <span
-                        className="text-sm font-bold"
-                        style={{ color: 'var(--text-primary)' }}
-                    >
+                    <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
                         {isOutbound ? 'You' : message.fromName}
                     </span>
-                    <span
-                        className="text-xs"
-                        style={{ color: 'var(--text-muted)' }}
-                    >
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                         {formatRelativeTime(message.timestamp)}
                     </span>
+                    {/* Details toggle */}
+                    <button
+                        onClick={() => setShowDetails(!showDetails)}
+                        className="text-xs flex items-center gap-1 hover:underline"
+                        style={{ color: 'var(--text-muted)' }}
+                    >
+                        <Info size={10} />
+                        {showDetails ? 'Hide' : 'Details'}
+                    </button>
                 </div>
 
-                <div
-                    className="px-5 py-4 text-sm leading-relaxed whitespace-pre-wrap"
-                    style={bubbleStyle}
-                >
+                {/* Technical Details Dropdown */}
+                {showDetails && (
+                    <div
+                        className="mb-2 px-3 py-2 text-xs w-full"
+                        style={{
+                            background: 'var(--bg-card-muted)',
+                            borderRadius: '8px',
+                            color: 'var(--text-muted)',
+                            fontFamily: 'monospace'
+                        }}
+                    >
+                        <div><strong>From:</strong> {message.from}</div>
+                        <div><strong>To:</strong> {message.to}</div>
+                        <div><strong>Date:</strong> {new Date(message.timestamp).toLocaleString()}</div>
+                        {message.subject && <div><strong>Subject:</strong> {message.subject}</div>}
+                    </div>
+                )}
+
+                <div className="px-5 py-4 text-sm leading-relaxed" style={bubbleStyle}>
                     {mainBody ? (
-                        <span style={{ color: 'var(--text-primary)' }}>{mainBody}</span>
+                        <div
+                            className="whitespace-pre-wrap"
+                            style={{ color: 'var(--text-primary)' }}
+                        >
+                            {mainBody}
+                        </div>
                     ) : (
-                        <span className="italic" style={{ color: 'var(--text-muted)' }}>(No content)</span>
+                        <span className="italic" style={{ color: 'var(--text-muted)' }}>
+                            (No content)
+                        </span>
                     )}
 
                     {/* Collapsible Quoted Text */}
                     {hasQuoted && (
-                        <div
-                            className="mt-4 pt-3"
-                            style={{ borderTop: '1px solid var(--border-soft)' }}
-                        >
+                        <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border-soft)' }}>
                             {!showQuoted ? (
                                 <button
                                     onClick={() => setShowQuoted(true)}
-                                    className="flex items-center gap-2 text-xs font-medium px-2 py-1 transition-colors"
+                                    className="flex items-center gap-2 text-xs font-medium px-2.5 py-1.5 transition-colors hover:opacity-80"
                                     style={{
                                         color: 'var(--text-muted)',
                                         background: 'var(--bg-card-muted)',
-                                        borderRadius: 'var(--radius-sm)'
+                                        borderRadius: '6px'
                                     }}
                                 >
                                     <ChevronDown size={12} />
@@ -370,7 +596,7 @@ function MessageCard({ message, isLast }: { message: ThreadMessage; isLast: bool
                             ) : (
                                 <div>
                                     <div
-                                        className="text-xs pl-3 py-2 mb-2"
+                                        className="text-xs pl-3 py-2 mb-2 whitespace-pre-wrap"
                                         style={{
                                             color: 'var(--text-muted)',
                                             borderLeft: '2px solid var(--border-default)'
@@ -380,11 +606,11 @@ function MessageCard({ message, isLast }: { message: ThreadMessage; isLast: bool
                                     </div>
                                     <button
                                         onClick={() => setShowQuoted(false)}
-                                        className="flex items-center gap-1 text-xs"
+                                        className="flex items-center gap-1 text-xs hover:underline"
                                         style={{ color: 'var(--text-muted)' }}
                                     >
                                         <ChevronUp size={12} />
-                                        Hide
+                                        Hide quoted text
                                     </button>
                                 </div>
                             )}
@@ -396,28 +622,55 @@ function MessageCard({ message, isLast }: { message: ThreadMessage; isLast: bool
     );
 }
 
-function parseMessageBody(body: string): { mainBody: string; quotedText: string } {
-    if (!body) return { mainBody: '', quotedText: '' };
-    let cleaned = body
-        .replace(/^From:.*$/gm, '')
-        .replace(/^Sent:.*$/gm, '')
-        .replace(/^To:.*$/gm, '')
-        .replace(/^Subject:.*$/gm, '')
-        .trim();
+function parseMessageBody(body: string, message: ThreadMessage): {
+    mainBody: string;
+    quotedText: string;
+    headers: Record<string, string>;
+} {
+    if (!body) return { mainBody: '', quotedText: '', headers: {} };
 
-    const quotePatterns = [/On .+wrote:[\s\S]*/i, /^>.*$/gm, /_{10,}/, /-{10,}/];
+    // Extract and remove RFC headers from displayed body
+    const headers: Record<string, string> = {};
+    let cleaned = body;
+
+    // Remove common headers
+    const headerPatterns = [
+        /^From:.*$/gm,
+        /^Sent:.*$/gm,
+        /^To:.*$/gm,
+        /^Subject:.*$/gm,
+        /^Date:.*$/gm,
+        /^Cc:.*$/gm,
+        /^Reply-To:.*$/gm
+    ];
+
+    for (const pattern of headerPatterns) {
+        cleaned = cleaned.replace(pattern, '');
+    }
+    cleaned = cleaned.trim();
+
+    // Split quoted content
+    const quotePatterns = [
+        /On .+wrote:[\s\S]*/i,
+        /^>.*$/gm,
+        /_{10,}/,
+        /-{10,}/,
+        /^From:.*?[\r\n]+Sent:.*?[\r\n]+To:/m
+    ];
+
     let mainBody = cleaned;
     let quotedText = '';
 
     for (const pattern of quotePatterns) {
         const match = mainBody.match(pattern);
-        if (match && match.index) {
+        if (match && match.index && match.index > 0) {
             quotedText = mainBody.substring(match.index);
             mainBody = mainBody.substring(0, match.index).trim();
             break;
         }
     }
-    return { mainBody, quotedText };
+
+    return { mainBody, quotedText, headers };
 }
 
 function formatRelativeTime(timestamp: string): string {
@@ -428,5 +681,5 @@ function formatRelativeTime(timestamp: string): string {
     if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)}m ago`;
     if (diffMs < 86400000) return `${Math.floor(diffMs / 3600000)}h ago`;
     if (diffMs < 172800000) return 'Yesterday';
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
