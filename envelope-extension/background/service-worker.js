@@ -112,6 +112,70 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         return true;
     }
+
+    // Handle capture requests from content script
+    if (request.action === 'capture') {
+        handleCapture(request.compose, request.data)
+            .then(sendResponse)
+            .catch(e => sendResponse({ success: false, error: e.message }));
+        return true; // Keep channel open for async response
+    }
 });
+
+// Capture handler for content script requests
+async function handleCapture(compose, data) {
+    // Get auth token
+    const { authToken } = await chrome.storage.local.get(['authToken']);
+
+    if (!authToken) {
+        return { success: false, error: 'Not logged in', requiresAuth: true };
+    }
+
+    // Build payload
+    const payload = {
+        type: data.type,
+        sourceUrl: data.sourceUrl,
+        data: {
+            companyName: data.companyName,
+            website: data.website || '',
+            contactName: data.contactName || '',
+            jobTitle: data.jobTitle || '',
+            email: data.email || '',
+            linkedinUrl: data.linkedinUrl
+        }
+    };
+
+    // Call capture API
+    const res = await fetch(`${API_BASE}/api/extension/capture`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+        throw new Error(result.error || 'Capture failed');
+    }
+
+    // Build response
+    const response = {
+        success: true,
+        message: result.isNew
+            ? `Added ${data.companyName} to Envelope`
+            : `${data.companyName} updated`,
+        leadId: result.leadId
+    };
+
+    // Add compose URL if requested
+    if (compose && result.leadId) {
+        response.composeUrl = `${API_BASE}/leads?leadId=${result.leadId}&compose=true`;
+    }
+
+    return response;
+}
 
 console.log('[Envelope] Service worker initialized');
