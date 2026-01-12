@@ -26,7 +26,7 @@ export function CompanyNameLink({ prospectId, leadId, name, className = '', styl
         <button
             id={prospectId ? `company-link-${prospectId}` : leadId ? `company-link-lead-${leadId}` : undefined}
             onClick={handleClick}
-            className={`text-left transition-colors cursor-pointer hover:text-[var(--lilac-text)] ${className}`}
+            className={`text-left transition-colors cursor-pointer hover:text-[var(--lilac-text)] hover:underline ${className}`}
             style={style}
         >
             {name}
