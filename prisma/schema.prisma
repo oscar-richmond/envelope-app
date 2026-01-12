@@ -248,18 +248,19 @@ model SentEmail {
   replySummary    String?   
   replyConfidence Int?      // 0-100
   
-  // Conversation Outcome (CRM-lite)
-  // Canonical outcomes: INTERESTED, NOT_NOW, NOT_INTERESTED, REFERRED, NO_RESPONSE, CLOSED
-  conversationOutcome           String?   // Active outcome
-  outcomeSetAt                  DateTime? // When outcome was set
+  // CRM-Lite Outcome Tracking
+  // Outcomes: NEW, INTERESTED, CALL_BOOKED, PROPOSAL_SENT, WON, LOST, NOT_INTERESTED
+  conversationOutcome           String?   // Active outcome stage (null = NEW)
+  outcomeSetAt                  DateTime? // When outcome was last changed
   outcomeSetBy                  String?   // 'ai' or 'user'
   suggestedOutcome              String?   // AI-suggested outcome
   suggestedOutcomeConfidence    Int?      // 0-100 confidence
-  manualOutcomeOverride         Boolean   @default(false) // User manually set/changed
+  manualOutcomeOverride         Boolean   @default(false) // User manually set
+  nextActionDate                DateTime? // Optional next action date
+  dealNotes                     String?   // CRM notes (separate from thread notes)
   
-  // Kanban Board (Post-Intent)
-  // Columns: INTERESTED, CALL_PROPOSED, CALL_COMPLETED, PAUSED, CLOSED
-  kanbanColumn      String?   // Current column on board
+  // Kanban Board - maps to conversationOutcome
+  kanbanColumn      String?   // Current column (same as outcome for now)
   lastActivityAt    DateTime? // For ordering within columns
   
   // Private Notes (Optional, Minimal)
