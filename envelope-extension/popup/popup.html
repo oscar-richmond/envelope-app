@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=400">
+  <title>Envelope</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="M22 6l-10 7L2 6"/>
+        </svg>
+        <span>Envelope</span>
+      </div>
+      <div id="user-badge" class="user-badge hidden">
+        <span id="user-email"></span>
+      </div>
+    </header>
+
+    <!-- Auth Required State -->
+    <div id="auth-required" class="state auth-state">
+      <div class="state-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M20 21a8 8 0 10-16 0"/>
+        </svg>
+      </div>
+      <h2>Sign in to capture leads</h2>
+      <p>Connect your Envelope account to start capturing leads from LinkedIn and websites.</p>
+      <button id="btn-signin" class="btn btn-primary">
+        Sign in to Envelope
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="state hidden">
+      <div class="spinner"></div>
+      <p>Analyzing page...</p>
+    </div>
+
+    <!-- Capture Card -->
+    <div id="capture-card" class="capture-card hidden">
+      <div class="context-badge" id="context-badge">
+        <span id="context-type">LinkedIn Person</span>
+      </div>
+
+      <div class="fields">
+        <!-- Company Name -->
+        <div class="field">
+          <label>Company</label>
+          <input type="text" id="field-company" placeholder="Company name">
+        </div>
+
+        <!-- Contact Name (for person profiles) -->
+        <div class="field" id="field-contact-row">
+          <label>Contact</label>
+          <input type="text" id="field-contact" placeholder="Full name">
+        </div>
+
+        <!-- Job Title -->
+        <div class="field" id="field-title-row">
+          <label>Title</label>
+          <input type="text" id="field-title" placeholder="Job title">
+        </div>
+
+        <!-- Website -->
+        <div class="field">
+          <label>Website</label>
+          <input type="text" id="field-website" placeholder="example.com">
+        </div>
+
+        <!-- Email (if detected) -->
+        <div class="field" id="field-email-row">
+          <label>Email</label>
+          <input type="email" id="field-email" placeholder="email@example.com">
+        </div>
+
+        <!-- Source URL (readonly) -->
+        <div class="field field-readonly">
+          <label>Source</label>
+          <input type="text" id="field-source" readonly>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button id="btn-add" class="btn btn-primary btn-full">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Add to Envelope
+        </button>
+        <button id="btn-add-compose" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Add + Compose
+        </button>
+      </div>
+    </div>
+
+    <!-- Success State -->
+    <div id="success" class="state hidden">
+      <div class="state-icon success">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+      <h2>Lead captured!</h2>
+      <p id="success-message">Added to your Lead Board</p>
+      <a id="view-link" href="#" target="_blank" class="btn btn-secondary">
+        View in Envelope
+      </a>
+    </div>
+
+    <!-- Error State -->
+    <div id="error" class="state hidden">
+      <div class="state-icon error">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M15 9l-6 6M9 9l6 6"/>
+        </svg>
+      </div>
+      <h2>Something went wrong</h2>
+      <p id="error-message">Failed to capture lead</p>
+      <button id="btn-retry" class="btn btn-secondary">
+        Try Again
+      </button>
+    </div>
+
+    <!-- Unsupported Page -->
+    <div id="unsupported" class="state hidden">
+      <div class="state-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 8v4M12 16h.01"/>
+        </svg>
+      </div>
+      <h2>Page not supported</h2>
+      <p>Navigate to a LinkedIn profile, company page, or business website to capture leads.</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
