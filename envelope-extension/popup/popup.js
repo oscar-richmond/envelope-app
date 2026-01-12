@@ -351,8 +351,8 @@ async function captureLead(compose = false) {
         elements.viewLink.href = `${API_BASE}/leads`;
 
         if (compose && result.leadId) {
-            // Open compose in Envelope
-            chrome.tabs.create({ url: `${API_BASE}/leads?compose=${result.leadId}` });
+            // Open compose in Envelope with correct URL params
+            chrome.tabs.create({ url: `${API_BASE}/leads?leadId=${result.leadId}&compose=true` });
         }
 
         showState('success');

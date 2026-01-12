@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -55,6 +55,7 @@ function showToastWithUndo(message: string, onUndo: () => void) {
 
 export default function DashboardClient({ leads: initialLeads }: { leads: any[] }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [leads, setLeads] = useState(initialLeads);
 
     // UI State
@@ -72,6 +73,48 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [deletingLead, setDeletingLead] = useState<any>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Auto-open composer from URL params (extension flow)
+    useEffect(() => {
+        const leadId = searchParams.get('leadId');
+        const compose = searchParams.get('compose');
+
+        if (leadId && compose === 'true') {
+            // Find the lead in our list or fetch it
+            const leadIdNum = parseInt(leadId, 10);
+            const lead = leads.find(l => l.id === leadIdNum);
+
+            if (lead) {
+                // Open composer for this lead
+                setComposerLead(lead);
+                setComposerEmailId(null);
+                setComposerDefaultTab('compose');
+                setComposerOpen(true);
+
+                // Clear URL params
+                router.replace('/leads', { scroll: false });
+            } else {
+                // Lead not in list yet - fetch it
+                fetch(`/api/leads/${leadId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && !data.error) {
+                            setComposerLead(data);
+                            setComposerEmailId(null);
+                            setComposerDefaultTab('compose');
+                            setComposerOpen(true);
+
+                            // Add to leads list
+                            setLeads(prev => [data, ...prev]);
+                        }
+                    })
+                    .catch(console.error)
+                    .finally(() => {
+                        router.replace('/leads', { scroll: false });
+                    });
+            }
+        }
+    }, [searchParams, leads, router]);
 
     // Filtering & Sorting
     const filteredLeads = leads
