@@ -8,6 +8,20 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+// Format date for display
+function formatDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'today';
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+
 interface QueueItem {
     id: number;
     followUpNumber: number;
@@ -436,6 +450,20 @@ export default function FollowUpQueuePage() {
                             <RefreshCw size={12} className={regenerating ? 'animate-spin' : ''} />
                             Regenerate
                         </button>
+                    </div>
+
+                    {/* Original Email Context */}
+                    <div className="px-6 py-3 border-b border-gray-100 bg-blue-50/50">
+                        <details className="group">
+                            <summary className="cursor-pointer text-xs font-medium text-blue-700 flex items-center gap-2">
+                                <ChevronRight size={14} className="transition-transform group-open:rotate-90" />
+                                View Original Email (sent {formatDate(currentItem.originalEmail.sentAt)})
+                            </summary>
+                            <div className="mt-3 p-4 bg-white rounded-lg border border-blue-100 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                <div className="text-xs text-gray-400 mb-2">Subject: {currentItem.originalEmail.subject}</div>
+                                {currentItem.originalEmail.bodyText}
+                            </div>
+                        </details>
                     </div>
 
                     {/* Gmail-Style Composer */}

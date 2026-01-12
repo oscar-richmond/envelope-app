@@ -185,6 +185,15 @@ export default function UniboxPage() {
                         variant="lilac"
                         icon={<Clock size={20} />}
                     />
+                    {counts.followUpDue > 0 && (
+                        <Link
+                            href="/outreach/follow-ups"
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-all shadow-sm"
+                        >
+                            <Send size={16} />
+                            Review Queue
+                        </Link>
+                    )}
                     <StatsCard
                         label="Waiting"
                         value={counts.waiting}
