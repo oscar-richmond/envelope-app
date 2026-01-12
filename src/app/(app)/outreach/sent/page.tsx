@@ -191,15 +191,6 @@ export default function UniboxPage() {
                         variant="lilac"
                         icon={<Clock size={20} />}
                     />
-                    {counts.followUpDue > 0 && (
-                        <Link
-                            href="/outreach/follow-ups"
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-all shadow-sm"
-                        >
-                            <Send size={16} />
-                            Review Queue
-                        </Link>
-                    )}
                     <StatsCard
                         label="Waiting"
                         value={counts.waiting}
@@ -212,6 +203,15 @@ export default function UniboxPage() {
                         variant="mint"
                         icon={<CheckCircle size={20} />}
                     />
+                    {counts.followUpDue > 0 && (
+                        <Link
+                            href="/outreach/follow-ups"
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-[#5482ED] font-semibold rounded-xl transition-all border-2 border-[#5482ED] hover:shadow-[0_4px_12px_rgba(84,130,237,0.25)] hover:border-[#4372DD] active:translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-[#5482ED] focus:ring-offset-2 cursor-pointer"
+                        >
+                            <Send size={16} />
+                            Review Queue
+                        </Link>
+                    )}
                 </StatsGrid>
             </div>
 
