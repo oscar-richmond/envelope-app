@@ -10,10 +10,8 @@ import { Building2, CheckCircle, AlertCircle, PenTool } from 'lucide-react';
 import { ResultsListContainer, ResultsListHeader, ResultsListEmptyState } from '@/components/ui/ResultsList';
 import LeadResultRowCard from '@/components/leads/LeadResultRowCard';
 import AddLeadModal from '@/components/AddLeadModal';
-import OutreachComposer from '@/components/outreach/composer';
-import ThreadViewer from '@/components/ThreadViewer';
+import { MessageThreadComposerModal } from '@/components/messaging';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
-import { ThreadEmptyModal } from '@/components/modals/ThreadEmptyModal';
 
 // Toast helper (simple inline for now)
 function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -67,13 +65,8 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
     // Composer State
     const [composerOpen, setComposerOpen] = useState(false);
     const [composerLead, setComposerLead] = useState<any>(null);
-    const [composerProspect, setComposerProspect] = useState<any>(null);
-
-    // Thread State
-    const [threadOpen, setThreadOpen] = useState(false);
-    const [threadEmailId, setThreadEmailId] = useState<number | null>(null);
-    const [threadEmptyOpen, setThreadEmptyOpen] = useState(false);
-    const [threadEmptyLead, setThreadEmptyLead] = useState<any>(null);
+    const [composerDefaultTab, setComposerDefaultTab] = useState<'thread' | 'ai' | 'compose'>('compose');
+    const [composerEmailId, setComposerEmailId] = useState<number | null>(null);
 
     // Delete State
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -96,36 +89,10 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
 
     // COMPOSE OUTREACH
     const handleCompose = useCallback(async (lead: any) => {
-        try {
-            // Fetch prospect data if needed
-            let prospect = lead.companyProspect;
-            if (!prospect && lead.companyProspectId) {
-                const res = await fetch(`/api/prospects/${lead.companyProspectId}`);
-                if (res.ok) prospect = await res.json();
-            }
-
-            // Prepare draft data
-            let initialDraft = undefined;
-            if (lead.emailDraft || lead.subjectLine1) {
-                initialDraft = {
-                    subject: lead.subjectLine1 || '',
-                    body: lead.emailDraft || '',
-                    tier: lead.contactPriorityBand || 'Medium',
-                    toEmail: lead.contacts?.[0]?.email
-                };
-            }
-
-            setComposerLead(lead);
-            setComposerProspect(prospect || {
-                id: lead.companyProspectId,
-                companyName: lead.companyName,
-                websiteUrl: lead.websiteUrl
-            });
-            setComposerOpen(true);
-        } catch (e) {
-            console.error('Error opening composer:', e);
-            showToast('Failed to open composer', 'error');
-        }
+        setComposerLead(lead);
+        setComposerEmailId(null);
+        setComposerDefaultTab('compose');
+        setComposerOpen(true);
     }, []);
 
     // VIEW THREAD
@@ -142,44 +109,56 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                 if (res.ok) {
                     const data = await res.json();
                     if (data.emailId) {
-                        setThreadEmailId(data.emailId);
-                        setThreadOpen(true);
+                        setComposerEmailId(data.emailId);
+                        setComposerLead(lead);
+                        setComposerDefaultTab('thread');
+                        setComposerOpen(true);
                         return;
                     }
                 }
 
-                // No thread found - show empty state
-                setThreadEmptyLead(lead);
-                setThreadEmptyOpen(true);
+                // No thread found - open compose tab instead
+                setComposerLead(lead);
+                setComposerEmailId(null);
+                setComposerDefaultTab('compose');
+                setComposerOpen(true);
                 return;
             }
 
             // Get the email ID from sent emails
             const emailId = lead.sentEmails?.[0]?.id;
             if (emailId) {
-                setThreadEmailId(emailId);
-                setThreadOpen(true);
+                setComposerEmailId(emailId);
+                setComposerLead(lead);
+                setComposerDefaultTab('thread');
+                setComposerOpen(true);
             } else {
                 // Fetch email ID from API
                 const res = await fetch(`/api/leads/${lead.id}/thread`);
                 if (res.ok) {
                     const data = await res.json();
                     if (data.emailId) {
-                        setThreadEmailId(data.emailId);
-                        setThreadOpen(true);
+                        setComposerEmailId(data.emailId);
+                        setComposerLead(lead);
+                        setComposerDefaultTab('thread');
+                        setComposerOpen(true);
                         return;
                     }
                 }
 
-                // Still no thread
-                setThreadEmptyLead(lead);
-                setThreadEmptyOpen(true);
+                // Still no thread - open compose tab
+                setComposerLead(lead);
+                setComposerEmailId(null);
+                setComposerDefaultTab('compose');
+                setComposerOpen(true);
             }
         } catch (e) {
             console.error('Error opening thread:', e);
-            // Show empty state on error
-            setThreadEmptyLead(lead);
-            setThreadEmptyOpen(true);
+            // Open compose tab on error
+            setComposerLead(lead);
+            setComposerEmailId(null);
+            setComposerDefaultTab('compose');
+            setComposerOpen(true);
         }
     }, []);
 
@@ -347,52 +326,26 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
             {/* Modals */}
             <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
 
-            {/* Outreach Composer */}
+            {/* Unified Message/Thread Modal */}
             {composerOpen && composerLead && (
-                <OutreachComposer
-                    isOpen={composerOpen}
+                <MessageThreadComposerModal
+                    emailId={composerEmailId ?? undefined}
+                    leadId={composerLead.id}
+                    initialData={{
+                        companyName: composerLead.companyName,
+                        contactName: composerLead.contacts?.[0]?.firstName,
+                        contactEmail: composerLead.contacts?.[0]?.email,
+                        lead: composerLead
+                    }}
+                    defaultTab={composerDefaultTab}
                     onClose={() => {
                         setComposerOpen(false);
                         setComposerLead(null);
-                        setComposerProspect(null);
+                        setComposerEmailId(null);
                     }}
-                    prospect={composerProspect}
-                    lead={composerLead}
-                    initialDraft={composerLead.emailDraft ? {
-                        subject: composerLead.subjectLine1 || '',
-                        body: composerLead.emailDraft || '',
-                        tier: 'Medium'
-                    } : undefined}
-                    onSendSuccess={handleSendSuccess}
+                    onSuccess={handleSendSuccess}
                 />
             )}
-
-            {/* Thread Viewer */}
-            {threadOpen && threadEmailId && (
-                <ThreadViewer
-                    emailId={threadEmailId}
-                    onClose={() => {
-                        setThreadOpen(false);
-                        setThreadEmailId(null);
-                    }}
-                    onReplySent={() => router.refresh()}
-                />
-            )}
-
-            {/* Thread Empty State */}
-            <ThreadEmptyModal
-                isOpen={threadEmptyOpen}
-                onClose={() => {
-                    setThreadEmptyOpen(false);
-                    setThreadEmptyLead(null);
-                }}
-                companyName={threadEmptyLead?.companyName || 'Company'}
-                onComposeOutreach={() => {
-                    if (threadEmptyLead) {
-                        handleCompose(threadEmptyLead);
-                    }
-                }}
-            />
 
             {/* Delete Confirmation */}
             <ConfirmDeleteModal
