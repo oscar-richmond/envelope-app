@@ -13,6 +13,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         // Wait for page to load
         setTimeout(async () => {
             try {
+                // Check if tab still exists
+                const tabStillExists = await chrome.tabs.get(tabId).catch(() => null);
+                if (!tabStillExists) {
+                    console.log('[Envelope] Auth tab already closed');
+                    return;
+                }
+
                 // Execute script to read token from page localStorage
                 const results = await chrome.scripting.executeScript({
                     target: { tabId },
@@ -39,12 +46,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                     });
 
                     // Close the auth tab
-                    chrome.tabs.remove(tabId);
+                    chrome.tabs.remove(tabId).catch(() => { });
 
                     console.log('[Envelope] Auth complete!');
                 }
             } catch (e) {
-                console.error('[Envelope] Token extraction failed:', e);
+                // Silently ignore - tab may be closed
+                if (!e.message?.includes('No tab')) {
+                    console.error('[Envelope] Token extraction failed:', e);
+                }
             }
         }, 1500); // Wait 1.5s for page to fully load
     }

@@ -22,10 +22,33 @@ interface CapturePayload {
 
 export async function POST(request: Request) {
     try {
-        // Validate auth - check session
-        const session = await auth();
+        // Validate auth - check session OR extension token
+        let userEmail: string | null = null;
 
-        if (!session?.user) {
+        // First try session auth
+        const session = await auth();
+        if (session?.user?.email) {
+            userEmail = session.user.email;
+        }
+
+        // If no session, try extension token
+        if (!userEmail) {
+            const authHeader = request.headers.get('Authorization');
+            if (authHeader?.startsWith('Bearer ')) {
+                const token = authHeader.slice(7);
+                try {
+                    const decoded = JSON.parse(Buffer.from(token, 'base64').toString());
+                    // Check token expiry
+                    if (decoded.exp && decoded.exp > Date.now() && decoded.email) {
+                        userEmail = decoded.email;
+                    }
+                } catch (e) {
+                    // Invalid token format
+                }
+            }
+        }
+
+        if (!userEmail) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
