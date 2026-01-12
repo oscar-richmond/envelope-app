@@ -84,7 +84,8 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
                 className="h-full flex flex-col items-center justify-center text-center p-8 rounded-2xl"
                 style={{
                     background: 'var(--bg-card)',
-                    border: '1px solid var(--border-soft)'
+                    border: '1px solid var(--border-soft)',
+                    boxShadow: 'var(--shadow-card)'
                 }}
             >
                 <div
@@ -111,7 +112,8 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
             className="h-full flex flex-col overflow-hidden rounded-2xl"
             style={{
                 background: 'var(--bg-card)',
-                border: '1px solid var(--border-soft)'
+                border: '1px solid var(--border-soft)',
+                boxShadow: 'var(--shadow-card)'
             }}
         >
             {/* Header */}
