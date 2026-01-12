@@ -28,6 +28,33 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
     setTimeout(() => div.remove(), 3000);
 }
 
+// Toast with undo action
+function showToastWithUndo(message: string, onUndo: () => void) {
+    const div = document.createElement('div');
+    div.className = `fixed bottom-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg text-sm font-medium flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300`;
+    div.style.background = 'var(--accent-mint-bg)';
+    div.style.color = 'var(--accent-mint-text)';
+    div.style.border = '1px solid var(--chip-mint-border)';
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = message;
+
+    const undoBtn = document.createElement('button');
+    undoBtn.textContent = 'Undo';
+    undoBtn.style.cssText = 'font-weight: 600; text-decoration: underline; cursor: pointer; opacity: 0.8;';
+    undoBtn.onclick = () => {
+        onUndo();
+        div.remove();
+    };
+
+    div.appendChild(textSpan);
+    div.appendChild(undoBtn);
+    document.body.appendChild(div);
+
+    // Auto-remove after 8 seconds
+    setTimeout(() => div.remove(), 8000);
+}
+
 export default function DashboardClient({ leads: initialLeads }: { leads: any[] }) {
     const router = useRouter();
     const [leads, setLeads] = useState(initialLeads);
@@ -170,23 +197,49 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
         // Optimistic update
         const leadId = deletingLead.id;
         const previousLeads = [...leads];
+        const removedLead = leads.find(l => l.id === leadId);
         setLeads(leads.filter(l => l.id !== leadId));
         setDeleteModalOpen(false);
 
         try {
             const res = await fetch(`/api/leads/${leadId}`, { method: 'DELETE' });
+            const data = await res.json();
 
             if (!res.ok) {
                 // Revert on failure
                 setLeads(previousLeads);
-                showToast("Couldn't remove lead. Please try again.", 'error');
+
+                // Show specific error messages
+                if (res.status === 404) {
+                    showToast('Lead not found. Please refresh the page.', 'error');
+                } else if (res.status === 401 || res.status === 403) {
+                    showToast('Session expired. Please sign in again.', 'error');
+                } else {
+                    showToast(`Couldn't remove lead: ${data.error || 'Please try again'}`, 'error');
+                    console.error('[Lead Delete]', { leadId, status: res.status, error: data });
+                }
             } else {
-                showToast('Lead removed');
+                // Show success toast with undo option
+                showToastWithUndo('Lead removed', async () => {
+                    // Undo: restore the lead
+                    try {
+                        await fetch(`/api/leads/${leadId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ archivedAt: null })
+                        });
+                        setLeads(prev => [removedLead, ...prev]);
+                        showToast('Lead restored');
+                    } catch (e) {
+                        showToast('Failed to restore lead', 'error');
+                    }
+                });
             }
-        } catch (e) {
+        } catch (e: any) {
             // Revert on error
             setLeads(previousLeads);
-            showToast("Couldn't remove lead. Please try again.", 'error');
+            showToast("Network error. Please check your connection.", 'error');
+            console.error('[Lead Delete Network Error]', { leadId, error: e.message });
         } finally {
             setIsDeleting(false);
             setDeletingLead(null);

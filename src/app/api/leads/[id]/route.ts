@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -21,18 +22,42 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
 }
-// DELETE: Remove a lead
+
+// DELETE: Soft-remove a lead (archive, not hard delete)
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const leadId = parseInt(id);
 
-        await prisma.lead.delete({
+        if (isNaN(leadId)) {
+            return NextResponse.json({ error: 'Invalid lead ID' }, { status: 400 });
+        }
+
+        // Verify the lead exists
+        const lead = await prisma.lead.findUnique({
             where: { id: leadId }
         });
 
-        return NextResponse.json({ success: true });
-    } catch (e) {
-        return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
+        if (!lead) {
+            return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+        }
+
+        // Soft-delete by setting archivedAt
+        const archivedLead = await prisma.lead.update({
+            where: { id: leadId },
+            data: { archivedAt: new Date() }
+        });
+
+        return NextResponse.json({
+            success: true,
+            lead: archivedLead,
+            undoUntil: Date.now() + 10000 // 10 seconds for undo
+        });
+    } catch (e: any) {
+        console.error('Delete lead error:', e);
+        return NextResponse.json({
+            error: 'Failed to remove lead',
+            details: e.message
+        }, { status: 500 });
     }
 }
