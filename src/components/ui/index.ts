@@ -8,6 +8,9 @@ export type { IconButtonProps, IconButtonVariant, IconButtonSize } from './IconB
 export { Chip } from './Chip';
 export type { ChipProps, ChipVariant, ChipColor, ChipSize } from './Chip';
 
+// Hero Surface Component
+export { HeroSurface } from './HeroSurface';
+
 // Other UI Components
 export { PageHeader } from './PageHeader';
 export { SearchInput } from './SearchInput';
@@ -16,3 +19,4 @@ export { Modal, SlidePanel, ModalHeader, ModalBody, ModalFooter } from './Modal'
 export { ResultsListContainer, ResultsListHeader, ResultsListRow, ResultsListEmptyState } from './ResultsList';
 export { Input } from './Input';
 export { DateRangeSelect } from './DateRangeSelect';
+

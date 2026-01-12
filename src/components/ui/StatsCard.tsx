@@ -1,6 +1,6 @@
 import React from 'react';
 
-type StatsCardVariant = 'mint' | 'lilac' | 'neutral' | 'dark' | 'warning';
+type StatsCardVariant = 'mint' | 'lilac' | 'neutral' | 'dark' | 'warning' | 'brand';
 
 interface StatsCardProps {
     label: string;
@@ -21,6 +21,15 @@ const variantStyles: Record<StatsCardVariant, {
     iconBg: string;
     iconColor: string;
 }> = {
+    brand: {
+        bg: 'var(--bg-card)',
+        border: 'var(--border-subtle)',
+        accentBorder: 'var(--brand)',
+        labelColor: 'var(--text-muted)',
+        valueColor: 'var(--text-primary)',
+        iconBg: 'var(--brand-soft)',
+        iconColor: 'var(--brand)'
+    },
     mint: {
         bg: 'var(--bg-card)',
         border: 'var(--border-subtle)',

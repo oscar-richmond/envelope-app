@@ -547,6 +547,85 @@ h4,
 }
 
 /* ========================================
+   HERO SURFACE (Nav-Inspired Premium Containers)
+   ======================================== */
+
+.hero-surface {
+  background: linear-gradient(135deg,
+      rgba(84, 130, 237, 0.04) 0%,
+      rgba(184, 166, 255, 0.03) 50%,
+      rgba(166, 244, 179, 0.02) 100%);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-card);
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Inner glow blob - top left */
+.hero-surface::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  left: -20%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(circle, var(--brand-soft) 0%, transparent 70%);
+  opacity: 0.6;
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+/* Secondary glow blob - bottom right */
+.hero-surface::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  right: -20%;
+  width: 50%;
+  height: 50%;
+  background: radial-gradient(circle, var(--lilac-soft) 0%, transparent 70%);
+  opacity: 0.4;
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+/* Hero surface content wrapper - ensures content is above blobs */
+.hero-surface>* {
+  position: relative;
+  z-index: 1;
+}
+
+/* Hero surface variant: Brand accent */
+.hero-surface-brand {
+  border-color: var(--brand-border);
+}
+
+.hero-surface-brand::before {
+  background: radial-gradient(circle, var(--brand-soft) 0%, transparent 70%);
+}
+
+/* Hero surface variant: Lilac accent */
+.hero-surface-lilac {
+  border-color: var(--chip-lilac-border);
+}
+
+.hero-surface-lilac::before {
+  background: radial-gradient(circle, var(--lilac-soft) 0%, transparent 70%);
+}
+
+/* Hero surface variant: Mint accent */
+.hero-surface-mint {
+  border-color: var(--chip-mint-border);
+}
+
+.hero-surface-mint::before {
+  background: radial-gradient(circle, var(--mint-soft) 0%, transparent 70%);
+}
+
+/* ========================================
    BUTTON COMPONENT (V3 - Unified CTA System)
    ======================================== */
 
