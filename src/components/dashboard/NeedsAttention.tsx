@@ -59,16 +59,16 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
 
     const accentStyles: Record<string, { bg: string; color: string; badgeBg: string; badgeColor: string }> = {
         warning: {
-            bg: 'var(--warning-light)',
-            color: 'var(--warning-text)',
-            badgeBg: 'var(--warning-light)',
-            badgeColor: 'var(--warning-text)'
+            bg: 'var(--status-warning-bg)',
+            color: 'var(--status-warning-text)',
+            badgeBg: 'var(--status-warning-bg)',
+            badgeColor: 'var(--status-warning-text)'
         },
         error: {
-            bg: 'var(--error-light)',
-            color: 'var(--error-text)',
-            badgeBg: 'var(--error-light)',
-            badgeColor: 'var(--error-text)'
+            bg: 'var(--status-danger-bg)',
+            color: 'var(--status-danger-text)',
+            badgeBg: 'var(--status-danger-bg)',
+            badgeColor: 'var(--status-danger-text)'
         },
         default: {
             bg: 'var(--bg-card-muted)',
@@ -80,20 +80,12 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
 
     if (items.length === 0) {
         return (
-            <div
-                className="h-full flex flex-col items-center justify-center text-center p-8"
-                style={{
-                    background: 'var(--bg-card)',
-                    borderRadius: 'var(--radius-card)',
-                    border: '1px solid var(--border-soft)',
-                    boxShadow: 'var(--shadow-card)'
-                }}
-            >
+            <div className="hero-surface hero-surface-mint h-full flex flex-col items-center justify-center text-center p-8">
                 <div
                     className="w-14 h-14 rounded-[var(--radius-lg)] flex items-center justify-center mb-4"
-                    style={{ background: 'var(--success-light)', color: 'var(--success-text)' }}
+                    style={{ background: 'var(--mint-soft)', color: 'var(--mint-text)' }}
                 >
-                    <CheckCircle2 size={28} />
+                    <CheckCircle2 size={28} strokeWidth={1.75} />
                 </div>
                 <h3
                     className="text-lg font-semibold mb-1"
@@ -109,35 +101,32 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
     }
 
     return (
-        <div
-            className="h-full flex flex-col"
-            style={{
-                background: 'var(--bg-card)',
-                borderRadius: 'var(--radius-card)',
-                border: '1px solid var(--border-soft)',
-                boxShadow: 'var(--shadow-card)',
-                overflow: 'hidden'
-            }}
-        >
+        <div className="hero-surface h-full flex flex-col overflow-hidden">
             {/* Header */}
             <div
                 className="px-6 py-5 flex items-center justify-between"
                 style={{
-                    background: 'var(--bg-card-muted)',
-                    borderBottom: '1px solid var(--border-soft)'
+                    background: 'rgba(255, 255, 255, 0.6)',
+                    borderBottom: '1px solid var(--border-soft)',
+                    backdropFilter: 'blur(8px)'
                 }}
             >
-                <h3
-                    className="font-semibold"
-                    style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
-                >
-                    Needs Attention
-                </h3>
+                <div>
+                    <h3
+                        className="font-semibold"
+                        style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                    >
+                        Needs Attention
+                    </h3>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        Priority items requiring action
+                    </p>
+                </div>
                 <span
                     className="text-xs font-bold px-2.5 py-1 rounded-[var(--radius-badge)]"
                     style={{
-                        background: 'var(--error-light)',
-                        color: 'var(--error-text)'
+                        background: 'var(--status-danger-bg)',
+                        color: 'var(--status-danger-text)'
                     }}
                 >
                     {items.length} Priority
@@ -153,9 +142,16 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
                     return (
                         <div
                             key={item.id}
-                            className="px-6 py-4 flex items-center justify-between transition-colors hover:bg-[var(--bg-card-muted)]"
+                            className="px-6 py-4 flex items-center justify-between transition-colors"
                             style={{
-                                borderBottom: i < items.length - 1 ? '1px solid var(--border-soft)' : 'none'
+                                borderBottom: i < items.length - 1 ? '1px solid var(--border-soft)' : 'none',
+                                background: 'rgba(255, 255, 255, 0.5)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
                             }}
                         >
                             <div className="flex items-center gap-4">
@@ -163,7 +159,7 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
                                     className="w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center shrink-0"
                                     style={{ background: style.bg, color: style.color }}
                                 >
-                                    <Icon size={20} />
+                                    <Icon size={20} strokeWidth={1.75} />
                                 </div>
                                 <div>
                                     <p
@@ -182,15 +178,10 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
                             </div>
                             <Link
                                 href={item.link}
-                                className="flex items-center gap-1 text-xs font-semibold px-4 py-2 rounded-[var(--radius-button)] transition-all"
-                                style={{
-                                    background: 'var(--bg-card)',
-                                    border: '1px solid var(--border-default)',
-                                    color: 'var(--text-primary)'
-                                }}
+                                className="btn btn-sm btn-secondary"
                             >
                                 {item.cta}
-                                <ChevronRight size={14} />
+                                <ChevronRight size={14} strokeWidth={1.75} />
                             </Link>
                         </div>
                     );
@@ -199,4 +190,3 @@ export default function NeedsAttention({ stats, activity, loading }: NeedsAttent
         </div>
     );
 }
-

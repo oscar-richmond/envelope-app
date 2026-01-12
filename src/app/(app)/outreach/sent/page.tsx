@@ -183,49 +183,51 @@ export default function UniboxPage() {
                         label="Needs Reply"
                         value={counts.needsReply}
                         variant="warning"
-                        icon={<AlertCircle size={20} />}
+                        icon={<AlertCircle size={20} strokeWidth={1.75} />}
                     />
                     <StatsCard
                         label="Follow-Up Due"
                         value={counts.followUpDue}
                         variant="lilac"
-                        icon={<Clock size={20} />}
+                        icon={<Clock size={20} strokeWidth={1.75} />}
                     />
                     <StatsCard
                         label="Waiting"
                         value={counts.waiting}
                         variant="neutral"
-                        icon={<Send size={20} />}
+                        icon={<Send size={20} strokeWidth={1.75} />}
                     />
                     <StatsCard
                         label="Replied"
                         value={counts.replied}
                         variant="mint"
-                        icon={<CheckCircle size={20} />}
+                        icon={<CheckCircle size={20} strokeWidth={1.75} />}
                     />
-                    {counts.followUpDue > 0 && (
+                </StatsGrid>
+
+                {/* Review Queue CTA - Hero Surface */}
+                {counts.followUpDue > 0 && (
+                    <div className="hero-surface hero-surface-lilac mt-6 p-5 flex items-center justify-between">
+                        <div>
+                            <h3
+                                className="font-semibold text-base"
+                                style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+                            >
+                                You have {counts.followUpDue} follow-ups due
+                            </h3>
+                            <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                                Review and send personalised follow-up emails
+                            </p>
+                        </div>
                         <Link
                             href="/outreach/follow-ups"
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-white font-semibold rounded-xl transition-all border-2 active:translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer"
-                            style={{
-                                color: 'var(--brand)',
-                                borderColor: 'var(--brand)',
-                                boxShadow: 'none'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.boxShadow = '0 4px 12px var(--brand-glow)';
-                                e.currentTarget.style.borderColor = 'var(--brand-hover)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.boxShadow = 'none';
-                                e.currentTarget.style.borderColor = 'var(--brand)';
-                            }}
+                            className="btn btn-primary"
                         >
-                            <Send size={16} />
+                            <Send size={16} strokeWidth={1.75} />
                             Review Queue
                         </Link>
-                    )}
-                </StatsGrid>
+                    </div>
+                )}
             </div>
 
             {/* Tabs + Controls */}

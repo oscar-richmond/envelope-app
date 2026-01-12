@@ -153,21 +153,40 @@ export default function CompanyWorkspacePage() {
     const { company, financial, staleness, priority, places, website, ai, contacts, outreachTimeline, discoveredEmails } = profile;
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <header className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
+        <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
+            {/* Header - Hero Surface */}
+            <header className="hero-surface hero-surface-brand px-6 py-6 sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg">
-                            <ArrowLeft size={20} className="text-gray-500" />
+                        <button
+                            onClick={() => router.back()}
+                            className="icon-btn icon-btn-ghost"
+                            aria-label="Go back"
+                        >
+                            <ArrowLeft size={20} strokeWidth={1.75} />
                         </button>
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                            <div
+                                className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg"
+                                style={{
+                                    background: 'linear-gradient(135deg, var(--brand) 0%, var(--lilac) 100%)',
+                                    boxShadow: '0 4px 12px var(--brand-glow)'
+                                }}
+                            >
                                 {company.name.charAt(0)}
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold text-gray-900">{company.name}</h1>
-                                <p className="text-sm text-gray-500 flex items-center gap-2">
+                                <h1
+                                    className="text-xl font-bold"
+                                    style={{
+                                        fontFamily: 'var(--font-display)',
+                                        color: 'var(--text-primary)',
+                                        letterSpacing: '-0.02em'
+                                    }}
+                                >
+                                    {company.name}
+                                </h1>
+                                <p className="text-sm flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                                     {company.industry && <span>{company.industry}</span>}
                                     {company.location && <span>• {company.location}</span>}
                                 </p>
@@ -180,15 +199,15 @@ export default function CompanyWorkspacePage() {
                                 href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="btn btn-secondary"
+                                className="btn btn-secondary btn-sm"
                             >
-                                <Globe size={16} />
+                                <Globe size={16} strokeWidth={1.75} />
                                 Website
                                 <ExternalLink size={12} />
                             </a>
                         )}
-                        <Link href={`/outreach?companyId=${company.id}`} className="btn btn-primary">
-                            <Send size={16} />
+                        <Link href={`/outreach?companyId=${company.id}`} className="btn btn-primary btn-sm">
+                            <Send size={16} strokeWidth={1.75} />
                             Compose Email
                         </Link>
                     </div>
@@ -245,12 +264,12 @@ export default function CompanyWorkspacePage() {
                         </h3>
                         <div className="text-center py-4">
                             <div className={`text-5xl font-bold ${priority.band === 'High' ? 'text-green-600' :
-                                    priority.band === 'Medium' ? 'text-amber-500' : 'text-gray-400'
+                                priority.band === 'Medium' ? 'text-amber-500' : 'text-gray-400'
                                 }`}>
                                 {priority.score || 0}
                             </div>
                             <div className={`inline-flex mt-2 px-3 py-1 rounded-full text-sm font-medium ${priority.band === 'High' ? 'bg-green-100 text-green-700' :
-                                    priority.band === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                                priority.band === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
                                 }`}>
                                 {priority.band || 'Not Scored'}
                             </div>
@@ -269,8 +288,8 @@ export default function CompanyWorkspacePage() {
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === tab
-                                    ? 'bg-gray-900 text-white'
-                                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                ? 'bg-gray-900 text-white'
+                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                                 }`}
                         >
                             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -365,13 +384,13 @@ export default function CompanyWorkspacePage() {
                         <Card title="Financial Health" icon={<DollarSign size={16} className="text-green-500" />}>
                             <div className="text-center py-4 mb-4">
                                 <div className={`text-4xl font-bold ${financial.band === 'Very Strong' || financial.band === 'Strong' ? 'text-green-600' :
-                                        financial.band === 'Medium' ? 'text-amber-500' : 'text-gray-400'
+                                    financial.band === 'Medium' ? 'text-amber-500' : 'text-gray-400'
                                     }`}>
                                     {financial.score || 0}/100
                                 </div>
                                 <span className={`inline-flex mt-2 px-3 py-1 rounded-full text-sm font-medium ${financial.band === 'Very Strong' ? 'bg-green-100 text-green-700' :
-                                        financial.band === 'Strong' ? 'bg-emerald-100 text-emerald-700' :
-                                            financial.band === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                                    financial.band === 'Strong' ? 'bg-emerald-100 text-emerald-700' :
+                                        financial.band === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
                                     }`}>
                                     {financial.band || 'Not Analysed'}
                                 </span>
@@ -392,7 +411,7 @@ export default function CompanyWorkspacePage() {
                         <Card title="Website Staleness" icon={<Activity size={16} className="text-orange-500" />}>
                             <div className="text-center py-4 mb-4">
                                 <div className={`text-4xl font-bold ${(staleness.score || 0) < 30 ? 'text-green-600' :
-                                        (staleness.score || 0) < 60 ? 'text-amber-500' : 'text-red-500'
+                                    (staleness.score || 0) < 60 ? 'text-amber-500' : 'text-red-500'
                                     }`}>
                                     {staleness.score || 0}
                                 </div>
@@ -450,7 +469,7 @@ export default function CompanyWorkspacePage() {
                                                 <Mail size={14} className="text-gray-400" />
                                                 <span className="text-gray-700">{email.email}</span>
                                                 <span className={`text-xs px-1.5 py-0.5 rounded ${email.confidence === 'HIGH' ? 'bg-green-100 text-green-700' :
-                                                        email.confidence === 'MEDIUM' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                                                    email.confidence === 'MEDIUM' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
                                                     }`}>
                                                     {email.confidence}
                                                 </span>
