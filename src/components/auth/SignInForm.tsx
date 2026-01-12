@@ -4,8 +4,7 @@
 import { signIn, useSession } from 'next-auth/react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import Link from 'next/link';
+import { Loader2, Key } from 'lucide-react';
 
 export function SignInForm() {
     const [mounted, setMounted] = useState(false);
@@ -63,38 +62,72 @@ export function SignInForm() {
     if (!mounted) {
         return (
             <div className="w-full space-y-4 animate-pulse">
-                <div className="h-12 bg-gray-50 border border-gray-100 rounded-xl w-full"></div>
-                <div className="h-12 bg-gray-50 border border-gray-100 rounded-xl w-full"></div>
+                <div className="h-[52px] bg-gray-50 border border-gray-100 rounded-xl w-full"></div>
+                <div className="h-[52px] bg-gray-50 border border-gray-100 rounded-xl w-full"></div>
             </div>
         );
     }
 
     return (
-        <div className="w-full space-y-4">
+        <div className="w-full space-y-3">
+            {/* Google Button - Premium styling */}
             <button
                 onClick={handleGoogle}
                 disabled={!!loading}
-                className="w-full relative flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 font-medium py-3 px-4 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+                className="w-full relative flex items-center justify-center gap-3 bg-white text-gray-700 font-semibold py-3.5 px-5 rounded-xl transition-all border border-gray-200 hover:border-gray-300 hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                    height: '52px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}
             >
-                {loading === 'google' ? <Loader2 className="animate-spin w-5 h-5 text-gray-400" /> : (
+                {loading === 'google' ? (
+                    <Loader2 className="animate-spin w-5 h-5 text-gray-400" />
+                ) : (
                     <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="" />
                 )}
                 Continue with Google
             </button>
 
+            {/* Passkey Button - Blue accent styling */}
             <button
                 onClick={handlePasskey}
                 disabled={!!loading}
-                className="w-full relative flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 font-medium py-3 px-4 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+                className="w-full relative flex items-center justify-center gap-3 font-semibold py-3.5 px-5 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                    height: '52px',
+                    background: 'rgba(84, 130, 237, 0.08)',
+                    color: '#5482ED',
+                    border: '1px solid rgba(84, 130, 237, 0.25)',
+                    boxShadow: '0 1px 3px rgba(84, 130, 237, 0.08)'
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(84, 130, 237, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(84, 130, 237, 0.35)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(84, 130, 237, 0.18)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(84, 130, 237, 0.08)';
+                    e.currentTarget.style.borderColor = 'rgba(84, 130, 237, 0.25)';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(84, 130, 237, 0.08)';
+                }}
             >
-                {loading === 'passkey' ? <Loader2 className="animate-spin w-5 h-5 text-gray-400" /> : (
-                    <span className="text-lg">🔑</span>
+                {loading === 'passkey' ? (
+                    <Loader2 className="animate-spin w-5 h-5" />
+                ) : (
+                    <Key size={18} />
                 )}
                 Continue with Passkey
             </button>
 
             {error && (
-                <div className="text-red-500 text-xs text-center p-2">
+                <div
+                    className="text-xs text-center p-3 rounded-lg"
+                    style={{
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        color: '#DC2626',
+                        border: '1px solid rgba(239, 68, 68, 0.15)'
+                    }}
+                >
                     {error}
                 </div>
             )}
