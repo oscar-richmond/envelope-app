@@ -6,10 +6,6 @@ import OpenAI from 'openai';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
-
 /**
  * POST /api/outreach/sent/[id]/ai
  * 
@@ -20,6 +16,20 @@ const openai = new OpenAI({
 export async function POST(req: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const emailId = parseInt(id);
+
+    // Check for API key first
+    if (!process.env.OPENAI_API_KEY) {
+        console.error('[AI Thread] OPENAI_API_KEY not configured');
+        return NextResponse.json({
+            error: 'AI features require OpenAI API key. Please add OPENAI_API_KEY to your environment variables.',
+            configError: true
+        }, { status: 503 });
+    }
+
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+    });
 
     try {
         const body = await req.json();
