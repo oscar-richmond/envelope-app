@@ -15,18 +15,12 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 /**
  * IconButton - Circular/square icon-only button with accessibility built-in.
  * 
- * Variants:
- * - default: White with gray border
- * - ghost: Transparent, subtle hover
- * - lilac: Purple tint (for active/highlighted state)
- * - mint: Green tint
- * - danger: Red tint (delete/destructive)
- * - brand: Blue tint
+ * Standard icon sizes:
+ * - sm: 14px
+ * - md: 18px (default)
+ * - lg: 20px
  * 
- * Sizes:
- * - sm: 32px
- * - md: 40px (default)
- * - lg: 48px
+ * All icons use strokeWidth={1.75} for consistency.
  */
 export function IconButton({
     variant = 'default',
@@ -42,6 +36,7 @@ export function IconButton({
     const variantClass = variant !== 'default' ? `icon-btn-${variant}` : '';
     const sizeClass = size !== 'md' ? `icon-btn-${size}` : '';
 
+    // Standard icon sizes: sm=14, md=18, lg=20
     const iconSize = size === 'sm' ? 14 : size === 'lg' ? 20 : 18;
 
     return (

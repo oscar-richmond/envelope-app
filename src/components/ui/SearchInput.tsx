@@ -23,7 +23,8 @@ export function SearchInput({
     return (
         <div className={`search-input-wrapper ${className}`}>
             <Search
-                size={16}
+                size={18}
+                strokeWidth={1.75}
                 className="search-input-icon"
             />
             <input

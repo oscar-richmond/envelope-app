@@ -63,10 +63,10 @@ export default function Modal({
                     <div className="modal-title">{title}</div>
                     <button
                         onClick={onClose}
-                        className="btn btn-ghost p-1.5 rounded-full text-gray-400 hover:text-gray-600 -mr-2"
+                        className="icon-btn icon-btn-ghost"
                         aria-label="Close modal"
                     >
-                        <X size={20} />
+                        <X size={18} strokeWidth={1.75} />
                     </button>
                 </div>
 
@@ -93,8 +93,8 @@ export function ModalHeader({ children, onClose }: { children: React.ReactNode; 
         <div className="modal-header">
             <div className="modal-title">{children}</div>
             {onClose && (
-                <button onClick={onClose} className="btn btn-ghost p-1.5 rounded-full text-gray-400 hover:text-gray-600">
-                    <X size={20} />
+                <button onClick={onClose} className="icon-btn icon-btn-ghost">
+                    <X size={18} strokeWidth={1.75} />
                 </button>
             )}
         </div>
