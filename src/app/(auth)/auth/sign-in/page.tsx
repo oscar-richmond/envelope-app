@@ -33,7 +33,7 @@ export default function SignInPage() {
                         {/* Brand Logo */}
                         <div className="mb-4">
                             <img
-                                src="/branding/envelope-logo.png"
+                                src="/branding/envelope-logo-dark.png"
                                 alt="Envelope"
                                 className="h-8 md:h-9 w-auto"
                                 style={{ maxHeight: '36px' }}
