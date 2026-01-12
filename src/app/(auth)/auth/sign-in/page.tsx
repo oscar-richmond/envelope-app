@@ -30,20 +30,14 @@ export default function SignInPage() {
 
                     {/* Content */}
                     <div className="relative z-10">
-                        {/* Brand Header */}
-                        <div className="flex items-center gap-3 mb-8">
-                            <div
-                                className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg"
-                                style={{ background: 'var(--nav-bg, #1a1a2e)' }}
-                            >
-                                E
-                            </div>
-                            <div>
-                                <span className="font-semibold text-gray-900 text-lg" style={{ fontFamily: 'var(--font-display)' }}>
-                                    Envelope
-                                </span>
-                                <span className="text-gray-400 text-sm ml-1.5">by Selfhood</span>
-                            </div>
+                        {/* Brand Logo */}
+                        <div className="mb-4">
+                            <img
+                                src="/branding/envelope-logo.png"
+                                alt="Envelope"
+                                className="h-8 md:h-9 w-auto"
+                                style={{ maxHeight: '36px' }}
+                            />
                         </div>
 
                         {/* Title */}
