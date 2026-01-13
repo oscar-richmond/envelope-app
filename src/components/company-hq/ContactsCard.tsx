@@ -16,15 +16,22 @@ interface Email {
 }
 
 interface ContactsCardProps {
-    prospectId: number;
-    emails: Email[];
+    prospectId?: number;
+    leadId?: number;
+    emails?: Email[];
+    contacts?: any[];  // Alias for emails (for backwards compat)
     onSelectEmail?: (email: string) => void;
 }
 
-export default function ContactsCard({ prospectId, emails, onSelectEmail }: ContactsCardProps) {
+export default function ContactsCard({ prospectId, leadId, emails: emailsProp, contacts, onSelectEmail }: ContactsCardProps) {
     const router = useRouter();
     const [finding, setFinding] = useState(false);
     const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
+
+    // Normalize: accept either emails or contacts prop, default to empty array
+    const emails: Email[] = Array.isArray(emailsProp) ? emailsProp
+        : Array.isArray(contacts) ? contacts
+            : [];
 
     const handleFindContacts = async () => {
         setFinding(true);
@@ -163,8 +170,8 @@ export default function ContactsCard({ prospectId, emails, onSelectEmail }: Cont
                             <button
                                 onClick={() => handleUseEmail(e.email)}
                                 className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-all ${selectedEmail === e.email
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'opacity-0 group-hover:opacity-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'opacity-0 group-hover:opacity-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
                                     }`}
                                 title="Use this email"
                             >

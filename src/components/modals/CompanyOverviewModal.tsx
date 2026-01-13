@@ -262,6 +262,21 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
     if (!data && loading) return null;
     if (!data) return null;
 
+    // SAFE DEFAULTS: Ensure kpis object exists with fallback values
+    const kpis = {
+        opportunityScore: data.kpis?.opportunityScore ?? 0,
+        websiteScore: data.kpis?.websiteScore ?? 0,
+        financialScore: data.kpis?.financialScore ?? 0,
+        financialBand: data.kpis?.financialBand ?? 'Unknown'
+    };
+
+    // SAFE DEFAULTS: Ensure arrays and objects exist
+    const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+    const sentEmails = Array.isArray(data.sentEmails) ? data.sentEmails : [];
+    const websiteSignals = Array.isArray(data.websiteSignals) ? data.websiteSignals : [];
+    const financialSignals = Array.isArray(data.financialSignals) ? data.financialSignals : [];
+    const outreach = data.outreach ?? {};
+
     // Check if this is a prospect (not yet a lead)
     const isProspect = data.isProspect === true;
     const domain = data.websiteUrl ? (() => { try { return new URL(data.websiteUrl).hostname; } catch { return undefined; } })() : undefined;
@@ -272,8 +287,8 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
 
     // Signals
     let displaySignals: { label: string; type: 'danger' | 'warning' | 'neutral' }[] = [];
-    if (data.websiteSignals && Array.isArray(data.websiteSignals)) {
-        displaySignals = data.websiteSignals.slice(0, 6).map((s: string) => ({
+    if (websiteSignals.length > 0) {
+        displaySignals = websiteSignals.slice(0, 6).map((s: string) => ({
             label: s,
             type: s.match(/copyright|inactive|error/i) ? 'danger' : 'neutral'
         }));
@@ -397,31 +412,31 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                         <div className="grid grid-cols-4 gap-5">
                             <ScoreCard
                                 label="Lead Opportunity"
-                                score={data.kpis.opportunityScore}
-                                band={data.kpis.opportunityScore >= 70 ? 'High' : data.kpis.opportunityScore >= 40 ? 'Medium' : 'Low'}
+                                score={kpis.opportunityScore}
+                                band={kpis.opportunityScore >= 70 ? 'High' : kpis.opportunityScore >= 40 ? 'Medium' : 'Low'}
                                 accent="lilac"
                                 icon={Target}
                             />
                             <ScoreCard
                                 label="Website Health"
-                                score={data.kpis.websiteScore}
-                                band={data.kpis.websiteScore >= 60 ? 'Healthy' : 'Needs Work'}
-                                accent={getScoreAccent(data.kpis.websiteScore)}
+                                score={kpis.websiteScore}
+                                band={kpis.websiteScore >= 60 ? 'Healthy' : 'Needs Work'}
+                                accent={getScoreAccent(kpis.websiteScore)}
                                 icon={Monitor}
                                 onWhy={() => setIsWebsiteModalOpen(true)}
                             />
                             <ScoreCard
                                 label="Financial Health"
-                                score={data.kpis.financialScore}
-                                band={data.kpis.financialBand}
-                                accent={getScoreAccent(data.kpis.financialScore)}
+                                score={kpis.financialScore}
+                                band={kpis.financialBand}
+                                accent={getScoreAccent(kpis.financialScore)}
                                 icon={TrendingUp}
                                 onWhy={() => setIsFinancialModalOpen(true)}
                             />
                             <ScoreCard
                                 label="Outreach Status"
-                                score={data.outreach?.emailsSent || 0}
-                                band={data.outreach?.status?.replace('_', ' ') || 'Not Started'}
+                                score={outreach.emailsSent || 0}
+                                band={outreach.status?.replace('_', ' ') || 'Not Started'}
                                 accent="blue"
                                 icon={Mail}
                             />
@@ -550,7 +565,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                                     className="text-5xl font-bold tracking-tight"
                                                     style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.03em' }}
                                                 >
-                                                    {data.kpis.financialScore}
+                                                    {kpis.financialScore}
                                                 </span>
                                                 <span className="text-lg ml-1" style={{ color: 'var(--text-muted)' }}>/100</span>
                                             </div>
@@ -558,7 +573,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                                 className="px-4 py-2 rounded-[var(--radius-button)] font-bold text-sm"
                                                 style={{ background: 'var(--accent-mint-bg)', color: 'var(--accent-mint-text)' }}
                                             >
-                                                {data.kpis.financialBand}
+                                                {kpis.financialBand}
                                             </div>
                                         </div>
                                         <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
@@ -597,7 +612,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                     </button>
                                 </div>
                                 <div className="max-h-[400px] overflow-y-auto">
-                                    <ContactsCard leadId={leadId} contacts={data.contacts || []} />
+                                    <ContactsCard leadId={leadId} contacts={contacts} />
                                 </div>
                             </div>
                         )}
@@ -623,7 +638,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                         Email Thread
                                     </h3>
                                 </div>
-                                <ThreadPreview sentEmails={data.sentEmails || []} />
+                                <ThreadPreview sentEmails={sentEmails} />
                             </div>
                         )}
                     </div>
@@ -690,9 +705,9 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
             <FinancialReportModal
                 isOpen={isFinancialModalOpen}
                 onClose={() => setIsFinancialModalOpen(false)}
-                score={data.kpis.financialScore}
-                band={data.kpis.financialBand}
-                evidence={data.financialSignals}
+                score={kpis.financialScore}
+                band={kpis.financialBand}
+                evidence={financialSignals}
                 companyName={data.companyName}
                 lastChecked={data.companyProspect?.financialLastCheckedAt}
             />

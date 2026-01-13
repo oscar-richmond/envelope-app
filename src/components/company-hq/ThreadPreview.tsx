@@ -9,7 +9,9 @@ interface ThreadPreviewProps {
 }
 
 export default function ThreadPreview({ sentEmails }: ThreadPreviewProps) {
-    const latestEmail = sentEmails[0];
+    // SAFE: ensure sentEmails is always an array
+    const emails = Array.isArray(sentEmails) ? sentEmails : [];
+    const latestEmail = emails.length > 0 ? emails[0] : null;
 
     return (
         <div className={hqStyles.card}>
@@ -29,16 +31,16 @@ export default function ThreadPreview({ sentEmails }: ThreadPreviewProps) {
                 {latestEmail ? (
                     <div className="space-y-3">
                         <div className="flex justify-between items-start">
-                            <h4 className="text-sm font-semibold text-gray-900 line-clamp-1">{latestEmail.subject}</h4>
+                            <h4 className="text-sm font-semibold text-gray-900 line-clamp-1">{latestEmail.subject || 'No subject'}</h4>
                             <span className="text-xs text-gray-400 whitespace-nowrap">
-                                {new Date(latestEmail.sentAt).toLocaleDateString()}
+                                {latestEmail.sentAt ? new Date(latestEmail.sentAt).toLocaleDateString() : '—'}
                             </span>
                         </div>
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 text-sm text-gray-600 line-clamp-3 italic">
-                            "{latestEmail.bodyText.substring(0, 150)}..."
+                            "{(latestEmail.bodyText || latestEmail.body || '').substring(0, 150)}..."
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <StatusBadge status={latestEmail.status} />
+                            <StatusBadge status={latestEmail.status || 'SENT'} />
                         </div>
                     </div>
                 ) : (
