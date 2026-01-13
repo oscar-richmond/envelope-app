@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Users, RefreshCw, Check, Shield, AlertCircle,
-    Globe, Zap, Building2, ChevronDown, ChevronUp, Copy, Mail, Loader2
+    Globe, Zap, Building2, ChevronDown, ChevronUp, Copy, Mail, Loader2, Plus, UserPlus
 } from 'lucide-react';
+import AddContactModal from '@/components/modals/AddContactModal';
 
 interface Contact {
     id?: string;
@@ -19,12 +20,14 @@ interface Contact {
     deliverability?: 'high' | 'medium' | 'low' | 'catch-all' | 'unknown';
     verified?: boolean;
     isBestContact?: boolean;
+    isManual?: boolean;
 }
 
 interface ContactsCardProps {
     prospectId?: number;
     leadId?: number;
     companyId?: number;
+    companyName?: string;
     emails?: any[];
     contacts?: any[];
     onSelectEmail?: (email: string) => void;
@@ -37,6 +40,7 @@ export default function ContactsCard({
     prospectId,
     leadId,
     companyId,
+    companyName,
     emails: emailsProp,
     contacts: contactsProp,
     onSelectEmail
@@ -58,6 +62,7 @@ export default function ContactsCard({
     const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
     const [showGeneric, setShowGeneric] = useState(false);
     const [showMore, setShowMore] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false);
 
     // Fetch contacts on mount
     const fetchContacts = useCallback(async () => {
@@ -283,6 +288,21 @@ export default function ContactsCard({
                         )}
                         {isScanning ? 'Scanning...' : 'Rescan'}
                     </button>
+                    {/* Add Contact Button */}
+                    <button
+                        onClick={() => setShowAddModal(true)}
+                        disabled={!canInteract || !id}
+                        className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
+                        style={{
+                            background: 'var(--brand)',
+                            color: 'white',
+                            cursor: canInteract && id ? 'pointer' : 'not-allowed',
+                            opacity: canInteract && id ? 1 : 0.5
+                        }}
+                    >
+                        <Plus size={12} />
+                        Add
+                    </button>
                 </div>
             </div>
 
@@ -433,6 +453,19 @@ export default function ContactsCard({
                     </>
                 )}
             </div>
+
+            {/* Add Contact Modal */}
+            <AddContactModal
+                isOpen={showAddModal}
+                companyId={id || 0}
+                companyName={companyName}
+                onClose={() => setShowAddModal(false)}
+                onSuccess={(contact) => {
+                    // Optimistically add to list
+                    setContacts(prev => [contact, ...prev]);
+                    setShowAddModal(false);
+                }}
+            />
         </div>
     );
 }
@@ -508,6 +541,7 @@ function ContactRow({
 // Source Badge Component
 function SourceBadge({ source }: { source: string }) {
     const configs: Record<string, { icon: any; label: string; bg: string; color: string }> = {
+        manual: { icon: UserPlus, label: 'Manual', bg: 'rgba(16, 185, 129, 0.1)', color: 'rgb(5, 150, 105)' },
         hunter: { icon: Zap, label: 'Hunter', bg: 'rgba(245, 158, 11, 0.1)', color: 'rgb(180, 83, 9)' },
         website: { icon: Globe, label: 'Website', bg: 'rgba(59, 130, 246, 0.1)', color: 'rgb(37, 99, 235)' },
         companies_house: { icon: Building2, label: 'CH', bg: 'rgba(107, 114, 128, 0.1)', color: 'rgb(75, 85, 99)' },
