@@ -79,45 +79,71 @@ export default async function ExtensionCallbackPage() {
           <h1>Extension Connected!</h1>
           <p>You can now close this tab and use the Envelope extension.</p>
           <div className="email">{session.user.email}</div>
+          <div id="status" style={{ marginTop: '16px', padding: '8px 16px', borderRadius: '8px', background: '#fef3c7', color: '#92400e', fontSize: '13px' }}>
+            Connecting to extension...
+          </div>
         </div>
 
         <script dangerouslySetInnerHTML={{
           __html: `
-          console.log('[Envelope Auth] Starting token injection...');
-          
-          // Pass token to extension
-          const token = "${token}";
-          const email = "${session.user.email}";
-          
-          console.log('[Envelope Auth] Token generated, email:', email);
-          
-          // Store in localStorage for the extension to read
-          localStorage.setItem('envelope-extension-token', token);
-          localStorage.setItem('envelope-extension-email', email);
-          localStorage.setItem('envelope-extension-ready', 'true');
-          
-          console.log('[Envelope Auth] Token stored in localStorage');
-          
-          // Try chrome.storage directly if available
-          if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.set({ authToken: token, userEmail: email }, () => {
-              console.log('[Envelope Auth] Token stored directly in chrome.storage');
-            });
-          }
-          
-          // Try to communicate with extension via runtime message
-          if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-            try {
-              chrome.runtime.sendMessage(
-                { action: 'setAuthToken', token, email },
-                (response) => console.log('[Envelope Auth] Extension response:', response)
-              );
-            } catch (e) {
-              console.log('[Envelope Auth] Extension communication error:', e.message);
+          (function() {
+            const statusEl = document.getElementById('status');
+            function updateStatus(msg, success) {
+              statusEl.textContent = msg;
+              statusEl.style.background = success ? '#d1fae5' : '#fef3c7';
+              statusEl.style.color = success ? '#065f46' : '#92400e';
             }
-          }
-          
-          console.log('[Envelope Auth] Token injection complete');
+            
+            console.log('[Envelope Auth] Starting token injection...');
+            
+            const token = "${token}";
+            const email = "${session.user.email}";
+            
+            console.log('[Envelope Auth] Token ready, email:', email);
+            
+            // Store in localStorage
+            try {
+              localStorage.setItem('envelope-extension-token', token);
+              localStorage.setItem('envelope-extension-email', email);
+              localStorage.setItem('envelope-extension-ready', Date.now().toString());
+              console.log('[Envelope Auth] Token stored in localStorage');
+            } catch (e) {
+              console.error('[Envelope Auth] localStorage error:', e);
+              updateStatus('Error: ' + e.message, false);
+              return;
+            }
+            
+            // Verify it was stored
+            const storedToken = localStorage.getItem('envelope-extension-token');
+            const storedEmail = localStorage.getItem('envelope-extension-email');
+            
+            if (storedToken && storedEmail) {
+              console.log('[Envelope Auth] Verified: token stored successfully');
+              updateStatus('Token ready! Extension should pick it up...', false);
+            } else {
+              console.error('[Envelope Auth] Token not stored properly!');
+              updateStatus('Error: Token not stored', false);
+              return;
+            }
+            
+            // Poll to check if extension picked up the token
+            let checkCount = 0;
+            const checkInterval = setInterval(() => {
+              checkCount++;
+              const tokenStillThere = localStorage.getItem('envelope-extension-token');
+              
+              if (!tokenStillThere) {
+                // Extension picked it up and cleared it
+                clearInterval(checkInterval);
+                updateStatus('✓ Connected! You can close this tab.', true);
+                console.log('[Envelope Auth] Token was picked up by extension!');
+              } else if (checkCount >= 30) {
+                clearInterval(checkInterval);
+                updateStatus('Extension not responding. Try reloading extension in chrome://extensions', false);
+                console.warn('[Envelope Auth] Token still present after 15s - extension may not be running');
+              }
+            }, 500);
+          })();
         `}} />
       </body>
     </html>
