@@ -17,6 +17,7 @@ import ThreadPreview from '@/components/company-hq/ThreadPreview';
 
 import WebsiteEvidenceModal from '@/components/modals/WebsiteEvidenceModal';
 import FinancialReportModal from '@/components/modals/FinancialReportModal';
+import { MessageThreadComposerModal } from '@/components/messaging/MessageThreadComposerModal';
 
 // --- Score Card Component (V2 Style) ---
 function ScoreCard({
@@ -188,6 +189,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
     const [isExpanded, setIsExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
     const [showTagPicker, setShowTagPicker] = useState(false);
+    const [isComposeModalOpen, setIsComposeModalOpen] = useState(false);
 
     // Copy link handler
     const handleCopyLink = async () => {
@@ -202,15 +204,13 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
         }
     };
 
-    // Compose outreach handler
+    // Compose outreach handler - opens modal instead of navigating
     const handleComposeOutreach = () => {
-        const companyId = data?.companyProspectId || prospectId;
-        if (resolvedLeadId) {
-            router.push(`/outreach?leadId=${resolvedLeadId}`);
-        } else if (companyId) {
-            router.push(`/outreach?companyId=${companyId}`);
+        // Check if we have contacts
+        if (contacts.length === 0) {
+            // Still allow opening, modal will show empty state with Find Contacts CTA
         }
-        onClose();
+        setIsComposeModalOpen(true);
     };
 
     useEffect(() => {
@@ -709,8 +709,28 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                 band={kpis.financialBand}
                 evidence={financialSignals}
                 companyName={data.companyName}
+                companyId={data.companyProspectId || prospectId}
                 lastChecked={data.companyProspect?.financialLastCheckedAt}
             />
+
+            {/* Compose Modal */}
+            {isComposeModalOpen && (
+                <MessageThreadComposerModal
+                    leadId={resolvedLeadId || undefined}
+                    prospectId={data.companyProspectId || prospectId}
+                    initialData={{
+                        companyName: data.companyName,
+                        contactName: contacts[0]?.name || '',
+                        contactEmail: contacts[0]?.email || '',
+                        prospect: data.companyProspect
+                    }}
+                    defaultTab="compose"
+                    onClose={() => setIsComposeModalOpen(false)}
+                    onSuccess={() => {
+                        setIsComposeModalOpen(false);
+                    }}
+                />
+            )}
         </>
     );
 }
