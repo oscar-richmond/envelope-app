@@ -141,7 +141,7 @@ export async function POST(request: Request) {
         }
 
         const contacts = discoveryData.emails || [];
-        const bestContacts = discoveryData.bestContacts || contacts.slice(0, 3);
+        const bestContacts = discoveryData.bestContacts || contacts.slice(0, 10);
         const patterns = discoveryData.patterns || [];
         const meta = {
             totalFound: discoveryData.meta?.totalFound || contacts.length,
@@ -150,20 +150,36 @@ export async function POST(request: Request) {
             provider: getConfiguredProvider(),
         };
 
-        // Verify top contacts
+        // Verify more contacts - increased from 8 to 25
         const verificationResults = new Map<string, any>();
-        const toVerify = contacts.slice(0, Math.min(verifyCount, contacts.length));
+        const toVerify = contacts.slice(0, Math.min(25, contacts.length));
         let verifiedCount = 0;
         let verifyErrors = 0;
+
+        console.log(`[Discovery] Verifying ${toVerify.length} contacts...`);
 
         for (const contact of toVerify) {
             if (!contact.email) continue;
             try {
                 const result = await verifyEmail(contact.email);
                 verificationResults.set(contact.email, result);
+
+                // Add verification to contact object
+                contact.verification = {
+                    status: result.status,
+                    reason: result.reason,
+                    isCatchAll: result.isCatchAll || false,
+                    verifiedAt: new Date().toISOString(),
+                };
+
                 if (result.status === 'valid') verifiedCount++;
             } catch (err) {
                 verifyErrors++;
+                contact.verification = {
+                    status: 'unknown',
+                    reason: 'verification_failed',
+                    verifiedAt: new Date().toISOString(),
+                };
             }
         }
 

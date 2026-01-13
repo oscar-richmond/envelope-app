@@ -553,7 +553,7 @@ export async function POST(request: Request) {
         // Split into best contacts (non-generic with role) and other emails
         const bestContacts = allContacts
             .filter(c => !c.isGeneric && c.role)
-            .slice(0, 4);
+            .slice(0, 10); // Increased from 4 to 10
 
         // Detect patterns
         const patterns = detectPatterns(allContacts, domain);

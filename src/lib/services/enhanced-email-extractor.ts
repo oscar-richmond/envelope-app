@@ -358,7 +358,7 @@ export class EnhancedEmailExtractor {
         // 5. Sort by score (highest first)
         const sortedContacts = Array.from(contacts.values())
             .sort((a, b) => b.score - a.score)
-            .slice(0, 12); // Max 12 results
+            .slice(0, 100); // Increased from 12 to 100
 
         // 6. Calculate stats
         const nonGeneric = sortedContacts.filter(c => !c.isGeneric).length;
