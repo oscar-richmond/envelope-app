@@ -46,6 +46,9 @@ const elements = {
     scoreAbilityVal: document.getElementById('score-ability-val'),
     scoreConfidenceVal: document.getElementById('score-confidence-val'),
 
+    btnEnrich: document.getElementById('btn-enrich'),
+    btnEnrichText: document.getElementById('btn-enrich-text'),
+
     detailSource: document.getElementById('detail-source'),
     detailType: document.getElementById('detail-type'),
 
@@ -125,28 +128,64 @@ async function init() {
     }
 }
 
-// Detect page context
+// Detect page context - enhanced for Phase 9
 function detectContext(url) {
     if (!url) return 'unsupported';
 
+    // Chrome internal pages
+    if (url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+        return 'unsupported';
+    }
+
+    // LinkedIn
     if (url.includes('linkedin.com/in/')) return 'linkedin_person';
     if (url.includes('linkedin.com/company/')) return 'linkedin_company';
+
+    // Google Maps / Places
+    if (url.includes('google.com/maps') || url.includes('maps.google')) {
+        return 'google_maps';
+    }
+
+    // Directories
+    if (url.includes('clutch.co/profile/')) return 'directory_clutch';
+    if (url.includes('yelp.com/biz/')) return 'directory_yelp';
+    if (url.includes('yell.com/biz/')) return 'directory_yell';
+    if (url.includes('trustpilot.com/review/')) return 'directory_trustpilot';
+    if (url.includes('g2.com/products/')) return 'directory_g2';
+    if (url.includes('capterra.com/')) return 'directory_capterra';
+
+    // Any website
     if (url.startsWith('http://') || url.startsWith('https://')) {
-        if (url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
-            return 'unsupported';
-        }
         return 'website';
     }
+
     return 'unsupported';
 }
 
-// Get page data via content script
+// Get page data via content script - enhanced for Phase 9
 async function getPageData(tabId, context, url) {
     try {
         if (context.startsWith('linkedin_')) {
             const results = await chrome.scripting.executeScript({
                 target: { tabId },
                 func: parseLinkedInPage,
+                args: [context]
+            });
+            return results[0]?.result;
+        }
+
+        if (context === 'google_maps') {
+            const results = await chrome.scripting.executeScript({
+                target: { tabId },
+                func: parseGoogleMapsPage
+            });
+            return results[0]?.result;
+        }
+
+        if (context.startsWith('directory_')) {
+            const results = await chrome.scripting.executeScript({
+                target: { tabId },
+                func: parseDirectoryPage,
                 args: [context]
             });
             return results[0]?.result;
@@ -206,6 +245,101 @@ function parseLinkedInPage(context) {
         if (!data.companyName) {
             const altName = document.querySelector('.org-top-card-summary__title span');
             data.companyName = altName?.textContent?.trim() || '';
+        }
+    }
+
+    return data;
+}
+
+// Google Maps page parser
+function parseGoogleMapsPage() {
+    const data = {
+        companyName: '',
+        website: '',
+        phone: '',
+        address: '',
+        email: '',
+        contactName: '',
+        jobTitle: ''
+    };
+
+    // Try to get business name from heading
+    const nameEl = document.querySelector('h1.DUwDvf, h1[data-attrid="title"]');
+    if (nameEl) data.companyName = nameEl.textContent.trim();
+
+    // Try to get website link
+    const websiteEl = document.querySelector('a[data-item-id="authority"]');
+    if (websiteEl) data.website = websiteEl.href;
+
+    // Try to get phone
+    const phoneEl = document.querySelector('button[data-item-id^="phone"]');
+    if (phoneEl) data.phone = phoneEl.textContent.replace(/[^\d+]/g, '');
+
+    // Try to get address
+    const addressEl = document.querySelector('button[data-item-id="address"]');
+    if (addressEl) data.address = addressEl.textContent.trim();
+
+    return data;
+}
+
+// Directory page parser (Clutch, Yelp, Yell, Trustpilot, G2, Capterra)
+function parseDirectoryPage(context) {
+    const data = {
+        companyName: '',
+        website: '',
+        phone: '',
+        email: '',
+        contactName: '',
+        jobTitle: '',
+        rating: '',
+        reviews: ''
+    };
+
+    // Generic selectors that work across directories
+    const nameSelectors = [
+        'h1',
+        '.company-name',
+        '.biz-page-title',
+        '[data-testid="biz-name"]',
+        '.profile-header h1',
+    ];
+
+    for (const sel of nameSelectors) {
+        const el = document.querySelector(sel);
+        if (el && el.textContent.trim().length > 1) {
+            data.companyName = el.textContent.trim();
+            break;
+        }
+    }
+
+    // Try to find website link
+    const websiteSelectors = [
+        'a[href^="http"][rel*="nofollow"]',
+        '.website-link',
+        '.biz-website a',
+        'a[data-tracking-element-type="cta_url"]',
+    ];
+
+    for (const sel of websiteSelectors) {
+        const el = document.querySelector(sel);
+        if (el && el.href && !el.href.includes(window.location.hostname)) {
+            data.website = el.href;
+            break;
+        }
+    }
+
+    // Try to find phone
+    const phoneSelectors = [
+        'a[href^="tel:"]',
+        '.phone-number',
+        '.biz-phone',
+    ];
+
+    for (const sel of phoneSelectors) {
+        const el = document.querySelector(sel);
+        if (el) {
+            data.phone = el.href?.replace('tel:', '') || el.textContent.trim();
+            break;
         }
     }
 
@@ -1231,6 +1365,66 @@ function getScoreClass(score) {
     return 'low';
 }
 
+// Enrich company (Phase 9) - runs Phase 1-5 in one click
+async function enrichCompany() {
+    const companyName = elements.fieldCompany.value.trim();
+    const website = elements.fieldWebsite.value.trim();
+
+    if (!website) {
+        alert('Website required for enrichment');
+        return;
+    }
+
+    const domain = extractDomain(website);
+
+    if (elements.btnEnrich) elements.btnEnrich.disabled = true;
+    if (elements.btnEnrichText) elements.btnEnrichText.textContent = 'Finding emails...';
+
+    try {
+        // Step 1: Find contacts (Phase 1-3)
+        await findContacts();
+
+        // Step 2: Auto-verify top contacts (Phase 4-5)
+        if (elements.btnEnrichText) elements.btnEnrichText.textContent = 'Verifying...';
+        await autoVerifyTopContacts();
+
+        // Step 3: Auto-select best contact
+        autoSelectBestContact();
+
+        // Step 4: Get opportunity score
+        if (elements.btnEnrichText) elements.btnEnrichText.textContent = 'Scoring...';
+
+        try {
+            const res = await fetch(`${API_BASE}/api/prospects/convert`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ companyName, domain, website }),
+            });
+            const data = await res.json();
+            if (data.success && data.opportunityScore) {
+                showOpportunityScore(data.opportunityScore, data.recommendedAction, data.summary);
+            }
+        } catch (err) {
+            console.log('[Enrich] Scoring skipped:', err.message);
+        }
+
+        // Success
+        if (elements.btnEnrichText) elements.btnEnrichText.textContent = '✓ Enriched';
+
+        // Enable compose if we have valid contacts
+        const hasValidContact = contacts.some(c => c.verificationStatus === 'valid' || c.selected);
+        if (hasValidContact && elements.btnCompose) {
+            elements.btnCompose.disabled = false;
+        }
+
+    } catch (err) {
+        console.error('[Enrich] Error:', err);
+        if (elements.btnEnrichText) elements.btnEnrichText.textContent = 'Enrich failed';
+    } finally {
+        if (elements.btnEnrich) elements.btnEnrich.disabled = false;
+    }
+}
+
 // Event listeners
 elements.btnSignin?.addEventListener('click', handleSignIn);
 elements.btnAdd?.addEventListener('click', () => capture(false));
@@ -1239,6 +1433,7 @@ elements.btnRetry?.addEventListener('click', init);
 elements.btnRetryContacts?.addEventListener('click', findContacts);
 elements.btnFindContacts?.addEventListener('click', findContacts);
 elements.btnConvert?.addEventListener('click', convertToLead);
+elements.btnEnrich?.addEventListener('click', enrichCompany);
 
 elements.btnAddManual?.addEventListener('click', () => {
     addContact({ name: '', role: '', email: '', confidence: 'missing', source: 'manual' });

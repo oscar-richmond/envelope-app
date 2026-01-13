@@ -921,3 +921,14 @@ body {
 .btn-convert:hover {
   background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
 }
+
+/* Enrich button */
+.btn-enrich {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  color: white;
+  font-weight: 600;
+}
+
+.btn-enrich:hover {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+}
