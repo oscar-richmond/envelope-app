@@ -331,6 +331,11 @@ function createContactRow(contact) {
     const hasEmail = contact.email && contact.email.length > 0;
     const isValidEmail = hasEmail && emailRegex.test(contact.email);
 
+    // For suggested contacts, use different styling
+    if (contact.isSuggested) {
+        return createSuggestedContactRow(contact);
+    }
+
     // Confidence badge
     const badgeClass = contact.confidence === 'verified' ? 'badge-verified' :
         contact.confidence === 'likely' ? 'badge-likely' :
@@ -380,6 +385,37 @@ function createContactRow(contact) {
                     <path d="M18 6L6 18M6 6l12 12"/>
                 </svg>
             </button>
+        </div>
+    `;
+}
+
+// Create suggested contact row (from Companies House)
+function createSuggestedContactRow(contact) {
+    const verifyBtnText = contact.verificationStatus === 'pending' ? 'Verify' :
+        contact.verificationStatus === 'valid' ? '✓ Valid' :
+            contact.verificationStatus === 'invalid' ? '✗ Invalid' : 'Check';
+
+    const verifyBtnClass = contact.verificationStatus === 'valid' ? 'btn-verified' :
+        contact.verificationStatus === 'invalid' ? 'btn-invalid' : '';
+
+    return `
+        <div class="contact-row contact-suggested" data-contact-id="${contact.id}">
+            <input type="checkbox" class="contact-checkbox" ${contact.selected ? 'checked' : ''}>
+            <div class="contact-info">
+                <div class="contact-name-row">
+                    <span class="contact-type-icon" title="Director (Companies House)">🏛️</span>
+                    <span class="contact-name-text">${escapeHtml(contact.name)}</span>
+                </div>
+                <span class="contact-role-text">${escapeHtml(contact.role || 'Director')}</span>
+                <div class="contact-email-row">
+                    <span class="contact-email-suggested">${escapeHtml(contact.email)}</span>
+                    <span class="badge badge-suggested">Suggested</span>
+                </div>
+            </div>
+            <div class="contact-actions">
+                <button class="btn-verify ${verifyBtnClass}" onclick="verifyEmail(${contact.id})">${verifyBtnText}</button>
+                <button class="btn-use" onclick="useSuggestedContact(${contact.id})">Use</button>
+            </div>
         </div>
     `;
 }
@@ -560,6 +596,12 @@ async function findContacts() {
         // Show patterns
         if (result.patterns?.length > 0) {
             showPatternInfo(result.patterns);
+
+            // If verified pattern exists, try Companies House enrichment
+            const verifiedPattern = result.patterns.find(p => p.verified);
+            if (verifiedPattern && result.emails?.length > 0) {
+                await enrichWithDirectors(extractDomain(website), result.emails, verifiedPattern);
+            }
         }
 
     } catch (e) {
@@ -572,6 +614,129 @@ async function findContacts() {
         elements.contactsList.classList.remove('hidden');
         renderContacts();
     }
+}
+
+// Enrich with UK directors from Companies House
+async function enrichWithDirectors(domain, foundEmails, pattern) {
+    try {
+        // First resolve company
+        const companyName = elements.fieldCompany.value.trim();
+        if (!companyName) return;
+
+        console.log('[Envelope V3] Attempting UK director enrichment for:', companyName);
+
+        const resolveRes = await fetch(`${API_BASE}/api/enrichment/companies-house/resolve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyName })
+        });
+
+        const resolveData = await resolveRes.json();
+
+        if (!resolveData.success || resolveData.status !== 'matched') {
+            console.log('[Envelope V3] No CH match:', resolveData.status);
+            return;
+        }
+
+        // Get suggestions
+        const suggestRes = await fetch(`${API_BASE}/api/enrichment/email/suggest-from-officers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                companyNumber: resolveData.companyNumber,
+                domain,
+                foundEmails: foundEmails.map(e => ({ email: e.email, name: e.name }))
+            })
+        });
+
+        const suggestData = await suggestRes.json();
+
+        if (!suggestData.success || !suggestData.canSuggest) {
+            console.log('[Envelope V3] Cannot suggest:', suggestData.reason);
+            return;
+        }
+
+        // Add suggested contacts
+        console.log('[Envelope V3] Adding', suggestData.suggestedContacts.length, 'suggested directors');
+
+        for (const suggestion of suggestData.suggestedContacts) {
+            // Skip if email already exists
+            if (contacts.find(c => c.email === suggestion.emailSuggested)) continue;
+
+            addSuggestedContact({
+                name: suggestion.name,
+                role: suggestion.role,
+                email: suggestion.emailSuggested,
+                patternType: suggestion.patternType,
+                confidence: suggestion.confidence,
+                source: 'companies_house'
+            });
+        }
+
+        renderContacts();
+
+    } catch (err) {
+        console.log('[Envelope V3] Director enrichment error:', err.message);
+    }
+}
+
+// Add suggested contact (separate from found contacts)
+function addSuggestedContact(data) {
+    const contact = {
+        id: ++contactIdCounter,
+        name: data.name || '',
+        role: data.role || '',
+        email: data.email || '',
+        type: 'suggested',
+        confidence: data.confidence || 'likely',
+        source: data.source || 'companies_house',
+        patternType: data.patternType,
+        isSuggested: true,
+        verificationStatus: 'pending',
+        selected: false // Suggested contacts not selected by default
+    };
+    contacts.push(contact);
+}
+
+// Verify a suggested email
+async function verifyEmail(contactId) {
+    const contact = contacts.find(c => c.id === contactId);
+    if (!contact || !contact.isSuggested) return;
+
+    const btn = document.querySelector(`[data-contact-id="${contactId}"] .btn-verify`);
+    if (btn) btn.textContent = '...';
+
+    try {
+        const res = await fetch(`${API_BASE}/api/enrichment/email/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: contact.email })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            contact.verificationStatus = data.status;
+            if (data.status === 'valid') {
+                contact.confidence = 'verified';
+                contact.selected = true;
+            }
+            renderContacts();
+        }
+    } catch (err) {
+        console.log('[Envelope V3] Verify error:', err.message);
+    }
+}
+
+// Use a suggested contact (promote to regular)
+function useSuggestedContact(contactId) {
+    const contact = contacts.find(c => c.id === contactId);
+    if (!contact) return;
+
+    contact.isSuggested = false;
+    contact.selected = true;
+    contact.type = 'person';
+    renderContacts();
 }
 
 // Show pattern info
