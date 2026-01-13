@@ -289,6 +289,19 @@ export async function POST(
 
         console.log(`[Contacts POST] Created manual contact ${newContact.id} for company ${companyId}`);
 
+        // Auto-infer email pattern in background
+        try {
+            // Trigger pattern inference asynchronously (don't await)
+            fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/companies/${companyId}/email-pattern/infer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).catch(e => console.error('[Contacts POST] Pattern inference failed:', e));
+
+            console.log(`[Contacts POST] Triggered pattern inference for company ${companyId}`);
+        } catch (e) {
+            // Non-blocking
+        }
+
         return NextResponse.json({
             success: true,
             contact: {
@@ -303,7 +316,8 @@ export async function POST(
                 verified: false,
                 isManual: true,
                 createdAt: newContact.createdAt
-            }
+            },
+            patternInferenceQueued: true
         }, { status: 201 });
 
     } catch (error: any) {
@@ -313,3 +327,4 @@ export async function POST(
         }, { status: 500 });
     }
 }
+

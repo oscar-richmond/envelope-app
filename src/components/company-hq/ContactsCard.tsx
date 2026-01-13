@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Users, RefreshCw, Check, Shield, AlertCircle,
-    Globe, Zap, Building2, ChevronDown, ChevronUp, Copy, Mail, Loader2, Plus, UserPlus
+    Globe, Zap, Building2, ChevronDown, ChevronUp, Copy, Mail, Loader2, Plus, UserPlus, Sparkles, Lightbulb
 } from 'lucide-react';
 import AddContactModal from '@/components/modals/AddContactModal';
 
@@ -63,6 +63,12 @@ export default function ContactsCard({
     const [showGeneric, setShowGeneric] = useState(false);
     const [showMore, setShowMore] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+
+    // Email pattern state
+    const [emailPattern, setEmailPattern] = useState<any>(null);
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [generatingSuggestions, setGeneratingSuggestions] = useState(false);
 
     // Fetch contacts on mount
     const fetchContacts = useCallback(async () => {
@@ -120,8 +126,82 @@ export default function ContactsCard({
         // Then fetch fresh data
         if (id) {
             fetchContacts();
+            // Also fetch pattern
+            fetchEmailPattern();
         }
     }, [id, fetchContacts]);
+
+    // Fetch email pattern
+    const fetchEmailPattern = useCallback(async () => {
+        if (!id) return;
+        try {
+            const res = await fetch(`/api/companies/${id}/email-pattern/infer`, { method: 'GET' });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.hasPattern) {
+                    setEmailPattern(data.pattern);
+                }
+            }
+        } catch (e) {
+            console.error('[ContactsCard] Failed to fetch pattern:', e);
+        }
+    }, [id]);
+
+    // Generate email suggestions
+    const handleGenerateSuggestions = useCallback(async () => {
+        if (!id || generatingSuggestions) return;
+        setGeneratingSuggestions(true);
+
+        try {
+            // First infer pattern if needed
+            await fetch(`/api/companies/${id}/email-pattern/infer`, { method: 'POST' });
+
+            // Then generate suggestions
+            const res = await fetch(`/api/companies/${id}/email-suggestions/generate`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setSuggestions(data.suggestions || []);
+                setEmailPattern({ patternKey: data.patternKey, confidence: data.patternConfidence });
+                setShowSuggestions(true);
+            }
+        } catch (e) {
+            console.error('[ContactsCard] Failed to generate suggestions:', e);
+        } finally {
+            setGeneratingSuggestions(false);
+        }
+    }, [id, generatingSuggestions]);
+
+    // Use a suggested email
+    const handleUseSuggestion = useCallback(async (suggestion: any) => {
+        if (!id) return;
+
+        try {
+            // Create manual contact from suggestion
+            const res = await fetch(`/api/companies/${id}/contacts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    firstName: suggestion.firstName,
+                    lastName: suggestion.lastName,
+                    roleTitle: suggestion.role || '',
+                    email: suggestion.suggestedEmail
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Add to contacts list
+                setContacts(prev => [data.contact, ...prev]);
+                // Remove from suggestions
+                setSuggestions(prev => prev.filter(s => s.contactId !== suggestion.contactId));
+            }
+        } catch (e) {
+            console.error('[ContactsCard] Failed to use suggestion:', e);
+        }
+    }, [id]);
 
     // Scan contacts handler
     const handleScan = useCallback(async (force = false) => {
@@ -447,6 +527,118 @@ export default function ContactsCard({
                                             />
                                         ))}
                                     </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Email Suggestions Section */}
+                        {(suggestions.length > 0 || emailPattern) && (
+                            <div className="p-4 border-t" style={{ background: 'rgba(139, 92, 246, 0.03)' }}>
+                                {/* Pattern Indicator */}
+                                {emailPattern && (
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Sparkles size={12} style={{ color: 'var(--accent-lilac-text)' }} />
+                                        <span
+                                            className="text-[10px] font-medium px-2 py-0.5 rounded"
+                                            style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-lilac-text)' }}
+                                        >
+                                            Pattern: {emailPattern.patternKey}@domain
+                                        </span>
+                                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                            ({Math.round((emailPattern.confidence || 0) * 100)}% confident)
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Suggestions list */}
+                                {suggestions.length > 0 && (
+                                    <>
+                                        <button
+                                            onClick={() => setShowSuggestions(!showSuggestions)}
+                                            className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider mb-3"
+                                            style={{ color: 'var(--accent-lilac-text)' }}
+                                        >
+                                            <Lightbulb size={12} />
+                                            Suggested Emails ({suggestions.length})
+                                            {showSuggestions ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                        </button>
+                                        {showSuggestions && (
+                                            <div className="space-y-2">
+                                                {suggestions.map((s, idx) => (
+                                                    <div
+                                                        key={s.contactId || idx}
+                                                        className="flex items-center gap-3 p-2 rounded-lg"
+                                                        style={{ background: 'rgba(139, 92, 246, 0.08)', border: '1px dashed rgba(139, 92, 246, 0.3)' }}
+                                                    >
+                                                        {/* Avatar */}
+                                                        <div
+                                                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold opacity-60"
+                                                            style={{
+                                                                background: 'linear-gradient(135deg, rgb(139, 92, 246), rgb(59, 130, 246))',
+                                                                color: 'white'
+                                                            }}
+                                                        >
+                                                            {(s.firstName || '?')[0]?.toUpperCase()}
+                                                        </div>
+
+                                                        {/* Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                                                                    {s.fullName || `${s.firstName} ${s.lastName}`}
+                                                                </span>
+                                                                <span
+                                                                    className="text-[9px] px-1.5 py-0.5 rounded font-medium"
+                                                                    style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'rgb(180, 83, 9)' }}
+                                                                >
+                                                                    Suggested
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                                                                {s.suggestedEmail}
+                                                            </span>
+                                                            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                                                {Math.round((s.confidence || 0) * 100)}% confidence
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Use Button */}
+                                                        <button
+                                                            onClick={() => handleUseSuggestion(s)}
+                                                            className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:scale-[1.02]"
+                                                            style={{
+                                                                background: 'var(--brand)',
+                                                                color: 'white'
+                                                            }}
+                                                        >
+                                                            Use
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                {/* Generate Button (if pattern exists but no suggestions yet) */}
+                                {emailPattern && suggestions.length === 0 && (
+                                    <button
+                                        onClick={handleGenerateSuggestions}
+                                        disabled={generatingSuggestions}
+                                        className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
+                                        style={{
+                                            background: 'rgba(139, 92, 246, 0.15)',
+                                            color: 'var(--accent-lilac-text)',
+                                            cursor: generatingSuggestions ? 'wait' : 'pointer'
+                                        }}
+                                    >
+                                        {generatingSuggestions ? (
+                                            <Loader2 size={12} className="animate-spin" />
+                                        ) : (
+                                            <Sparkles size={12} />
+                                        )}
+                                        {generatingSuggestions ? 'Generating...' : 'Generate Email Suggestions'}
+                                    </button>
                                 )}
                             </div>
                         )}
