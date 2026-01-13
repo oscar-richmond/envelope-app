@@ -1239,9 +1239,10 @@ function showError(message) {
     showState('error');
 }
 
-// Sign in
+// Sign in - use dedicated extension-signin page
 function handleSignIn() {
-    chrome.tabs.create({ url: `${API_BASE}/auth/extension-callback` });
+    // Use the new extension-signin page that forces production domain
+    chrome.tabs.create({ url: `${API_BASE}/auth/extension-signin` });
 }
 
 // Convert to Lead (full pipeline)
