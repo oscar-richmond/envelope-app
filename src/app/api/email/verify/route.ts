@@ -1,46 +1,61 @@
 export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { emailVerifier } from '@/lib/services/email-verification';
+import { NextResponse } from 'next/server';
+import { verifyEmail, getConfiguredProvider, VerificationResult } from '@/lib/services/email-verification';
 
-export async function POST(req: NextRequest) {
+function getHeaders(requestId: string) {
+    return {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Content-Type': 'application/json',
+        'X-Request-Id': requestId,
+    };
+}
+
+export async function OPTIONS() {
+    return new NextResponse(null, { status: 204, headers: getHeaders('opt') });
+}
+
+export async function POST(request: Request) {
+    const requestId = `ver_${Date.now()}`;
+    const headers = getHeaders(requestId);
+
     try {
-        const body = await req.json();
-        const { email, leadId } = body;
+        const body = await request.json();
+        const { email, companyId, contactId } = body;
 
         if (!email) {
-            return NextResponse.json({ error: "Email is required" }, { status: 400 });
+            return NextResponse.json({
+                success: false,
+                error: 'email required'
+            }, { status: 400, headers });
         }
 
-        // Run Verification
-        const result = await emailVerifier.verify(email);
-
-        // Store result if possible (we store on ProspectEmail usually, but if this is just a quick check for a Lead contact?)
-        // The prompt says "Store per email". We have ProspectEmail model.
-        // We should try to find the ProspectEmail and update it, OR create one if it matches a prospect context.
-        // But the composer might be using a manual email or a Lead contact email.
-        // For now, let's just return the result to the UI. The UI can display it.
-        // Ideally we persist this. Let's see if we can find a ProspectEmail record with this email.
-
-        const existingEmail = await prisma.prospectEmail.findFirst({ where: { email } });
-        if (existingEmail) {
-            await prisma.prospectEmail.update({
-                where: { id: existingEmail.id },
-                data: {
-                    syntaxValid: result.syntaxValid,
-                    mxValid: result.mxValid,
-                    roleRisk: result.roleRisk,
-                    sendabilityStatus: result.sendabilityStatus,
-                    checkedAt: new Date()
-                }
-            });
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return NextResponse.json({
+                success: false,
+                error: 'Invalid email format'
+            }, { status: 400, headers });
         }
 
-        return NextResponse.json(result);
+        const result = await verifyEmail(email);
+
+        return NextResponse.json({
+            success: true,
+            requestId,
+            ...result,
+            provider: getConfiguredProvider(),
+        }, { headers });
 
     } catch (error: any) {
-        console.error("Verification failed", error);
-        return NextResponse.json({ error: "Verification failed" }, { status: 500 });
+        console.error('[Verify] Error:', error);
+        return NextResponse.json({
+            success: false,
+            error: 'Verification failed',
+            message: error.message
+        }, { status: 500, headers });
     }
 }

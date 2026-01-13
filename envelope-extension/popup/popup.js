@@ -336,25 +336,43 @@ function createContactRow(contact) {
         return createSuggestedContactRow(contact);
     }
 
-    // Confidence badge
-    const badgeClass = contact.confidence === 'verified' ? 'badge-verified' :
-        contact.confidence === 'likely' ? 'badge-likely' :
-            contact.confidence === 'guessed' ? 'badge-guessed' :
-                hasEmail ? 'badge-unknown' : 'badge-missing';
-    const badgeText = contact.confidence === 'verified' ? 'Verified' :
-        contact.confidence === 'likely' ? 'Likely' :
-            contact.confidence === 'guessed' ? 'Guessed' :
-                hasEmail ? 'Unknown' : 'Missing';
+    // Confidence/verification badge
+    let badgeClass, badgeText;
+    if (contact.verificationStatus === 'valid') {
+        badgeClass = 'badge-valid';
+        badgeText = '✓ Verified';
+    } else if (contact.verificationStatus === 'invalid') {
+        badgeClass = 'badge-invalid';
+        badgeText = '✗ Invalid';
+    } else if (contact.verificationStatus === 'risky') {
+        badgeClass = 'badge-risky';
+        badgeText = '⚠ Risky';
+    } else if (contact.confidence === 'verified') {
+        badgeClass = 'badge-verified';
+        badgeText = 'Verified';
+    } else if (contact.confidence === 'likely') {
+        badgeClass = 'badge-likely';
+        badgeText = 'Likely';
+    } else {
+        badgeClass = hasEmail ? 'badge-unknown' : 'badge-missing';
+        badgeText = hasEmail ? 'Unknown' : 'Missing';
+    }
 
     // Type indicator
     const typeLabel = contact.type === 'person' ? '👤' : '📧';
 
-    // Source badge (PDF, generic inbox)
-    let sourceBadge = '';
+    // Source/extra badges
+    let extraBadges = '';
+    if (contact.isBestContact) {
+        extraBadges += '<span class="badge badge-best">⭐ Best</span>';
+    }
+    if (contact.isCatchAll) {
+        extraBadges += '<span class="badge badge-catchall">Catch-all</span>';
+    }
     if (contact.source === 'pdf') {
-        sourceBadge = '<span class="badge badge-pdf">📄 PDF</span>';
+        extraBadges += '<span class="badge badge-pdf">📄 PDF</span>';
     } else if (contact.isGeneric) {
-        sourceBadge = '<span class="badge badge-generic">Generic inbox</span>';
+        extraBadges += '<span class="badge badge-generic">Generic</span>';
     }
 
     // Evidence tooltip
@@ -363,9 +381,15 @@ function createContactRow(contact) {
             📍 ${escapeHtml(contact.evidence.pageType || contact.source || '')}
         </span>` : '';
 
+    // Deliverability warning
+    let warningHtml = '';
+    if (contact.verificationStatus === 'invalid') {
+        warningHtml = '<div class="contact-warning">⚠️ This email may not be deliverable</div>';
+    }
+
     return `
-        <div class="contact-row ${contact.isGeneric ? 'contact-generic' : ''}" data-contact-id="${contact.id}">
-            <input type="checkbox" class="contact-checkbox" ${contact.selected ? 'checked' : ''}>
+        <div class="contact-row ${contact.isGeneric ? 'contact-generic' : ''} ${contact.isBestContact ? 'contact-best' : ''} ${contact.verificationStatus === 'invalid' ? 'contact-invalid' : ''}" data-contact-id="${contact.id}">
+            <input type="checkbox" class="contact-checkbox" ${contact.selected ? 'checked' : ''} ${contact.verificationStatus === 'invalid' ? 'disabled' : ''}>
             <div class="contact-info">
                 <div class="contact-name-row">
                     <span class="contact-type-icon" title="${contact.type === 'person' ? 'Person' : 'Generic'}">${typeLabel}</span>
@@ -376,9 +400,10 @@ function createContactRow(contact) {
                     <input type="email" class="contact-email ${!isValidEmail && hasEmail ? 'error' : ''}" 
                            value="${escapeHtml(contact.email || '')}" placeholder="email@example.com">
                     <span class="badge ${badgeClass}">${badgeText}</span>
-                    ${sourceBadge}
+                    ${extraBadges}
                 </div>
                 ${evidenceHtml}
+                ${warningHtml}
             </div>
             <button class="contact-remove" title="Remove">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -605,10 +630,14 @@ async function findContacts() {
         }
 
         // Always try Companies House enrichment for UK companies
-        // Will show directors even without verified pattern (as informational)
-        // Suggested emails only generated if pattern is verified
         const verifiedPattern = result.patterns?.find(p => p.verified) || null;
         await enrichWithDirectors(extractDomain(website), result.emails || [], verifiedPattern);
+
+        // Auto-verify top 3 contacts (budget control)
+        await autoVerifyTopContacts(3);
+
+        // Auto-select best contact
+        autoSelectBestContact();
 
     } catch (e) {
         console.error('[Envelope V3] Error:', e.message || e);
@@ -781,6 +810,116 @@ function useSuggestedContact(contactId) {
     contact.selected = true;
     contact.type = 'person';
     renderContacts();
+}
+
+// Auto-verify top N contacts (budget control)
+async function autoVerifyTopContacts(n = 3) {
+    console.log(`[Envelope V3] Auto-verifying top ${n} contacts`);
+
+    // Get valid email contacts (not suggested without email)
+    const verifiable = contacts.filter(c =>
+        c.email &&
+        !c.email.startsWith('[') &&
+        c.verificationStatus === 'pending'
+    );
+
+    // Score and sort to get top N
+    const scored = verifiable.map(c => ({
+        ...c,
+        score: scoreContact(c)
+    })).sort((a, b) => b.score - a.score);
+
+    const toVerify = scored.slice(0, n);
+
+    for (const contact of toVerify) {
+        try {
+            const res = await fetch(`${API_BASE}/api/email/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: contact.email })
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                contact.verificationStatus = data.status;
+                contact.isCatchAll = data.isCatchAll;
+                contact.isRoleAccount = data.isRoleAccount;
+
+                if (data.status === 'valid') {
+                    contact.confidence = 'verified';
+                }
+
+                console.log(`[Envelope V3] Verified ${contact.email}: ${data.status}`);
+            }
+        } catch (err) {
+            console.log(`[Envelope V3] Verify failed for ${contact.email}`);
+        }
+    }
+
+    renderContacts();
+}
+
+// Contact scoring for best selection
+function scoreContact(contact) {
+    let score = 0;
+
+    // Role scoring (0-40)
+    const role = (contact.role || '').toLowerCase();
+    if (role.includes('ceo') || role.includes('founder') || role.includes('director')) score += 40;
+    else if (role.includes('marketing') || role.includes('growth')) score += 38;
+    else if (role.includes('partner') || role.includes('business')) score += 35;
+    else if (role.includes('operations')) score += 25;
+    else if (role) score += 15;
+    else score += 8;
+
+    // Email quality scoring (0-40)
+    if (contact.verificationStatus === 'valid') {
+        score += contact.isGeneric ? 25 : 40;
+    } else if (contact.verificationStatus === 'risky') {
+        score += 8;
+    } else if (contact.verificationStatus === 'invalid') {
+        score += 0;
+    } else if (contact.isSuggested) {
+        score += 10;
+    } else {
+        score += contact.isGeneric ? 20 : 25;
+    }
+
+    // Evidence scoring (0-20)
+    if (contact.evidence?.pageType?.includes('team')) score += 20;
+    else if (contact.evidence?.type === 'contact') score += 15;
+    else if (contact.evidence?.type === 'pdf') score += 15;
+    else if (contact.isSuggested) score += 10;
+    else score += 12;
+
+    return score;
+}
+
+// Auto-select best contact
+function autoSelectBestContact() {
+    if (contacts.length === 0) return;
+
+    // Score all contacts
+    const scored = contacts.map(c => ({
+        contact: c,
+        score: scoreContact(c)
+    })).sort((a, b) => b.score - a.score);
+
+    // Mark best contact
+    scored.forEach(({ contact }, index) => {
+        contact.isBestContact = index === 0;
+
+        // Auto-select best contact (if valid and not invalid)
+        if (index === 0 && contact.verificationStatus !== 'invalid') {
+            contact.selected = true;
+        }
+    });
+
+    console.log(`[Envelope V3] Best contact: ${scored[0]?.contact.email} (score: ${scored[0]?.score})`);
+
+    renderContacts();
+    updateComposeButton();
 }
 
 // Show pattern info
