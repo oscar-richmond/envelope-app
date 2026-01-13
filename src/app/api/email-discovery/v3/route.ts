@@ -3,6 +3,10 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { publicEmailDiscovery, isPublicDiscoveryEnabled, ExtractedEmail } from '@/lib/services/public-email-discovery';
+import { HunterProvider } from '@/lib/providers/hunter';
+
+// Hunter provider instance
+const hunterProvider = new HunterProvider();
 
 // ============================================
 // TYPES
@@ -386,7 +390,8 @@ function deriveName(email: string): string | null {
 
 function mergeContacts(
     crawlContacts: BestContact[],
-    publicEmails: ExtractedEmail[]
+    publicEmails: ExtractedEmail[],
+    hunterContacts: BestContact[] = []
 ): BestContact[] {
     const merged = new Map<string, BestContact>();
 
@@ -423,6 +428,21 @@ function mergeContacts(
                 }],
                 isGeneric: isGenericEmail(e.email)
             });
+        }
+    }
+
+    // Add/merge Hunter contacts
+    for (const h of hunterContacts) {
+        const existing = merged.get(h.email);
+        if (existing) {
+            existing.sources.push(...h.sources);
+            if (h.name && !existing.name) existing.name = h.name;
+            if (h.role && !existing.role) existing.role = h.role;
+            if (h.confidence === 'high') existing.confidence = 'high';
+            // Boost score for Hunter matches
+            existing.score = Math.max(existing.score, h.score);
+        } else {
+            merged.set(h.email, h);
         }
     }
 
@@ -488,8 +508,37 @@ export async function POST(request: Request) {
             warnings.push('Public search disabled: no SERPAPI_KEY or GOOGLE_SEARCH_KEY configured');
         }
 
-        // Merge results
-        const allContacts = mergeContacts(crawlContacts, publicEmails);
+        // Run Hunter Domain Search
+        let hunterContacts: BestContact[] = [];
+        let hunterResultsCount = 0;
+
+        try {
+            const hunterResults = await hunterProvider.find(domain);
+            hunterResultsCount = hunterResults.length;
+            console.log(`[DiscoveryV3] ${requestId} - Hunter returned ${hunterResultsCount} contacts`);
+
+            // Convert Hunter results to BestContact format
+            hunterContacts = hunterResults.map(h => ({
+                email: h.email || '',
+                name: h.firstName && h.lastName ? `${h.firstName} ${h.lastName}` : h.firstName || h.lastName || null,
+                role: h.title || null,
+                confidence: h.confidence >= 80 ? 'high' as const : h.confidence >= 50 ? 'medium' as const : 'low' as const,
+                score: h.confidence,
+                sources: [{
+                    url: `https://hunter.io/search/${domain}`,
+                    title: 'Hunter.io',
+                    snippet: h.title || 'Professional email',
+                    type: 'directory' as const
+                }],
+                isGeneric: GENERIC_PREFIXES.has(h.email?.split('@')[0]?.toLowerCase() || '')
+            })).filter(c => c.email);
+        } catch (err: any) {
+            console.log(`[DiscoveryV3] ${requestId} - Hunter error: ${err.message}`);
+            warnings.push('Hunter search unavailable');
+        }
+
+        // Merge results (crawl + public + hunter)
+        const allContacts = mergeContacts(crawlContacts, publicEmails, hunterContacts);
 
         // Score contacts
         for (const c of allContacts) {
@@ -516,6 +565,7 @@ export async function POST(request: Request) {
                 pagesCrawled,
                 publicResultsFetched,
                 pdfsParsed,
+                hunterResultsCount,
                 durationMs: Date.now() - startTime
             },
             meta: {

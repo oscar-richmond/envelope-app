@@ -60,7 +60,8 @@ export class HunterProvider implements ContactDiscoveryProvider {
                 .replace(/^www\./, '')
                 .split('/')[0];
 
-            const url = `${this.baseUrl}/domain-search?domain=${encodeURIComponent(cleanDomain)}&api_key=${this.apiKey}`;
+            // Add limit=100 to get more results (default is 10)
+            const url = `${this.baseUrl}/domain-search?domain=${encodeURIComponent(cleanDomain)}&api_key=${this.apiKey}&limit=100`;
 
             const response = await fetch(url, {
                 headers: {
@@ -80,6 +81,9 @@ export class HunterProvider implements ContactDiscoveryProvider {
             }
 
             const data: HunterResponse = await response.json();
+
+            // Log raw response size for debugging
+            console.log(`[HunterProvider] Raw response: ${data.data.emails.length} emails, meta: limit=${data.meta.limit}, results=${data.meta.results}`);
 
             return data.data.emails.map(email => this.mapToContactResult(email));
 
