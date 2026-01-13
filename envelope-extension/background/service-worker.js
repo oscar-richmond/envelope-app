@@ -17,15 +17,22 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
     // Check if this is the extension callback page
     if (changeInfo.url.includes('/auth/extension-callback')) {
-        log('Detected extension callback page');
+        log('Detected extension callback page - starting token polling');
 
-        // Wait for page to load
-        setTimeout(async () => {
+        // Poll for token multiple times
+        let attempts = 0;
+        const maxAttempts = 20;
+        const pollInterval = 500;
+
+        const pollForToken = async () => {
+            attempts++;
+            log(`Token poll attempt ${attempts}/${maxAttempts}`);
+
             try {
                 // Check if tab still exists
                 const tabStillExists = await chrome.tabs.get(tabId).catch(() => null);
                 if (!tabStillExists) {
-                    log('Auth tab already closed');
+                    log('Auth tab closed');
                     return;
                 }
 
@@ -35,9 +42,19 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                     func: () => {
                         const token = localStorage.getItem('envelope-extension-token');
                         const email = localStorage.getItem('envelope-extension-email');
+                        const ready = localStorage.getItem('envelope-extension-ready');
+
+                        console.log('[Envelope] Token check:', {
+                            hasToken: !!token,
+                            hasEmail: !!email,
+                            ready
+                        });
+
                         if (token && email) {
+                            // Clear localStorage
                             localStorage.removeItem('envelope-extension-token');
                             localStorage.removeItem('envelope-extension-email');
+                            localStorage.removeItem('envelope-extension-ready');
                             return { token, email };
                         }
                         return null;
@@ -46,7 +63,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
                 const data = results[0]?.result;
                 if (data?.token && data?.email) {
-                    log('Token received, storing...');
+                    log('Token received from localStorage!');
 
                     // Store in extension storage
                     await chrome.storage.local.set({
@@ -54,56 +71,39 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                         userEmail: data.email
                     });
 
-                    // Close the auth tab
-                    chrome.tabs.remove(tabId).catch(() => { });
+                    log('Token stored in chrome.storage');
 
-                    log('Auth complete!');
+                    // Close the auth tab after a brief delay
+                    setTimeout(async () => {
+                        await chrome.tabs.remove(tabId).catch(() => { });
+                        log('Auth complete!');
+                    }, 500);
+
+                    return; // Success - stop polling
                 }
+
+                // Continue polling
+                if (attempts < maxAttempts) {
+                    setTimeout(pollForToken, pollInterval);
+                } else {
+                    log('Max poll attempts reached - token not found');
+                }
+
             } catch (e) {
-                // Silently ignore - tab may be closed
-                if (!e.message?.includes('No tab')) {
-                    logError('Token extraction failed:', e);
+                if (!e.message?.includes('No tab') && !e.message?.includes('cannot be scripted')) {
+                    logError('Token extraction error:', e.message);
+                }
+                // Continue polling on error
+                if (attempts < maxAttempts) {
+                    setTimeout(pollForToken, pollInterval);
                 }
             }
-        }, 1500);
+        };
+
+        // Start polling after initial delay for page to load
+        setTimeout(pollForToken, 1000);
     }
 });
-
-// Also listen for the page to complete loading
-chrome.webNavigation?.onCompleted?.addListener(async (details) => {
-    if (!details.url?.includes('/auth/extension-callback')) return;
-
-    const tabId = details.tabId;
-
-    setTimeout(async () => {
-        try {
-            const results = await chrome.scripting.executeScript({
-                target: { tabId },
-                func: () => {
-                    const token = localStorage.getItem('envelope-extension-token');
-                    const email = localStorage.getItem('envelope-extension-email');
-                    if (token && email) {
-                        localStorage.removeItem('envelope-extension-token');
-                        localStorage.removeItem('envelope-extension-email');
-                        return { token, email };
-                    }
-                    return null;
-                }
-            });
-
-            const data = results[0]?.result;
-            if (data?.token && data?.email) {
-                await chrome.storage.local.set({
-                    authToken: data.token,
-                    userEmail: data.email
-                });
-                chrome.tabs.remove(tabId);
-            }
-        } catch (e) {
-            logError('onCompleted extraction failed:', e);
-        }
-    }, 500);
-}, { url: [{ urlContains: 'extension-callback' }] });
 
 // Listen for messages from popup and content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
