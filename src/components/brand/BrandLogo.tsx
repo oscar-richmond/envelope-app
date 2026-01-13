@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import Image from 'next/image';
 
 interface BrandLogoProps {
     variant?: 'dark' | 'light';
@@ -9,23 +10,20 @@ interface BrandLogoProps {
 }
 
 /**
- * Robust brand logo component with fallback handling.
- * Uses plain img tag for reliable loading with graceful text fallback on error.
+ * Simple, reliable brand logo component.
+ * Uses Next.js Image with priority loading for instant display.
+ * Falls back to text if image fails.
  */
 export function BrandLogo({ variant = 'dark', height = 32, className = '' }: BrandLogoProps) {
     const [hasError, setHasError] = useState(false);
-    const [isLoaded, setIsLoaded] = useState(false);
+
+    // Compute width based on aspect ratio (logo is ~4:1)
+    const width = Math.round(height * 4);
 
     // Logo paths - standardized in /public/brand/
     const logoSrc = variant === 'dark'
         ? '/brand/envelope-logo-dark.png'
         : '/brand/envelope-logo.png';
-
-    // Reset error state if variant changes
-    useEffect(() => {
-        setHasError(false);
-        setIsLoaded(false);
-    }, [variant]);
 
     // Fallback: styled text that matches brand
     if (hasError) {
@@ -50,28 +48,19 @@ export function BrandLogo({ variant = 'dark', height = 32, className = '' }: Bra
     }
 
     return (
-        <div className={`relative ${className}`} style={{ height: `${height}px` }}>
-            {/* Loading placeholder - prevents layout shift */}
-            {!isLoaded && (
-                <div
-                    className="absolute inset-0 bg-gray-100 rounded animate-pulse"
-                    style={{ height: `${height}px`, width: `${height * 3}px` }}
-                />
-            )}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-                src={logoSrc}
-                alt="Envelope"
-                height={height}
-                style={{
-                    height: `${height}px`,
-                    width: 'auto',
-                    opacity: isLoaded ? 1 : 0,
-                    transition: 'opacity 0.2s ease-in-out'
-                }}
-                onLoad={() => setIsLoaded(true)}
-                onError={() => setHasError(true)}
-            />
-        </div>
+        <Image
+            src={logoSrc}
+            alt="Envelope"
+            width={width}
+            height={height}
+            priority
+            className={className}
+            style={{
+                height: `${height}px`,
+                width: 'auto',
+                objectFit: 'contain'
+            }}
+            onError={() => setHasError(true)}
+        />
     );
 }
