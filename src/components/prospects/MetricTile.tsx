@@ -4,7 +4,7 @@ import { ReactNode } from 'react';
 interface MetricTileProps {
     label: string;
     value: string;
-    score?: number;
+    score?: number | null;
     scoreColor?: 'green' | 'amber' | 'red' | 'gray' | 'purple' | 'blue' | 'mint' | 'lilac';
     subtext?: string | null;
     onDetails?: () => void;
@@ -88,7 +88,7 @@ export default function MetricTile({
                 >
                     {value}
                 </span>
-                {score !== undefined && (
+                {score !== undefined && score !== null && (
                     <span className={`px-2 py-0.5 rounded-[var(--radius-badge)] text-[12px] font-bold ${pillColors[scoreColor]}`}>
                         {score}
                     </span>

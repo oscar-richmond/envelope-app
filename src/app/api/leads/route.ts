@@ -20,24 +20,62 @@ export async function GET() {
         const enrichedLeads = leads.map(lead => {
             const prospect = lead.companyProspect;
 
-            // Financial score from CompanyProspect
-            const financialScore = prospect?.financialActivityScore ?? 0;
+            // Financial score - return null if not available, NOT 0
+            const financialScore = prospect?.financialActivityScore ?? null;
+            const financialBand = financialScore !== null
+                ? (financialScore > 75 ? 'Strong' : financialScore > 50 ? 'Medium' : 'Low')
+                : null;
 
-            // Website score (staleness) from Lead or CompanyProspect
-            const stalenessScore = lead.stalenessScore ?? prospect?.stalenessScore ?? 0;
+            // Website score (staleness) - return null if not available
+            const stalenessScore = lead.stalenessScore ?? prospect?.stalenessScore ?? null;
+            const stalenessLabel = stalenessScore !== null
+                ? (stalenessScore >= 60 ? 'Outdated' : stalenessScore >= 30 ? 'Aging' : 'Fresh')
+                : null;
 
-            // Priority score calculation
-            const priorityScore = calculatePriorityScore(lead, prospect);
+            // Priority score calculation - only if we have data
+            const priorityScore = (financialScore !== null || stalenessScore !== null)
+                ? calculatePriorityScore(lead, prospect)
+                : null;
+            const priorityBand = priorityScore !== null
+                ? (priorityScore > 70 ? 'High' : priorityScore > 40 ? 'Medium' : 'Low')
+                : null;
 
             // Last scanned dates
             const websiteLastScanned = lead.lastAnalyzedAt || prospect?.lastAnalysedAt || null;
             const financialLastScanned = prospect?.financialLastCheckedAt || null;
 
+            // Stable signals contract
+            const signals = {
+                leadOpp: {
+                    score: priorityScore,
+                    label: priorityBand,
+                    updatedAt: websiteLastScanned
+                },
+                webHealth: {
+                    score: stalenessScore,
+                    label: stalenessLabel,
+                    updatedAt: websiteLastScanned
+                },
+                finHealth: {
+                    score: financialScore,
+                    label: financialBand,
+                    updatedAt: financialLastScanned
+                }
+            };
+
             return {
                 ...lead,
+                // NEW: Stable signals contract
+                signals,
+                // Legacy fields for backwards compat
                 financialScore,
                 stalenessScore,
                 priorityScore,
+                // Labels
+                financialBand,
+                stalenessLabel,
+                priorityBand,
+                // Scan status
                 websiteLastScanned,
                 financialLastScanned,
                 websiteScanStatus: getAnalysisStatus(websiteLastScanned),

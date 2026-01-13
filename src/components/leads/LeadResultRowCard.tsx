@@ -54,15 +54,23 @@ export default function LeadResultRowCard({
     const status = lead.emailStatus || 'NEW';
     const hasThread = status === 'SENT' || status === 'REPLIED' || lead.sentEmails?.length > 0;
 
-    // Metrics
-    const finScore = lead.financialScore ?? 0;
-    const finBand = finScore > 75 ? 'Strong' : finScore > 50 ? 'Medium' : 'Low';
+    // Metrics - handle null properly (use signals contract when available)
+    const signals = lead.signals;
 
-    const staleScore = lead.stalenessScore ?? 0;
-    const staleLabel = staleScore >= 60 ? 'Outdated' : staleScore >= 30 ? 'Aging' : 'Fresh';
+    // Financial Health
+    const finScore = signals?.finHealth?.score ?? lead.financialScore;
+    const finBand = signals?.finHealth?.label ?? lead.financialBand;
+    const hasFinData = finScore !== null && finScore !== undefined;
 
-    const priority = lead.priorityScore ?? 0;
-    const priorityBand = priority > 70 ? 'High' : priority > 40 ? 'Medium' : 'Low';
+    // Web Health (staleness)
+    const staleScore = signals?.webHealth?.score ?? lead.stalenessScore;
+    const staleLabel = signals?.webHealth?.label ?? lead.stalenessLabel;
+    const hasWebData = staleScore !== null && staleScore !== undefined;
+
+    // Lead Opportunity (priority)
+    const priority = signals?.leadOpp?.score ?? lead.priorityScore;
+    const priorityBand = signals?.leadOpp?.label ?? lead.priorityBand;
+    const hasPriorityData = priority !== null && priority !== undefined;
 
     // Status color mapping
     const statusStyles: Record<string, { bg: string; color: string; border: string }> = {
@@ -150,16 +158,16 @@ export default function LeadResultRowCard({
                 >
                     <MetricTile
                         label="Lead Opp"
-                        value={priorityBand}
-                        score={priority}
+                        value={hasPriorityData ? priorityBand : '—'}
+                        score={hasPriorityData ? priority : null}
                         scoreColor={priorityBand === 'High' ? 'lilac' : 'gray'}
                     />
                     <div className="flex flex-col gap-1">
                         <MetricTile
                             label="Web Health"
-                            value={lead.websiteScanStatus === 'missing' ? 'Not scanned' : staleLabel}
-                            score={lead.websiteScanStatus === 'missing' ? 0 : staleScore}
-                            scoreColor={staleScore >= 60 ? 'red' : 'green'}
+                            value={hasWebData ? staleLabel : 'Not scanned'}
+                            score={hasWebData ? staleScore : null}
+                            scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
                         />
                         {lead.websiteLastScanned && (
                             <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
@@ -170,8 +178,8 @@ export default function LeadResultRowCard({
                     <div className="flex flex-col gap-1">
                         <MetricTile
                             label="Fin Health"
-                            value={lead.financialScanStatus === 'missing' ? 'Not scanned' : finBand}
-                            score={lead.financialScanStatus === 'missing' ? 0 : finScore}
+                            value={hasFinData ? finBand : 'Not scanned'}
+                            score={hasFinData ? finScore : null}
                             scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
                         />
                         {lead.financialLastScanned && (
