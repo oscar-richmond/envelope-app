@@ -83,21 +83,20 @@ function showState(stateName) {
     });
 }
 
-// Initialize
+// Initialize - ALWAYS verify session via API (rock-solid approach)
 async function init() {
-    const stored = await chrome.storage.local.get(['authToken', 'userEmail']);
-    authToken = stored.authToken;
+    console.log('[Envelope] Popup init - verifying session via API...');
 
-    if (!authToken) {
+    // Always verify session via API call (not relying on stored token)
+    const sessionVerified = await verifySessionViaAPI();
+
+    if (!sessionVerified) {
+        console.log('[Envelope] Session not verified - showing sign-in');
         showState('authRequired');
         return;
     }
 
-    if (stored.userEmail) {
-        elements.userEmail.textContent = stored.userEmail;
-        elements.userBadge.classList.remove('hidden');
-    }
-
+    console.log('[Envelope] Session verified - proceeding');
     showState('loading');
 
     try {
@@ -125,6 +124,72 @@ async function init() {
     } catch (e) {
         console.error('Init error:', e);
         showError('Failed to analyze page');
+    }
+}
+
+// Verify session by calling the API directly (SINGLE SOURCE OF TRUTH)
+async function verifySessionViaAPI() {
+    try {
+        console.log('[Envelope] Calling session verification API...');
+
+        const response = await fetch(`${API_BASE}/api/auth/extension-session`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.log('[Envelope] Session API returned non-OK:', response.status);
+            return false;
+        }
+
+        const data = await response.json();
+        console.log('[Envelope] Session API response:', data);
+
+        if (data.authenticated && data.user) {
+            // Store in chrome.storage for UI display
+            await chrome.storage.local.set({
+                authToken: 'verified',
+                userEmail: data.user.email
+            });
+
+            // Update UI
+            if (elements.userEmail) {
+                elements.userEmail.textContent = data.user.email;
+            }
+            if (elements.userBadge) {
+                elements.userBadge.classList.remove('hidden');
+            }
+
+            authToken = 'verified';
+            return true;
+        }
+
+        console.log('[Envelope] Session not authenticated');
+        // Clear stored auth data
+        await chrome.storage.local.remove(['authToken', 'userEmail']);
+        return false;
+
+    } catch (error) {
+        console.error('[Envelope] Session verification failed:', error);
+
+        // Fallback: check if we have stored auth
+        const stored = await chrome.storage.local.get(['authToken', 'userEmail']);
+        if (stored.authToken) {
+            console.log('[Envelope] Using cached auth (API unreachable)');
+            authToken = stored.authToken;
+            if (stored.userEmail && elements.userEmail) {
+                elements.userEmail.textContent = stored.userEmail;
+            }
+            if (elements.userBadge) {
+                elements.userBadge.classList.remove('hidden');
+            }
+            return true;
+        }
+
+        return false;
     }
 }
 
@@ -1239,10 +1304,11 @@ function showError(message) {
     showState('error');
 }
 
-// Sign in - use dedicated extension-signin page
+// Sign in - opens dedicated extension auth page
 function handleSignIn() {
-    // Use the new extension-signin page that forces production domain
-    chrome.tabs.create({ url: `${API_BASE}/auth/extension-signin` });
+    console.log('[Envelope] Starting sign-in flow...');
+    // Use the new /auth/extension page that handles sign-in properly
+    chrome.tabs.create({ url: `${API_BASE}/auth/extension` });
 }
 
 // Convert to Lead (full pipeline)

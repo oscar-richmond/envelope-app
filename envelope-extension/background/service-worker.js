@@ -15,8 +15,12 @@ function logError(...args) {
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (!changeInfo.url) return;
 
-    // Check if this is the extension callback page (either old or new)
-    if (changeInfo.url.includes('/auth/extension-callback') || changeInfo.url.includes('/auth/extension-signin')) {
+    // Check if this is any extension auth page
+    const isAuthPage = changeInfo.url.includes('/auth/extension-callback') ||
+        changeInfo.url.includes('/auth/extension-signin') ||
+        changeInfo.url.includes('/auth/extension');
+
+    if (isAuthPage) {
         log('Detected extension auth page - starting token polling');
 
         // Poll for token multiple times
