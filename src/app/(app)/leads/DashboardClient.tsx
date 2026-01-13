@@ -114,6 +114,102 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
         }
     };
 
+    // Bulk Web Health Rescan State
+    const [bulkWebHealthScanning, setBulkWebHealthScanning] = useState(false);
+    const [webHealthResults, setWebHealthResults] = useState<Record<number, any>>({});
+
+    // Bulk Web Health Rescan Handler - triggers rescan for ALL leads
+    const handleBulkWebHealthRescan = useCallback(async () => {
+        if (bulkWebHealthScanning) return;
+        setBulkWebHealthScanning(true);
+        setWebHealthResults({});
+
+        const leadIds = filteredLeads.map(l => l.id);
+        console.log(`[DashboardClient] Starting bulk Web Health rescan for ${leadIds.length} leads`);
+        showToast(`Rescanning Web Health for ${leadIds.length} leads...`);
+
+        try {
+            // Start bulk scan
+            const res = await fetch('/api/leadboard/web-health/rescan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leadIds })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showToast('Bulk rescan failed — try again', 'error');
+                setBulkWebHealthScanning(false);
+                return;
+            }
+
+            const { jobId, countQueued } = data;
+            console.log(`[DashboardClient] Bulk job started: ${jobId}, ${countQueued} queued`);
+
+            // Poll for status
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(`/api/leadboard/web-health/rescan?jobId=${jobId}`);
+                    const status = await statusRes.json();
+
+                    console.log(`[DashboardClient] Job ${jobId} status:`, status);
+
+                    // Update results as they come in
+                    if (status.results) {
+                        setWebHealthResults(status.results);
+
+                        // Update leads with new scores
+                        setLeads(prevLeads => prevLeads.map(lead => {
+                            const result = status.results[lead.id];
+                            if (result?.success) {
+                                return {
+                                    ...lead,
+                                    stalenessScore: result.score,
+                                    stalenessLabel: result.label,
+                                    websiteLastScanned: result.lastScanned,
+                                    signals: {
+                                        ...lead.signals,
+                                        webHealth: { score: result.score, label: result.label }
+                                    }
+                                };
+                            }
+                            return lead;
+                        }));
+                    }
+
+                    // Check if complete
+                    if (status.status === 'complete') {
+                        clearInterval(pollInterval);
+                        setBulkWebHealthScanning(false);
+
+                        if (status.failed > 0) {
+                            showToast(`Rescan completed with ${status.failed} failures`, 'error');
+                        } else {
+                            showToast(`Web Health rescan complete.`);
+                        }
+                    }
+                } catch (e) {
+                    console.error('[DashboardClient] Poll error:', e);
+                }
+            }, 1500);
+
+            // Safety timeout (2 min max)
+            setTimeout(() => {
+                clearInterval(pollInterval);
+                if (bulkWebHealthScanning) {
+                    setBulkWebHealthScanning(false);
+                    showToast('Rescan timed out', 'error');
+                }
+            }, 120000);
+
+        } catch (e) {
+            console.error('[DashboardClient] Bulk Web Health rescan error:', e);
+            showToast('Bulk rescan failed — try again', 'error');
+            setBulkWebHealthScanning(false);
+        }
+    }, [filteredLeads, bulkWebHealthScanning]);
+
     // Auto-open composer from URL params (extension flow)
     useEffect(() => {
         const leadId = searchParams.get('leadId');
@@ -458,6 +554,8 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                             onViewThread={() => handleViewThread(lead)}
                             onDelete={() => handleDeleteClick(lead)}
                             onRescan={(type) => handleRescan(lead, type)}
+                            bulkWebHealthScanning={bulkWebHealthScanning}
+                            onBulkWebHealthRescan={handleBulkWebHealthRescan}
                         />
                     ))
                 ) : (

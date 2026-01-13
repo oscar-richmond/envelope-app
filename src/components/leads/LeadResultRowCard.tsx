@@ -25,6 +25,9 @@ interface LeadResultRowCardProps {
     onViewThread: () => void;
     onDelete: () => void;
     onRescan?: (type: 'website' | 'financial' | 'both') => Promise<void>;
+    // Bulk Web Health rescan
+    bulkWebHealthScanning?: boolean;
+    onBulkWebHealthRescan?: () => void;
 }
 
 export default function LeadResultRowCard({
@@ -33,7 +36,9 @@ export default function LeadResultRowCard({
     onCompose,
     onViewThread,
     onDelete,
-    onRescan
+    onRescan,
+    bulkWebHealthScanning = false,
+    onBulkWebHealthRescan
 }: LeadResultRowCardProps) {
 
     const [scanning, setScanning] = useState(false);
@@ -202,19 +207,20 @@ export default function LeadResultRowCard({
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            console.log('[LeadBoard] Rescan web health - companyId:', lead.companyProspectId);
-                                            setScanningWeb(true);
-                                            onRescan?.('website').finally(() => setScanningWeb(false));
+                                            console.log('[LeadBoard] Bulk rescan triggered from row');
+                                            onBulkWebHealthRescan?.();
                                         }}
-                                        disabled={scanningWeb}
-                                        className="text-[10px] font-medium px-2 py-0.5 rounded transition-all opacity-0 group-hover/web:opacity-100"
+                                        disabled={bulkWebHealthScanning}
+                                        className="text-[10px] font-medium px-2 py-0.5 rounded transition-all"
                                         style={{
-                                            background: 'rgba(84, 130, 237, 0.1)',
+                                            background: bulkWebHealthScanning ? 'rgba(84, 130, 237, 0.2)' : 'rgba(84, 130, 237, 0.1)',
                                             color: 'rgb(84, 130, 237)',
-                                            cursor: scanningWeb ? 'wait' : 'pointer'
+                                            cursor: bulkWebHealthScanning ? 'wait' : 'pointer',
+                                            opacity: bulkWebHealthScanning ? 0.7 : 1
                                         }}
+                                        title="Rescans all leads on this page"
                                     >
-                                        {scanningWeb ? '...' : 'Rescan'}
+                                        {bulkWebHealthScanning ? '...' : 'Rescan'}
                                     </button>
                                 </div>
                             </>
@@ -224,19 +230,19 @@ export default function LeadResultRowCard({
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        console.log('[LeadBoard] Scan web health - companyId:', lead.companyProspectId);
-                                        setScanningWeb(true);
-                                        onRescan?.('website').finally(() => setScanningWeb(false));
+                                        console.log('[LeadBoard] Bulk scan triggered from row - no prior data');
+                                        onBulkWebHealthRescan?.();
                                     }}
-                                    disabled={scanningWeb}
+                                    disabled={bulkWebHealthScanning}
                                     className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:scale-[1.02]"
                                     style={{
                                         background: 'rgba(84, 130, 237, 0.15)',
                                         color: 'rgb(84, 130, 237)',
-                                        cursor: scanningWeb ? 'wait' : 'pointer'
+                                        cursor: bulkWebHealthScanning ? 'wait' : 'pointer'
                                     }}
+                                    title="Scans all leads on this page"
                                 >
-                                    {scanningWeb ? 'Scanning...' : 'Scan Website'}
+                                    {bulkWebHealthScanning ? 'Scanning...' : 'Scan'}
                                 </button>
                             </div>
                         )}
