@@ -20,3 +20,8 @@ export { ResultsListContainer, ResultsListHeader, ResultsListRow, ResultsListEmp
 export { Input } from './Input';
 export { DateRangeSelect } from './DateRangeSelect';
 
+// Phase 5-6 Components
+export { VerificationBadge, BestContactBadge, DeliverabilityIndicator } from './VerificationBadge';
+export { OpportunityScoreCard, OpportunityScoreBadge } from './OpportunityScoreCard';
+export { ContactCard, ContactList } from './ContactCard';
+export { ConvertButton } from './ConvertButton';
