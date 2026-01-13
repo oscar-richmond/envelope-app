@@ -1,7 +1,22 @@
 import Link from 'next/link';
-import { PenTool, MessageSquare, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { PenTool, MessageSquare, Trash2, RefreshCw } from 'lucide-react';
 import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 import MetricTile from '@/components/prospects/MetricTile';
+
+// Format relative time for last scanned
+function formatRelativeTime(dateStr: string | Date): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
+}
 
 interface LeadResultRowCardProps {
     lead: any;
@@ -9,6 +24,7 @@ interface LeadResultRowCardProps {
     onCompose: () => void;
     onViewThread: () => void;
     onDelete: () => void;
+    onRescan?: (type: 'website' | 'financial' | 'both') => Promise<void>;
 }
 
 export default function LeadResultRowCard({
@@ -16,8 +32,23 @@ export default function LeadResultRowCard({
     index,
     onCompose,
     onViewThread,
-    onDelete
+    onDelete,
+    onRescan
 }: LeadResultRowCardProps) {
+
+    const [scanning, setScanning] = useState(false);
+
+    // Handle rescan
+    const handleRescan = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (scanning || !onRescan) return;
+        setScanning(true);
+        try {
+            await onRescan('both');
+        } finally {
+            setScanning(false);
+        }
+    };
 
     // Status Logic
     const status = lead.emailStatus || 'NEW';
@@ -123,18 +154,32 @@ export default function LeadResultRowCard({
                         score={priority}
                         scoreColor={priorityBand === 'High' ? 'lilac' : 'gray'}
                     />
-                    <MetricTile
-                        label="Web Health"
-                        value={staleLabel}
-                        score={staleScore}
-                        scoreColor={staleScore >= 60 ? 'red' : 'green'}
-                    />
-                    <MetricTile
-                        label="Fin Health"
-                        value={finBand}
-                        score={finScore}
-                        scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
-                    />
+                    <div className="flex flex-col gap-1">
+                        <MetricTile
+                            label="Web Health"
+                            value={lead.websiteScanStatus === 'missing' ? 'Not scanned' : staleLabel}
+                            score={lead.websiteScanStatus === 'missing' ? 0 : staleScore}
+                            scoreColor={staleScore >= 60 ? 'red' : 'green'}
+                        />
+                        {lead.websiteLastScanned && (
+                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                {formatRelativeTime(lead.websiteLastScanned)}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <MetricTile
+                            label="Fin Health"
+                            value={lead.financialScanStatus === 'missing' ? 'Not scanned' : finBand}
+                            score={lead.financialScanStatus === 'missing' ? 0 : finScore}
+                            scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
+                        />
+                        {lead.financialLastScanned && (
+                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                {formatRelativeTime(lead.financialLastScanned)}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* 3. Actions Panel - All CTAs as direct children */}
