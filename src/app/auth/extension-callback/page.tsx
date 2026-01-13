@@ -2,25 +2,25 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 
 export default async function ExtensionCallbackPage() {
-    const session = await auth();
+  const session = await auth();
 
-    if (!session?.user) {
-        redirect('/auth/sign-in?callbackUrl=/auth/extension-callback');
-    }
+  if (!session?.user) {
+    redirect('/auth/sign-in?callbackUrl=/auth/extension-callback');
+  }
 
-    // Generate a simple token (in production, use a proper JWT)
-    const token = Buffer.from(JSON.stringify({
-        email: session.user.email,
-        name: session.user.name,
-        id: session.user.id,
-        exp: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
-    })).toString('base64');
+  // Generate a simple token (in production, use a proper JWT)
+  const token = Buffer.from(JSON.stringify({
+    email: session.user.email,
+    name: session.user.name,
+    id: session.user.id,
+    exp: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+  })).toString('base64');
 
-    return (
-        <html>
-            <head>
-                <title>Envelope Extension - Connected</title>
-                <style>{`
+  return (
+    <html>
+      <head>
+        <title>Envelope Extension - Connected</title>
+        <style>{`
           body {
             font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             background: #f8f9fb;
@@ -68,47 +68,58 @@ export default async function ExtensionCallbackPage() {
             color: #374151;
           }
         `}</style>
-            </head>
-            <body>
-                <div className="card">
-                    <div className="icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M20 6L9 17l-5-5" />
-                        </svg>
-                    </div>
-                    <h1>Extension Connected!</h1>
-                    <p>You can now close this tab and use the Envelope extension.</p>
-                    <div className="email">{session.user.email}</div>
-                </div>
+      </head>
+      <body>
+        <div className="card">
+          <div className="icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
+          <h1>Extension Connected!</h1>
+          <p>You can now close this tab and use the Envelope extension.</p>
+          <div className="email">{session.user.email}</div>
+        </div>
 
-                <script dangerouslySetInnerHTML={{
-                    __html: `
+        <script dangerouslySetInnerHTML={{
+          __html: `
+          console.log('[Envelope Auth] Starting token injection...');
+          
           // Pass token to extension
           const token = "${token}";
           const email = "${session.user.email}";
           
-          // Try to communicate with extension
-          if (typeof chrome !== 'undefined' && chrome.runtime) {
-            // Send message to extension
+          console.log('[Envelope Auth] Token generated, email:', email);
+          
+          // Store in localStorage for the extension to read
+          localStorage.setItem('envelope-extension-token', token);
+          localStorage.setItem('envelope-extension-email', email);
+          localStorage.setItem('envelope-extension-ready', 'true');
+          
+          console.log('[Envelope Auth] Token stored in localStorage');
+          
+          // Try chrome.storage directly if available
+          if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.set({ authToken: token, userEmail: email }, () => {
+              console.log('[Envelope Auth] Token stored directly in chrome.storage');
+            });
+          }
+          
+          // Try to communicate with extension via runtime message
+          if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
             try {
               chrome.runtime.sendMessage(
-                undefined, // Extension ID (undefined = self)
-                { action: 'authComplete', token, email },
-                (response) => console.log('Extension notified')
+                { action: 'setAuthToken', token, email },
+                (response) => console.log('[Envelope Auth] Extension response:', response)
               );
             } catch (e) {
-              console.log('Extension communication failed, using storage fallback');
+              console.log('[Envelope Auth] Extension communication error:', e.message);
             }
           }
           
-          // Store in localStorage as fallback for the extension to read
-          localStorage.setItem('envelope-extension-token', token);
-          localStorage.setItem('envelope-extension-email', email);
-          
-          // Also try postMessage
-          window.postMessage({ type: 'ENVELOPE_AUTH', token, email }, '*');
+          console.log('[Envelope Auth] Token injection complete');
         `}} />
-            </body>
-        </html>
-    );
+      </body>
+    </html>
+  );
 }
