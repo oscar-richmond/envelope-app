@@ -344,6 +344,14 @@ function createContactRow(contact) {
     // Type indicator
     const typeLabel = contact.type === 'person' ? '👤' : '📧';
 
+    // Source badge (PDF, generic inbox)
+    let sourceBadge = '';
+    if (contact.source === 'pdf') {
+        sourceBadge = '<span class="badge badge-pdf">📄 PDF</span>';
+    } else if (contact.isGeneric) {
+        sourceBadge = '<span class="badge badge-generic">Generic inbox</span>';
+    }
+
     // Evidence tooltip
     const evidenceHtml = contact.evidence?.url ?
         `<span class="contact-evidence" title="Found on: ${escapeHtml(contact.evidence.pageType || 'page')}&#10;${escapeHtml(contact.evidence.snippet || '')}">
@@ -351,7 +359,7 @@ function createContactRow(contact) {
         </span>` : '';
 
     return `
-        <div class="contact-row ${contact.confidence === 'guessed' ? 'contact-guessed' : ''}" data-contact-id="${contact.id}">
+        <div class="contact-row ${contact.isGeneric ? 'contact-generic' : ''}" data-contact-id="${contact.id}">
             <input type="checkbox" class="contact-checkbox" ${contact.selected ? 'checked' : ''}>
             <div class="contact-info">
                 <div class="contact-name-row">
@@ -363,6 +371,7 @@ function createContactRow(contact) {
                     <input type="email" class="contact-email ${!isValidEmail && hasEmail ? 'error' : ''}" 
                            value="${escapeHtml(contact.email || '')}" placeholder="email@example.com">
                     <span class="badge ${badgeClass}">${badgeText}</span>
+                    ${sourceBadge}
                 </div>
                 ${evidenceHtml}
             </div>
@@ -395,7 +404,8 @@ function addContact(data) {
         confidence: data.confidence || 'unknown',
         source: data.source || 'manual',
         evidence: data.evidence || null,
-        selected: data.email && data.confidence !== 'guessed' ? true : false
+        isGeneric: data.isGeneric || false,
+        selected: data.email && !data.isGeneric ? true : false
     };
     contacts.push(contact);
     renderContacts();

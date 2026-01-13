@@ -162,24 +162,10 @@ export async function POST(request: Request) {
 
         console.log(`[Contacts API] ${requestId} - Found ${result.contacts.length} contacts`);
 
-        // Separate contacts by type
-        const verifiedPersons = result.contacts.filter(c => c.type === 'person' && c.confidence === 'verified');
-        const verifiedGeneric = result.contacts.filter(c => c.type === 'generic' && c.confidence === 'verified');
-        const likelyContacts = result.contacts.filter(c => c.confidence === 'likely');
+        // All contacts sorted by score (from extractor)
+        const contactsToReturn = result.contacts;
 
-        // Combine verified + likely (shown by default)
-        let contactsToReturn: EnhancedContact[] = [...verifiedPersons, ...verifiedGeneric, ...likelyContacts];
-
-        // Add guessed only if requested or if we found nothing
-        let guessedContacts: EnhancedContact[] = [];
-        if (contactsToReturn.length === 0 || includeGuessed) {
-            guessedContacts = enhancedEmailExtractor.generateGuessedEmails(domain);
-            if (includeGuessed) {
-                contactsToReturn = [...contactsToReturn, ...guessedContacts];
-            }
-        }
-
-        // Map to response format
+        // Map to response format with isGeneric
         const contacts = contactsToReturn.map(c => ({
             email: c.email,
             name: c.name || '',
@@ -188,7 +174,8 @@ export async function POST(request: Request) {
             confidence: c.confidence,
             source: c.source,
             evidence: c.evidence,
-            score: c.score
+            score: c.score,
+            isGeneric: c.isGeneric
         }));
 
         console.log(`[Contacts API] ${requestId} - Returning ${contacts.length} contacts`);
@@ -198,14 +185,16 @@ export async function POST(request: Request) {
             requestId,
             domain,
             contacts,
-            guessedAvailable: guessedContacts.length,
             meta: {
-                ...result.meta,
-                foundVerified: verifiedPersons.length + verifiedGeneric.length,
-                foundLikely: likelyContacts.length,
-                foundGuessed: guessedContacts.length,
-                personEmails: verifiedPersons.length,
-                genericEmails: verifiedGeneric.length
+                domain: result.meta.domain,
+                scannedPages: result.meta.scannedPages,
+                scannedPdfs: result.meta.scannedPdfs,
+                foundTotal: result.meta.foundTotal,
+                foundNonGeneric: result.meta.foundNonGeneric,
+                foundVerified: result.meta.foundVerified,
+                foundGeneric: result.meta.foundGeneric,
+                cached: result.meta.cached,
+                timeTakenMs: result.meta.timeTakenMs
             }
         }, { headers });
 

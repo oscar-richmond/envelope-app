@@ -615,7 +615,33 @@ body {
   color: #64748b;
 }
 
+/* PDF badge */
+.badge-pdf {
+  background: #fef3c7;
+  color: #d97706;
+  font-size: 10px;
+}
+
+/* Generic inbox badge */
+.badge-generic {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+}
+
+/* Generic contacts styling */
+.contact-generic {
+  opacity: 0.75;
+  background: #fafafa;
+}
+
 /* Guessed contacts styling */
+.contact-guessed {
+  opacity: 0.6;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+}
+
 .contact-guessed {
   opacity: 0.6;
   background: #f8fafc;
