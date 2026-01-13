@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { ThreadMessages } from './ThreadMessages';
 import { AIAssistPanel } from './AIAssistPanel';
 import { ComposePane } from './ComposePane';
+import { ModalErrorBoundary } from './ModalErrorBoundary';
 
 export interface ThreadMessage {
     id: string;
@@ -347,44 +348,50 @@ export function MessageThreadComposerModal({
                     ) : (
                         <>
                             {activeTab === 'thread' && (
-                                <ThreadMessages
-                                    messages={thread?.messages || []}
-                                    partial={thread?.partial}
-                                    partialReason={thread?.partialReason}
-                                    retryable={thread?.retryable}
-                                    onRetry={fetchThreadData}
-                                    onComposeClick={() => setActiveTab('compose')}
-                                />
+                                <ModalErrorBoundary componentName="Thread">
+                                    <ThreadMessages
+                                        messages={thread?.messages || []}
+                                        partial={thread?.partial}
+                                        partialReason={thread?.partialReason}
+                                        retryable={thread?.retryable}
+                                        onRetry={fetchThreadData}
+                                        onComposeClick={() => setActiveTab('compose')}
+                                    />
+                                </ModalErrorBoundary>
                             )}
 
                             {activeTab === 'ai' && (
-                                <AIAssistPanel
-                                    emailId={emailId}
-                                    thread={thread}
-                                    summary={aiSummary}
-                                    onSummaryChange={setAiSummary}
-                                    suggestedReplies={suggestedReplies}
-                                    onSuggestedRepliesChange={setSuggestedReplies}
-                                    onInsert={handleInsertSuggestion}
-                                />
+                                <ModalErrorBoundary componentName="AI Assistant">
+                                    <AIAssistPanel
+                                        emailId={emailId}
+                                        thread={thread}
+                                        summary={aiSummary}
+                                        onSummaryChange={setAiSummary}
+                                        suggestedReplies={suggestedReplies}
+                                        onSuggestedRepliesChange={setSuggestedReplies}
+                                        onInsert={handleInsertSuggestion}
+                                    />
+                                </ModalErrorBoundary>
                             )}
 
                             {activeTab === 'compose' && (
-                                <ComposePane
-                                    thread={thread}
-                                    leadId={leadId}
-                                    emailId={emailId}
-                                    toEmail={toEmail}
-                                    onToEmailChange={setToEmail}
-                                    subject={draftSubject}
-                                    onSubjectChange={setDraftSubject}
-                                    content={draftContent}
-                                    onContentChange={setDraftContent}
-                                    onSuccess={() => {
-                                        onSuccess?.();
-                                        onClose();
-                                    }}
-                                />
+                                <ModalErrorBoundary componentName="Compose">
+                                    <ComposePane
+                                        thread={thread}
+                                        leadId={leadId}
+                                        emailId={emailId}
+                                        toEmail={toEmail}
+                                        onToEmailChange={setToEmail}
+                                        subject={draftSubject}
+                                        onSubjectChange={setDraftSubject}
+                                        content={draftContent}
+                                        onContentChange={setDraftContent}
+                                        onSuccess={() => {
+                                            onSuccess?.();
+                                            onClose();
+                                        }}
+                                    />
+                                </ModalErrorBoundary>
                             )}
                         </>
                     )}

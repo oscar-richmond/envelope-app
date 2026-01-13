@@ -14,13 +14,15 @@ interface ThreadMessagesProps {
 }
 
 export function ThreadMessages({
-    messages,
+    messages: messagesProp,
     partial,
     partialReason,
     retryable,
     onRetry,
     onComposeClick
 }: ThreadMessagesProps) {
+    // SAFE: ensure messages is always an array
+    const messages = Array.isArray(messagesProp) ? messagesProp : [];
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -146,7 +148,7 @@ function MessageCard({ message, isLast }: { message: ThreadMessage; isLast: bool
                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold shadow-sm"
                 style={avatarStyle}
             >
-                {message.fromName[0]?.toUpperCase() || '?'}
+                {(message.fromName || message.from || 'Unknown')?.[0]?.toUpperCase() || '?'}
             </div>
 
             {/* Bubble */}
