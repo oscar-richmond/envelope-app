@@ -156,36 +156,98 @@ export default function LeadResultRowCard({
                     className="grid grid-cols-3 gap-5 px-6 h-full items-center py-1"
                     style={{ borderLeft: '1px solid var(--border-soft)' }}
                 >
-                    <MetricTile
-                        label="Lead Opp"
-                        value={hasPriorityData ? priorityBand : '—'}
-                        score={hasPriorityData ? priority : null}
-                        scoreColor={priorityBand === 'High' ? 'lilac' : 'gray'}
-                    />
+                    {/* Lead Opp */}
                     <div className="flex flex-col gap-1">
-                        <MetricTile
-                            label="Web Health"
-                            value={hasWebData ? staleLabel : 'Not scanned'}
-                            score={hasWebData ? staleScore : null}
-                            scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
-                        />
-                        {lead.websiteLastScanned && (
-                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                                {formatRelativeTime(lead.websiteLastScanned)}
-                            </span>
+                        {hasPriorityData ? (
+                            <MetricTile
+                                label="Lead Opp"
+                                value={priorityBand}
+                                score={priority}
+                                scoreColor={priorityBand === 'High' ? 'lilac' : 'gray'}
+                            />
+                        ) : (
+                            <div className="flex flex-col gap-1 p-3 rounded-lg" style={{ background: 'var(--bg-card-muted)' }}>
+                                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Lead Opp</span>
+                                <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Pending</span>
+                                <div className="flex gap-1 mt-1">
+                                    {!hasWebData && (
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'rgb(217, 119, 6)' }}>Web</span>
+                                    )}
+                                    {!hasFinData && (
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'rgb(217, 119, 6)' }}>Fin</span>
+                                    )}
+                                </div>
+                            </div>
                         )}
                     </div>
+
+                    {/* Web Health */}
                     <div className="flex flex-col gap-1">
-                        <MetricTile
-                            label="Fin Health"
-                            value={hasFinData ? finBand : 'Not scanned'}
-                            score={hasFinData ? finScore : null}
-                            scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
-                        />
-                        {lead.financialLastScanned && (
-                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                                {formatRelativeTime(lead.financialLastScanned)}
-                            </span>
+                        {hasWebData ? (
+                            <>
+                                <MetricTile
+                                    label="Web Health"
+                                    value={staleLabel}
+                                    score={staleScore}
+                                    scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
+                                />
+                                {lead.websiteLastScanned && (
+                                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                        {formatRelativeTime(lead.websiteLastScanned)}
+                                    </span>
+                                )}
+                            </>
+                        ) : (
+                            <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'rgba(84, 130, 237, 0.06)', border: '1px solid rgba(84, 130, 237, 0.15)' }}>
+                                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Web Health</span>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onRescan?.('website'); }}
+                                    disabled={scanning}
+                                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:scale-[1.02]"
+                                    style={{
+                                        background: 'rgba(84, 130, 237, 0.15)',
+                                        color: 'rgb(84, 130, 237)',
+                                        cursor: scanning ? 'wait' : 'pointer'
+                                    }}
+                                >
+                                    {scanning ? 'Scanning...' : 'Scan Website'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Fin Health */}
+                    <div className="flex flex-col gap-1">
+                        {hasFinData ? (
+                            <>
+                                <MetricTile
+                                    label="Fin Health"
+                                    value={finBand}
+                                    score={finScore}
+                                    scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
+                                />
+                                {lead.financialLastScanned && (
+                                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                        {formatRelativeTime(lead.financialLastScanned)}
+                                    </span>
+                                )}
+                            </>
+                        ) : (
+                            <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'rgba(45, 212, 191, 0.06)', border: '1px solid rgba(45, 212, 191, 0.15)' }}>
+                                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Fin Health</span>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onRescan?.('financial'); }}
+                                    disabled={scanning}
+                                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:scale-[1.02]"
+                                    style={{
+                                        background: 'rgba(45, 212, 191, 0.15)',
+                                        color: 'rgb(20, 184, 166)',
+                                        cursor: scanning ? 'wait' : 'pointer'
+                                    }}
+                                >
+                                    {scanning ? 'Scanning...' : 'Scan Financials'}
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

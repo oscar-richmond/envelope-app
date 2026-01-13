@@ -268,6 +268,45 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
         }
     }, [deletingLead, leads]);
 
+    // RESCAN LEAD SIGNALS
+    const handleRescan = useCallback(async (lead: any, type: 'website' | 'financial' | 'both') => {
+        try {
+            if (type === 'website' || type === 'both') {
+                await fetch('/api/scan/website', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        companyProspectId: lead.companyProspectId,
+                        leadId: lead.id
+                    })
+                });
+            }
+
+            if (type === 'financial' || type === 'both') {
+                await fetch('/api/scan/financials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        companyProspectId: lead.companyProspectId,
+                        leadId: lead.id
+                    })
+                });
+            }
+
+            // Refresh to get updated scores
+            const res = await fetch('/api/leads');
+            if (res.ok) {
+                const updatedLeads = await res.json();
+                setLeads(updatedLeads);
+            }
+
+            showToast(`Scan completed for ${lead.companyName}`);
+        } catch (e) {
+            console.error('Scan error:', e);
+            showToast('Scan failed. Please try again.', 'error');
+        }
+    }, []);
+
     const handleSendSuccess = useCallback(() => {
         // Refresh leads list after sending
         router.refresh();
@@ -347,6 +386,7 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                             onCompose={() => handleCompose(lead)}
                             onViewThread={() => handleViewThread(lead)}
                             onDelete={() => handleDeleteClick(lead)}
+                            onRescan={(type) => handleRescan(lead, type)}
                         />
                     ))
                 ) : (
