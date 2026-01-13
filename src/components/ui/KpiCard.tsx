@@ -4,42 +4,62 @@ import React from 'react';
 import { TrendingUp, TrendingDown, LucideIcon } from 'lucide-react';
 
 // ─────────────────────────────────────────
-// KPI Theme System (Centralised)
+// KPI Theme System - Workspace Card Style
+// Matches "Your lead generation workspace" cards on sign-in page
 // ─────────────────────────────────────────
 
-export type KpiTheme = 'mint' | 'lilac' | 'warning' | 'danger' | 'default';
+export type KpiTheme = 'blue' | 'mint' | 'lilac' | 'teal' | 'warning' | 'danger' | 'default';
 
 export interface KpiThemeStyles {
+    bg: string;
     border: string;
     iconBg: string;
     iconColor: string;
 }
 
+// Workspace card style: soft tinted background + subtle border + tinted icon circle
 export const kpiThemeStyles: Record<KpiTheme, KpiThemeStyles> = {
+    blue: {
+        bg: 'rgba(84, 130, 237, 0.08)',
+        border: 'rgba(84, 130, 237, 0.20)',
+        iconBg: 'rgba(84, 130, 237, 0.15)',
+        iconColor: 'rgb(84, 130, 237)'
+    },
     mint: {
-        border: 'var(--mint)',
-        iconBg: 'var(--mint-soft)',
-        iconColor: 'var(--mint-text)'
+        bg: 'rgba(166, 244, 179, 0.10)',
+        border: 'rgba(166, 244, 179, 0.25)',
+        iconBg: 'rgba(166, 244, 179, 0.20)',
+        iconColor: 'rgb(34, 197, 94)'
     },
     lilac: {
-        border: 'var(--lilac)',
-        iconBg: 'var(--lilac-soft)',
-        iconColor: 'var(--lilac-text)'
+        bg: 'rgba(184, 166, 255, 0.08)',
+        border: 'rgba(184, 166, 255, 0.20)',
+        iconBg: 'rgba(184, 166, 255, 0.15)',
+        iconColor: 'rgb(139, 92, 246)'
+    },
+    teal: {
+        bg: 'rgba(45, 212, 191, 0.08)',
+        border: 'rgba(45, 212, 191, 0.20)',
+        iconBg: 'rgba(45, 212, 191, 0.15)',
+        iconColor: 'rgb(20, 184, 166)'
     },
     warning: {
-        border: 'var(--danger)',
-        iconBg: 'var(--danger-soft)',
-        iconColor: 'var(--danger-text)'
+        bg: 'rgba(245, 158, 11, 0.08)',
+        border: 'rgba(245, 158, 11, 0.20)',
+        iconBg: 'rgba(245, 158, 11, 0.15)',
+        iconColor: 'rgb(217, 119, 6)'
     },
     danger: {
-        border: 'var(--danger)',
-        iconBg: 'var(--danger-soft)',
-        iconColor: 'var(--danger-text)'
+        bg: 'rgba(239, 68, 68, 0.08)',
+        border: 'rgba(239, 68, 68, 0.20)',
+        iconBg: 'rgba(239, 68, 68, 0.15)',
+        iconColor: 'rgb(220, 38, 38)'
     },
     default: {
-        border: 'var(--border-default)',
-        iconBg: 'var(--bg-card-muted)',
-        iconColor: 'var(--text-secondary)'
+        bg: 'rgba(107, 114, 128, 0.06)',
+        border: 'rgba(107, 114, 128, 0.15)',
+        iconBg: 'rgba(107, 114, 128, 0.12)',
+        iconColor: 'rgb(107, 114, 128)'
     }
 };
 
@@ -48,7 +68,7 @@ export function getKpiTheme(theme: KpiTheme): KpiThemeStyles {
 }
 
 // ─────────────────────────────────────────
-// KpiCard Component
+// KpiCard Component - Workspace Card Style
 // ─────────────────────────────────────────
 
 export interface KpiCardProps {
@@ -78,29 +98,37 @@ export function KpiCard({
 
     return (
         <div
-            className={`relative overflow-hidden transition-all duration-200 hover:shadow-[var(--shadow-card-hover)] hover:translate-y-[-1px] group ${onClick ? 'cursor-pointer' : ''} ${className}`}
+            className={`relative overflow-hidden transition-all duration-200 group ${onClick ? 'cursor-pointer' : ''} ${className}`}
             style={{
-                background: 'var(--bg-card)',
+                background: themeStyles.bg,
                 borderRadius: 'var(--radius-card)',
-                border: '1px solid var(--border-soft)',
-                borderLeft: `4px solid ${themeStyles.border}`,
-                boxShadow: 'var(--shadow-card)',
+                border: `1px solid ${themeStyles.border}`,
                 padding: '20px 24px'
             }}
             onClick={onClick}
             data-kpi-key={kpiKey}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = themeStyles.iconColor;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = `0 8px 24px -8px ${themeStyles.border}`;
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = themeStyles.border;
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+            }}
         >
             {/* Top Row: Label + Icon */}
             <div className="flex items-start justify-between mb-3">
                 <span
-                    className="text-[10px] font-semibold uppercase tracking-wider"
+                    className="text-[11px] font-semibold uppercase tracking-wider"
                     style={{ color: 'var(--text-muted)' }}
                 >
                     {label}
                 </span>
                 {Icon && (
                     <div
-                        className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center shrink-0"
+                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
                         style={{ background: themeStyles.iconBg, color: themeStyles.iconColor }}
                     >
                         <Icon size={18} />
@@ -126,16 +154,16 @@ export function KpiCard({
                 <div className="flex items-center gap-1.5 mt-3">
                     {trendUp !== undefined && (
                         trendUp
-                            ? <TrendingUp size={14} style={{ color: 'var(--mint-text)' }} />
-                            : <TrendingDown size={14} style={{ color: 'var(--danger-text)' }} />
+                            ? <TrendingUp size={14} style={{ color: 'rgb(34, 197, 94)' }} />
+                            : <TrendingDown size={14} style={{ color: 'rgb(220, 38, 38)' }} />
                     )}
                     <span
                         className="text-xs font-medium"
                         style={{
                             color: trendUp === true
-                                ? 'var(--mint-text)'
+                                ? 'rgb(34, 197, 94)'
                                 : trendUp === false
-                                    ? 'var(--danger-text)'
+                                    ? 'rgb(220, 38, 38)'
                                     : 'var(--text-muted)'
                         }}
                     >

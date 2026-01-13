@@ -43,7 +43,7 @@ export default function DashboardKPIs({ stats, loading }: DashboardKPIsProps) {
                 icon: Users,
                 trend: '+12%',
                 trendUp: true,
-                theme: 'mint',
+                theme: 'blue',
                 key: 'new-prospects'
             },
             {
@@ -59,7 +59,7 @@ export default function DashboardKPIs({ stats, loading }: DashboardKPIsProps) {
                 label: 'Total Replies',
                 value: stats.replies,
                 icon: MessageCircle,
-                theme: 'default',
+                theme: 'teal',
                 key: 'total-replies'
             },
             {
@@ -68,7 +68,7 @@ export default function DashboardKPIs({ stats, loading }: DashboardKPIsProps) {
                 icon: Clock,
                 trend: stats.followUpsDue > 5 ? 'Overdue' : undefined,
                 trendUp: stats.followUpsDue > 5 ? false : undefined,
-                theme: stats.followUpsDue > 5 ? 'warning' : 'default',
+                theme: stats.followUpsDue > 5 ? 'danger' : 'mint',
                 key: 'follow-ups-due'
             }
         ];
