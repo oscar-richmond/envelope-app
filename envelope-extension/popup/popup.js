@@ -679,8 +679,8 @@ async function findContacts() {
         loadingText.textContent = 'Scanning company site + public web...';
     }
 
-    // Use v3 endpoint
-    const requestUrl = `${API_BASE}/api/email-discovery/v3`;
+    // Use unified v3 endpoint (people-first)
+    const requestUrl = `${API_BASE}/api/contact-discovery/run`;
     updateDebug({
         requestId: 'pending...',
         domain: extractDomain(website),
@@ -690,7 +690,7 @@ async function findContacts() {
     let responseRequestId = '';
 
     try {
-        console.log('[Envelope V3] Starting discovery for:', website);
+        console.log('[Envelope V3] Starting people-first discovery for:', website);
 
         const res = await fetch(requestUrl, {
             method: 'POST',
@@ -700,8 +700,9 @@ async function findContacts() {
             },
             body: JSON.stringify({
                 domain: extractDomain(website),
-                seedUrl: website,
-                options: { crawlSite: true, publicSearch: true }
+                includeWebsiteCrawl: true,
+                includeCompaniesHouse: true,
+                verifyTopN: 10
             })
         });
 

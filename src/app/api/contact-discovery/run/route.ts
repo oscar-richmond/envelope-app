@@ -1,32 +1,18 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { verifyEmail, getConfiguredProvider } from '@/lib/services/email-verification';
+import { discoverContactsV3, ContactDiscoveryV3Options } from '@/lib/services/contact-discovery-v3';
 
 /**
- * Unified Contact Discovery API
- * Single endpoint for both extension and web app
+ * Contact Discovery v3 API - Unified endpoint for extension and web app
+ * People-first: Recommended → Other People → Department → Generic
  */
-
-// In-memory cache for discovery results (use DB in production)
-const discoveryCache = new Map<string, {
-    domain: string;
-    contacts: any[];
-    bestContacts: any[];
-    verificationResults: Map<string, any>;
-    patterns: any[];
-    meta: any;
-    discoveredAt: string;
-    expiresAt: number;
-}>();
-
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 function getHeaders(requestId: string) {
     return {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Content-Type': 'application/json',
         'X-Request-Id': requestId,
     };
@@ -36,9 +22,109 @@ export async function OPTIONS() {
     return new NextResponse(null, { status: 204, headers: getHeaders('opt') });
 }
 
-// GET - Retrieve cached discovery results
+export async function POST(request: Request) {
+    const requestId = `cdv3_${Date.now()}`;
+    const headers = getHeaders(requestId);
+    const startTime = Date.now();
+
+    try {
+        const body = await request.json();
+        const {
+            domain,
+            companyId,
+            companyNumber,
+            companyName,
+            maxPeople = 30,
+            verifyTopN = 10,
+            includeWebsiteCrawl = true,
+            includeCompaniesHouse = true,
+        } = body;
+
+        if (!domain) {
+            return NextResponse.json({
+                success: false,
+                error: 'domain required',
+            }, { status: 400, headers });
+        }
+
+        console.log(`[ContactDiscoveryV3] ${requestId} - Starting for ${domain}`);
+
+        const options: ContactDiscoveryV3Options = {
+            maxPeople,
+            verifyTopN,
+            includeWebsiteCrawl,
+            includeCompaniesHouse,
+            companyNumber,
+            companyName,
+        };
+
+        const result = await discoverContactsV3(domain, options);
+
+        // Build legacy-compatible response
+        const allContacts = [
+            ...result.recommendedRecipients.map(r => ({
+                ...r.email,
+                name: r.person.fullName,
+                role: r.person.roleTitle,
+                priorityScore: r.priorityScore,
+                reason: r.reason,
+                isRecommended: true,
+            })),
+            ...result.otherPeople.map(p => ({
+                ...p.email,
+                name: p.person.fullName,
+                role: p.person.roleTitle,
+                isRecommended: false,
+            })),
+            ...result.departmentEmails.map(e => ({
+                ...e,
+                name: null,
+                role: null,
+                isRecommended: false,
+            })),
+        ];
+
+        console.log(`[ContactDiscoveryV3] ${requestId} - Complete: ${result.recommendedRecipients.length} recommended`);
+
+        return NextResponse.json({
+            success: true,
+            requestId,
+            domain: result.domain,
+
+            // v3 structured output
+            recommendedRecipients: result.recommendedRecipients,
+            otherPeople: result.otherPeople,
+            departmentEmails: result.departmentEmails,
+            genericEmails: result.genericEmails,
+
+            // Legacy compatibility
+            bestContacts: allContacts.slice(0, 10),
+            emails: allContacts,
+
+            pattern: result.pattern,
+            stats: {
+                ...result.stats,
+                recommendedCount: result.recommendedRecipients.length,
+                totalPeople: result.recommendedRecipients.length + result.otherPeople.length,
+                totalEmails: allContacts.length + result.genericEmails.length,
+                requestDurationMs: Date.now() - startTime,
+            },
+        }, { headers });
+
+    } catch (error: any) {
+        console.error(`[ContactDiscoveryV3] ${requestId} - Error:`, error);
+        return NextResponse.json({
+            success: false,
+            requestId,
+            error: 'Discovery failed',
+            message: error.message,
+        }, { status: 500, headers });
+    }
+}
+
+// GET for simple domain lookup
 export async function GET(request: Request) {
-    const requestId = `disc_${Date.now()}`;
+    const requestId = `cdv3_${Date.now()}`;
     const headers = getHeaders(requestId);
 
     const url = new URL(request.url);
@@ -47,180 +133,24 @@ export async function GET(request: Request) {
     if (!domain) {
         return NextResponse.json({
             success: false,
-            error: 'domain required'
+            error: 'domain query param required',
         }, { status: 400, headers });
     }
 
-    const cached = discoveryCache.get(domain.toLowerCase());
-
-    if (!cached || Date.now() > cached.expiresAt) {
-        return NextResponse.json({
-            success: true,
-            requestId,
-            found: false,
-            message: 'No cached results. Run discovery first.',
-        }, { headers });
-    }
-
-    return NextResponse.json({
-        success: true,
-        requestId,
-        found: true,
-        domain: cached.domain,
-        bestContacts: cached.bestContacts,
-        contacts: cached.contacts,
-        patterns: cached.patterns,
-        meta: cached.meta,
-        verificationResults: Object.fromEntries(cached.verificationResults),
-        discoveredAt: cached.discoveredAt,
-    }, { headers });
-}
-
-// POST - Run discovery
-export async function POST(request: Request) {
-    const requestId = `disc_${Date.now()}`;
-    const headers = getHeaders(requestId);
-
     try {
-        const body = await request.json();
-        const {
-            domain,
-            seedUrl,
-            source = 'web',
-            forceRefresh = false,
-            verifyCount = 8
-        } = body;
-
-        if (!domain) {
-            return NextResponse.json({
-                success: false,
-                error: 'domain required'
-            }, { status: 400, headers });
-        }
-
-        const domainKey = domain.toLowerCase();
-
-        // Check cache if not forcing refresh
-        if (!forceRefresh) {
-            const cached = discoveryCache.get(domainKey);
-            if (cached && Date.now() < cached.expiresAt) {
-                console.log(`[Discovery] Cache hit for ${domain}`);
-                return NextResponse.json({
-                    success: true,
-                    requestId,
-                    cached: true,
-                    domain: cached.domain,
-                    bestContacts: cached.bestContacts,
-                    contacts: cached.contacts,
-                    patterns: cached.patterns,
-                    meta: cached.meta,
-                    verificationResults: Object.fromEntries(cached.verificationResults),
-                    discoveredAt: cached.discoveredAt,
-                }, { headers });
-            }
-        }
-
-        console.log(`[Discovery] Running discovery for ${domain} (source: ${source})`);
-
-        // Call email-discovery v3
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://envelope-app-sage.vercel.app';
-        const discoveryRes = await fetch(`${baseUrl}/api/email-discovery/v3`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ domain, seedUrl }),
-        });
-
-        const discoveryData = await discoveryRes.json();
-
-        if (!discoveryData.success) {
-            return NextResponse.json({
-                success: false,
-                requestId,
-                error: discoveryData.error || 'Discovery failed',
-            }, { status: 500, headers });
-        }
-
-        const contacts = discoveryData.emails || [];
-        const bestContacts = discoveryData.bestContacts || contacts.slice(0, 10);
-        const patterns = discoveryData.patterns || [];
-        const meta = {
-            totalFound: discoveryData.meta?.totalFound || contacts.length,
-            totalReturned: contacts.length,
-            stats: discoveryData.stats,
-            provider: getConfiguredProvider(),
-        };
-
-        // Verify more contacts - increased from 8 to 25
-        const verificationResults = new Map<string, any>();
-        const toVerify = contacts.slice(0, Math.min(25, contacts.length));
-        let verifiedCount = 0;
-        let verifyErrors = 0;
-
-        console.log(`[Discovery] Verifying ${toVerify.length} contacts...`);
-
-        for (const contact of toVerify) {
-            if (!contact.email) continue;
-            try {
-                const result = await verifyEmail(contact.email);
-                verificationResults.set(contact.email, result);
-
-                // Add verification to contact object
-                contact.verification = {
-                    status: result.status,
-                    reason: result.reason,
-                    isCatchAll: result.isCatchAll || false,
-                    verifiedAt: new Date().toISOString(),
-                };
-
-                if (result.status === 'valid') verifiedCount++;
-            } catch (err) {
-                verifyErrors++;
-                contact.verification = {
-                    status: 'unknown',
-                    reason: 'verification_failed',
-                    verifiedAt: new Date().toISOString(),
-                };
-            }
-        }
-
-        meta.verificationAttempted = toVerify.length;
-        meta.verifiedCount = verifiedCount;
-        meta.verifyErrors = verifyErrors;
-
-        // Cache results
-        discoveryCache.set(domainKey, {
-            domain,
-            contacts,
-            bestContacts,
-            verificationResults,
-            patterns,
-            meta,
-            discoveredAt: new Date().toISOString(),
-            expiresAt: Date.now() + CACHE_TTL_MS,
-        });
-
-        console.log(`[Discovery] Completed for ${domain}: ${contacts.length} contacts, ${verifiedCount} verified`);
+        const result = await discoverContactsV3(domain);
 
         return NextResponse.json({
             success: true,
             requestId,
-            cached: false,
-            domain,
-            bestContacts,
-            contacts,
-            patterns,
-            meta,
-            verificationResults: Object.fromEntries(verificationResults),
-            discoveredAt: new Date().toISOString(),
+            ...result,
         }, { headers });
 
     } catch (error: any) {
-        console.error('[Discovery] Error:', error);
         return NextResponse.json({
             success: false,
             requestId,
-            error: 'Discovery failed',
-            message: error.message,
+            error: error.message,
         }, { status: 500, headers });
     }
 }
