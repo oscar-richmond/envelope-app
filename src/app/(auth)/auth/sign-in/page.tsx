@@ -31,10 +31,6 @@ export default function SignInPage() {
 
                     {/* Content */}
                     <div className="relative z-10">
-                        {/* Brand Logo */}
-                        <div className="mb-4">
-                            <BrandLogo variant="dark" height={36} />
-                        </div>
 
                         {/* Title */}
                         <div className="mb-8">
@@ -131,7 +127,7 @@ export default function SignInPage() {
 
                         {/* Stats Preview */}
                         <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
-                            <StatBadge icon={<Users size={14} />} value="2,847" label="Prospects" />
+                            <StatBadge icon={<Users size={14} />} value="5.35 million" label="Prospects" />
                             <StatBadge icon={<BarChart3 size={14} />} value="94%" label="Response rate" />
                         </div>
                     </div>
@@ -156,7 +152,7 @@ function PreviewCard({
     const colors = {
         blue: { bg: 'var(--brand-soft)', border: 'var(--brand-border)', iconBg: 'rgba(84, 130, 237, 0.12)', text: 'var(--brand)' },
         lilac: { bg: 'var(--lilac-soft)', border: 'rgba(184, 166, 255, 0.15)', iconBg: 'var(--lilac-weak)', text: 'var(--lilac-strong)' },
-        mint: { bg: 'var(--mint-soft)', border: 'rgba(166, 244, 179, 0.2)', iconBg: 'var(--mint-weak)', text: 'var(--mint-text)' },
+        mint: { bg: 'rgba(34, 197, 94, 0.08)', border: 'rgba(34, 197, 94, 0.25)', iconBg: 'rgba(34, 197, 94, 0.18)', text: 'rgb(22, 163, 74)' },
         teal: { bg: 'rgba(45, 212, 191, 0.08)', border: 'rgba(45, 212, 191, 0.20)', iconBg: 'rgba(45, 212, 191, 0.15)', text: 'rgb(20, 184, 166)' }
     };
     const c = colors[color];

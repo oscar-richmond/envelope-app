@@ -47,8 +47,20 @@ export default function AuthLayout({
             />
 
             {/* Main Content */}
-            <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center lg:items-stretch gap-8 lg:gap-16">
-                {children}
+            <div className="w-full max-w-6xl flex flex-col items-center gap-8">
+                {/* Centered Logo - Above both cards */}
+                <div className="flex justify-center mb-2 animate-in fade-in duration-500">
+                    <img
+                        src="/brand/envelope-logo-dark.png"
+                        alt="Envelope"
+                        style={{ height: '72px', width: 'auto' }}
+                    />
+                </div>
+
+                {/* Two-card layout */}
+                <div className="w-full flex flex-col lg:flex-row items-center lg:items-stretch gap-8 lg:gap-16">
+                    {children}
+                </div>
             </div>
         </div>
     );
