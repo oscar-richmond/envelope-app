@@ -82,24 +82,37 @@ export default function ContactsCard({
 
     const handleRescan = async () => {
         const id = companyId || prospectId;
-        if (!id) return;
+        console.log('[ContactsCard] handleRescan triggered - companyId:', id);
+        if (!id) {
+            console.log('[ContactsCard] No companyId or prospectId, aborting');
+            return;
+        }
 
         setRescanning(true);
         try {
+            console.log('[ContactsCard] Calling /api/companies/' + id + '/enrichment');
             const res = await fetch(`/api/companies/${id}/enrichment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
 
+            console.log('[ContactsCard] Response status:', res.status);
             if (res.ok) {
                 const data = await res.json();
+                console.log('[ContactsCard] Enrichment results:', {
+                    best: data.bestContacts?.length || 0,
+                    more: data.moreContacts?.length || 0,
+                    generic: data.genericContacts?.length || 0
+                });
                 setBestContacts(data.bestContacts || []);
                 setMoreContacts(data.moreContacts || []);
                 setGenericContacts(data.genericContacts || []);
                 setLastUpdated(new Date().toLocaleString());
+            } else {
+                console.error('[ContactsCard] Enrichment failed:', await res.text());
             }
         } catch (e) {
-            console.error('Rescan failed:', e);
+            console.error('[ContactsCard] Rescan error:', e);
         } finally {
             setRescanning(false);
         }
@@ -347,8 +360,8 @@ function ContactRow({
                 <button
                     onClick={onUse}
                     className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${isSelected
-                            ? 'bg-indigo-600 text-white'
-                            : 'opacity-0 group-hover:opacity-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                        ? 'bg-indigo-600 text-white'
+                        : 'opacity-0 group-hover:opacity-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
                         }`}
                     title="Use this email"
                 >

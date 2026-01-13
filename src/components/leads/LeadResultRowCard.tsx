@@ -37,6 +37,8 @@ export default function LeadResultRowCard({
 }: LeadResultRowCardProps) {
 
     const [scanning, setScanning] = useState(false);
+    const [scanningWeb, setScanningWeb] = useState(false);
+    const [scanningFin, setScanningFin] = useState(false);
 
     // Handle rescan
     const handleRescan = async (e: React.MouseEvent) => {
@@ -182,7 +184,7 @@ export default function LeadResultRowCard({
                     </div>
 
                     {/* Web Health */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 relative group/web">
                         {hasWebData ? (
                             <>
                                 <MetricTile
@@ -191,26 +193,50 @@ export default function LeadResultRowCard({
                                     score={staleScore}
                                     scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
                                 />
-                                {lead.websiteLastScanned && (
-                                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                                        {formatRelativeTime(lead.websiteLastScanned)}
-                                    </span>
-                                )}
+                                <div className="flex items-center justify-between">
+                                    {lead.websiteLastScanned && (
+                                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                            {formatRelativeTime(lead.websiteLastScanned)}
+                                        </span>
+                                    )}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            console.log('[LeadBoard] Rescan web health - companyId:', lead.companyProspectId);
+                                            setScanningWeb(true);
+                                            onRescan?.('website').finally(() => setScanningWeb(false));
+                                        }}
+                                        disabled={scanningWeb}
+                                        className="text-[10px] font-medium px-2 py-0.5 rounded transition-all opacity-0 group-hover/web:opacity-100"
+                                        style={{
+                                            background: 'rgba(84, 130, 237, 0.1)',
+                                            color: 'rgb(84, 130, 237)',
+                                            cursor: scanningWeb ? 'wait' : 'pointer'
+                                        }}
+                                    >
+                                        {scanningWeb ? '...' : 'Rescan'}
+                                    </button>
+                                </div>
                             </>
                         ) : (
                             <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'rgba(84, 130, 237, 0.06)', border: '1px solid rgba(84, 130, 237, 0.15)' }}>
                                 <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Web Health</span>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onRescan?.('website'); }}
-                                    disabled={scanning}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        console.log('[LeadBoard] Scan web health - companyId:', lead.companyProspectId);
+                                        setScanningWeb(true);
+                                        onRescan?.('website').finally(() => setScanningWeb(false));
+                                    }}
+                                    disabled={scanningWeb}
                                     className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:scale-[1.02]"
                                     style={{
                                         background: 'rgba(84, 130, 237, 0.15)',
                                         color: 'rgb(84, 130, 237)',
-                                        cursor: scanning ? 'wait' : 'pointer'
+                                        cursor: scanningWeb ? 'wait' : 'pointer'
                                     }}
                                 >
-                                    {scanning ? 'Scanning...' : 'Scan Website'}
+                                    {scanningWeb ? 'Scanning...' : 'Scan Website'}
                                 </button>
                             </div>
                         )}
