@@ -1,21 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-    Users, Search, RefreshCw, Check, Shield, AlertCircle,
-    Globe, Zap, Building2, ChevronDown, ChevronUp, Copy, Mail
+    Users, RefreshCw, Check, Shield, AlertCircle,
+    Globe, Zap, Building2, ChevronDown, ChevronUp, Copy, Mail, Loader2
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
-interface EnrichedContact {
+interface Contact {
+    id?: string;
     email: string;
     name?: string | null;
+    fullName?: string | null;
     role?: string | null;
-    type?: 'person' | 'department' | 'generic';
+    type?: 'person' | 'personal' | 'department' | 'generic';
+    source?: string;
     sources?: string[];
     confidence?: number;
     deliverability?: 'high' | 'medium' | 'low' | 'catch-all' | 'unknown';
-    score?: number;
+    verified?: boolean;
     isBestContact?: boolean;
 }
 
@@ -28,6 +30,9 @@ interface ContactsCardProps {
     onSelectEmail?: (email: string) => void;
 }
 
+type LoadState = 'idle' | 'loading' | 'error' | 'success';
+type ScanState = 'idle' | 'scanning' | 'polling' | 'done' | 'error';
+
 export default function ContactsCard({
     prospectId,
     leadId,
@@ -36,93 +41,166 @@ export default function ContactsCard({
     contacts: contactsProp,
     onSelectEmail
 }: ContactsCardProps) {
-    const router = useRouter();
-    const [rescanning, setRescanning] = useState(false);
+    // Canonical ID
+    const id = companyId || prospectId;
+
+    // Loading states
+    const [loadState, setLoadState] = useState<LoadState>('idle');
+    const [scanState, setScanState] = useState<ScanState>('idle');
+    const [error, setError] = useState<string | null>(null);
+
+    // Contacts data
+    const [contacts, setContacts] = useState<Contact[]>([]);
+    const [lastScannedAt, setLastScannedAt] = useState<string | null>(null);
+
+    // UI state
     const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
     const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
     const [showGeneric, setShowGeneric] = useState(false);
-    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+    const [showMore, setShowMore] = useState(false);
 
-    // Enriched contacts state
-    const [bestContacts, setBestContacts] = useState<EnrichedContact[]>([]);
-    const [moreContacts, setMoreContacts] = useState<EnrichedContact[]>([]);
-    const [genericContacts, setGenericContacts] = useState<EnrichedContact[]>([]);
-
-    // Initial load from props
-    useEffect(() => {
-        const allContacts: EnrichedContact[] = Array.isArray(emailsProp) ? emailsProp
-            : Array.isArray(contactsProp) ? contactsProp
-                : [];
-
-        // Group contacts
-        const best: EnrichedContact[] = [];
-        const more: EnrichedContact[] = [];
-        const generic: EnrichedContact[] = [];
-
-        for (const c of allContacts) {
-            const isGeneric = isGenericEmail(c.email);
-            if (c.isBestContact && !isGeneric) {
-                best.push(c);
-            } else if (isGeneric || c.type === 'generic') {
-                generic.push(c);
-            } else {
-                more.push(c);
-            }
-        }
-
-        // Limit best to 3
-        if (best.length > 3) {
-            more.unshift(...best.splice(3));
-        }
-
-        setBestContacts(best);
-        setMoreContacts(more);
-        setGenericContacts(generic);
-    }, [emailsProp, contactsProp]);
-
-    const handleRescan = async () => {
-        const id = companyId || prospectId;
-        console.log('[ContactsCard] handleRescan triggered - companyId:', id);
+    // Fetch contacts on mount
+    const fetchContacts = useCallback(async () => {
         if (!id) {
-            console.log('[ContactsCard] No companyId or prospectId, aborting');
+            console.log('[ContactsCard] No companyId/prospectId provided');
+            setError('Company record missing identifier');
+            setLoadState('error');
             return;
         }
 
-        setRescanning(true);
+        console.log(`[ContactsCard] Fetching contacts for company ${id}`);
+        setLoadState('loading');
+        setError(null);
+
         try {
-            console.log('[ContactsCard] Calling /api/companies/' + id + '/enrichment');
-            const res = await fetch(`/api/companies/${id}/enrichment`, {
+            const res = await fetch(`/api/companies/${id}/contacts`);
+            console.log(`[ContactsCard] Response status: ${res.status}`);
+
+            if (res.status === 401) {
+                setError('Please sign in again');
+                setLoadState('error');
+                return;
+            }
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setError(data.error || `Couldn't load contacts. (${res.status})`);
+                setLoadState('error');
+                return;
+            }
+
+            const data = await res.json();
+            console.log(`[ContactsCard] Loaded ${data.contacts?.length || 0} contacts`);
+
+            setContacts(data.contacts || []);
+            setLastScannedAt(data.lastScannedAt);
+            setLoadState('success');
+
+        } catch (e: any) {
+            console.error('[ContactsCard] Fetch error:', e);
+            setError('Network error - try again');
+            setLoadState('error');
+        }
+    }, [id]);
+
+    // Fetch on mount
+    useEffect(() => {
+        // If props provided, use them initially
+        if (emailsProp?.length || contactsProp?.length) {
+            const propContacts = emailsProp || contactsProp || [];
+            setContacts(propContacts);
+            setLoadState('success');
+        }
+
+        // Then fetch fresh data
+        if (id) {
+            fetchContacts();
+        }
+    }, [id, fetchContacts]);
+
+    // Scan contacts handler
+    const handleScan = useCallback(async (force = false) => {
+        if (!id) {
+            console.log('[ContactsCard] No companyId for scan');
+            setError('Company record missing identifier');
+            return;
+        }
+
+        console.log(`[ContactsCard] Starting contact scan for company ${id}, force=${force}`);
+        setScanState('scanning');
+        setError(null);
+
+        try {
+            // Start scan job
+            const res = await fetch(`/api/companies/${id}/contacts/scan`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ force })
             });
 
-            console.log('[ContactsCard] Response status:', res.status);
-            if (res.ok) {
-                const data = await res.json();
-                console.log('[ContactsCard] Enrichment results:', {
-                    best: data.bestContacts?.length || 0,
-                    more: data.moreContacts?.length || 0,
-                    generic: data.genericContacts?.length || 0
-                });
-                setBestContacts(data.bestContacts || []);
-                setMoreContacts(data.moreContacts || []);
-                setGenericContacts(data.genericContacts || []);
-                setLastUpdated(new Date().toLocaleString());
-            } else {
-                console.error('[ContactsCard] Enrichment failed:', await res.text());
+            console.log(`[ContactsCard] Scan response status: ${res.status}`);
+
+            if (res.status === 401) {
+                setError('Please sign in again');
+                setScanState('error');
+                return;
             }
-        } catch (e) {
-            console.error('[ContactsCard] Rescan error:', e);
-        } finally {
-            setRescanning(false);
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || 'Scan failed');
+                setScanState('error');
+                return;
+            }
+
+            const { jobId } = data;
+            console.log(`[ContactsCard] Scan job started: ${jobId}`);
+
+            // Poll for completion
+            setScanState('polling');
+            let attempts = 0;
+            const maxAttempts = 30; // 45 seconds max
+
+            const pollInterval = setInterval(async () => {
+                attempts++;
+
+                try {
+                    const statusRes = await fetch(`/api/companies/${id}/contacts/scan?jobId=${jobId}`);
+                    const status = await statusRes.json();
+
+                    console.log(`[ContactsCard] Job status:`, status);
+
+                    if (status.status === 'done') {
+                        clearInterval(pollInterval);
+                        setScanState('done');
+
+                        // Refetch contacts
+                        await fetchContacts();
+
+                        setTimeout(() => setScanState('idle'), 2000);
+                    } else if (status.status === 'failed') {
+                        clearInterval(pollInterval);
+                        setError(status.error || 'Scan failed');
+                        setScanState('error');
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        setError('Scan timed out - try again');
+                        setScanState('error');
+                    }
+                } catch (e) {
+                    console.error('[ContactsCard] Poll error:', e);
+                }
+            }, 1500);
+
+        } catch (e: any) {
+            console.error('[ContactsCard] Scan error:', e);
+            setError(e.message || 'Scan failed');
+            setScanState('error');
         }
-    };
+    }, [id, fetchContacts]);
 
-    const handleUseEmail = (email: string) => {
-        setSelectedEmail(email);
-        onSelectEmail?.(email);
-    };
-
+    // Copy email handler
     const handleCopyEmail = async (email: string) => {
         try {
             await navigator.clipboard.writeText(email);
@@ -133,130 +211,223 @@ export default function ContactsCard({
         }
     };
 
-    const totalCount = bestContacts.length + moreContacts.length + genericContacts.length;
+    // Select email handler
+    const handleSelectEmail = (email: string) => {
+        setSelectedEmail(email);
+        onSelectEmail?.(email);
+    };
+
+    // Categorize contacts
+    const bestContacts = contacts.filter(c =>
+        c.isBestContact ||
+        (c.type !== 'generic' && (c.confidence ?? 0) > 0.7)
+    ).slice(0, 5);
+
+    const moreContacts = contacts.filter(c =>
+        !c.isBestContact &&
+        c.type !== 'generic' &&
+        (c.confidence ?? 0) <= 0.7
+    );
+
+    const genericContacts = contacts.filter(c =>
+        c.type === 'generic' ||
+        isGenericEmail(c.email)
+    );
+
+    const totalCount = contacts.length;
+    const isScanning = scanState === 'scanning' || scanState === 'polling';
+    const canInteract = loadState !== 'loading' && !isScanning;
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {/* Header */}
-            <div className="px-5 py-4 flex items-center justify-between border-b border-gray-100"
-                style={{ background: 'var(--accent-lilac-bg)' }}>
+            <div
+                className="px-5 py-4 flex items-center justify-between border-b border-gray-100"
+                style={{ background: 'var(--accent-lilac-bg)' }}
+            >
                 <div className="flex items-center gap-2">
                     <Users size={18} style={{ color: 'var(--accent-lilac-text)' }} />
                     <h3 className="font-semibold" style={{ color: 'var(--accent-lilac-text)' }}>
                         Contacts
                     </h3>
                     {totalCount > 0 && (
-                        <span className="text-xs px-2 py-0.5 rounded-full"
-                            style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-lilac-text)' }}>
+                        <span
+                            className="text-xs px-2 py-0.5 rounded-full"
+                            style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-lilac-text)' }}
+                        >
                             {totalCount}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    {lastUpdated && (
+                    {lastScannedAt && (
                         <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            Updated {lastUpdated}
+                            {new Date(lastScannedAt).toLocaleDateString()}
                         </span>
                     )}
                     <button
-                        onClick={handleRescan}
-                        disabled={rescanning}
+                        onClick={() => handleScan(true)}
+                        disabled={!canInteract || !id}
                         className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
                         style={{
                             background: 'rgba(139, 92, 246, 0.15)',
                             color: 'var(--accent-lilac-text)',
-                            cursor: rescanning ? 'wait' : 'pointer'
+                            cursor: canInteract && id ? 'pointer' : 'not-allowed',
+                            opacity: canInteract && id ? 1 : 0.5
                         }}
                     >
-                        <RefreshCw size={12} className={rescanning ? 'animate-spin' : ''} />
-                        {rescanning ? 'Scanning...' : 'Rescan'}
+                        {isScanning ? (
+                            <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                            <RefreshCw size={12} />
+                        )}
+                        {isScanning ? 'Scanning...' : 'Rescan'}
                     </button>
                 </div>
             </div>
 
             {/* Content */}
             <div className="divide-y divide-gray-100">
-                {totalCount === 0 ? (
+                {/* Loading State */}
+                {loadState === 'loading' && (
+                    <div className="p-6 space-y-3">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="animate-pulse flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gray-200" />
+                                <div className="flex-1 space-y-2">
+                                    <div className="h-3 bg-gray-200 rounded w-1/2" />
+                                    <div className="h-2 bg-gray-200 rounded w-1/3" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Error State */}
+                {loadState === 'error' && error && (
+                    <div className="p-6 text-center">
+                        <AlertCircle size={32} className="mx-auto mb-2 text-red-400" />
+                        <p className="text-sm text-red-600 mb-3">{error}</p>
+                        <button
+                            onClick={fetchContacts}
+                            className="text-xs font-medium px-4 py-2 rounded-lg transition-all"
+                            style={{ background: 'var(--bg-card-muted)', color: 'var(--text-secondary)' }}
+                        >
+                            Try again
+                        </button>
+                    </div>
+                )}
+
+                {/* Scanning State */}
+                {isScanning && loadState !== 'loading' && (
+                    <div className="p-6 text-center" style={{ color: 'var(--text-muted)' }}>
+                        <Loader2 size={32} className="mx-auto mb-2 animate-spin text-purple-500" />
+                        <p className="text-sm font-medium">Finding contacts...</p>
+                        <p className="text-xs mt-1">This may take a moment</p>
+                    </div>
+                )}
+
+                {/* Empty State */}
+                {loadState === 'success' && !isScanning && totalCount === 0 && (
                     <div className="p-8 text-center" style={{ color: 'var(--text-muted)' }}>
                         <Users size={32} className="mx-auto mb-2 opacity-40" />
                         <p className="text-sm">No contacts found yet.</p>
                         <button
-                            onClick={handleRescan}
-                            disabled={rescanning}
+                            onClick={() => handleScan(false)}
+                            disabled={!id}
                             className="mt-3 text-xs font-medium px-4 py-2 rounded-lg transition-all"
                             style={{
-                                background: 'var(--brand-soft)',
-                                color: 'var(--brand)'
+                                background: id ? 'var(--brand-soft)' : 'var(--bg-card-muted)',
+                                color: id ? 'var(--brand)' : 'var(--text-muted)',
+                                cursor: id ? 'pointer' : 'not-allowed'
                             }}
                         >
-                            {rescanning ? 'Scanning...' : 'Find Contacts'}
+                            Find Contacts
                         </button>
+                        {!id && (
+                            <p className="text-xs mt-2 text-red-500">Company record missing identifier</p>
+                        )}
                     </div>
-                ) : (
+                )}
+
+                {/* Contacts List */}
+                {loadState === 'success' && !isScanning && totalCount > 0 && (
                     <>
-                        {/* Best Contacts Section */}
+                        {/* Best Contacts */}
                         {bestContacts.length > 0 && (
-                            <div>
-                                <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider"
-                                    style={{ background: 'var(--bg-card-muted)', color: 'var(--text-muted)' }}>
+                            <div className="p-4">
+                                <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-3"
+                                    style={{ color: 'var(--text-muted)' }}>
                                     Best Contacts
+                                </h4>
+                                <div className="space-y-2">
+                                    {bestContacts.map((contact, idx) => (
+                                        <ContactRow
+                                            key={contact.id || idx}
+                                            contact={contact}
+                                            isSelected={selectedEmail === contact.email}
+                                            isCopied={copiedEmail === contact.email}
+                                            onSelect={() => handleSelectEmail(contact.email)}
+                                            onCopy={() => handleCopyEmail(contact.email)}
+                                        />
+                                    ))}
                                 </div>
-                                {bestContacts.map((c, i) => (
-                                    <ContactRow
-                                        key={c.email || i}
-                                        contact={c}
-                                        isSelected={selectedEmail === c.email}
-                                        isCopied={copiedEmail === c.email}
-                                        onUse={() => handleUseEmail(c.email)}
-                                        onCopy={() => handleCopyEmail(c.email)}
-                                        isBest
-                                    />
-                                ))}
                             </div>
                         )}
 
-                        {/* More Contacts Section */}
+                        {/* More Contacts */}
                         {moreContacts.length > 0 && (
-                            <div>
-                                <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider"
-                                    style={{ background: 'var(--bg-card-muted)', color: 'var(--text-muted)' }}>
-                                    More Contacts
-                                </div>
-                                {moreContacts.map((c, i) => (
-                                    <ContactRow
-                                        key={c.email || i}
-                                        contact={c}
-                                        isSelected={selectedEmail === c.email}
-                                        isCopied={copiedEmail === c.email}
-                                        onUse={() => handleUseEmail(c.email)}
-                                        onCopy={() => handleCopyEmail(c.email)}
-                                    />
-                                ))}
+                            <div className="p-4">
+                                <button
+                                    onClick={() => setShowMore(!showMore)}
+                                    className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider mb-3"
+                                    style={{ color: 'var(--text-muted)' }}
+                                >
+                                    More Contacts ({moreContacts.length})
+                                    {showMore ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                </button>
+                                {showMore && (
+                                    <div className="space-y-2">
+                                        {moreContacts.map((contact, idx) => (
+                                            <ContactRow
+                                                key={contact.id || idx}
+                                                contact={contact}
+                                                isSelected={selectedEmail === contact.email}
+                                                isCopied={copiedEmail === contact.email}
+                                                onSelect={() => handleSelectEmail(contact.email)}
+                                                onCopy={() => handleCopyEmail(contact.email)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
 
-                        {/* Generic Section (Collapsed) */}
+                        {/* Generic Contacts */}
                         {genericContacts.length > 0 && (
-                            <div>
+                            <div className="p-4">
                                 <button
                                     onClick={() => setShowGeneric(!showGeneric)}
-                                    className="w-full px-4 py-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-gray-50"
-                                    style={{ background: 'var(--bg-card-muted)', color: 'var(--text-muted)' }}
+                                    className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider mb-3"
+                                    style={{ color: 'var(--text-muted)' }}
                                 >
-                                    <span>Generic Inboxes ({genericContacts.length})</span>
-                                    {showGeneric ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                    Generic Inboxes ({genericContacts.length})
+                                    {showGeneric ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                 </button>
-                                {showGeneric && genericContacts.map((c, i) => (
-                                    <ContactRow
-                                        key={c.email || i}
-                                        contact={c}
-                                        isSelected={selectedEmail === c.email}
-                                        isCopied={copiedEmail === c.email}
-                                        onUse={() => handleUseEmail(c.email)}
-                                        onCopy={() => handleCopyEmail(c.email)}
-                                        isGeneric
-                                    />
-                                ))}
+                                {showGeneric && (
+                                    <div className="space-y-2">
+                                        {genericContacts.map((contact, idx) => (
+                                            <ContactRow
+                                                key={contact.id || idx}
+                                                contact={contact}
+                                                isSelected={selectedEmail === contact.email}
+                                                isCopied={copiedEmail === contact.email}
+                                                onSelect={() => handleSelectEmail(contact.email)}
+                                                onCopy={() => handleCopyEmail(contact.email)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </>
@@ -266,140 +437,72 @@ export default function ContactsCard({
     );
 }
 
-// Helper function
-function isGenericEmail(email: string): boolean {
-    if (!email) return false;
-    const genericPrefixes = ['info', 'contact', 'hello', 'hi', 'enquiries', 'enquiry',
-        'general', 'admin', 'office', 'team', 'mail', 'email', 'inbox',
-        'support', 'sales', 'marketing', 'hr'];
-    const local = email.split('@')[0].toLowerCase();
-    return genericPrefixes.includes(local);
-}
-
 // Contact Row Component
 function ContactRow({
     contact,
     isSelected,
     isCopied,
-    onUse,
-    onCopy,
-    isBest = false,
-    isGeneric = false
+    onSelect,
+    onCopy
 }: {
-    contact: EnrichedContact;
+    contact: Contact;
     isSelected: boolean;
     isCopied: boolean;
-    onUse: () => void;
+    onSelect: () => void;
     onCopy: () => void;
-    isBest?: boolean;
-    isGeneric?: boolean;
 }) {
-    const initial = contact.name?.[0]?.toUpperCase() || contact.email?.[0]?.toUpperCase() || '?';
+    const displayName = contact.name || contact.fullName || contact.email.split('@')[0];
+    const source = contact.source || (contact.sources?.[0]) || 'unknown';
 
     return (
-        <div className={`p-4 flex items-center justify-between group transition-colors hover:bg-gray-50 ${isSelected ? 'bg-indigo-50 border-l-2 border-indigo-500' : ''
-            }`}>
-            <div className="flex items-center gap-3 min-w-0">
-                {/* Avatar */}
-                <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                    style={{
-                        background: isBest ? 'linear-gradient(135deg, var(--accent-lilac-bg), var(--brand-soft))' :
-                            isGeneric ? 'var(--bg-card-muted)' :
-                                'linear-gradient(135deg, #f0f9ff, #f3e8ff)',
-                        color: isBest ? 'var(--accent-lilac-text)' :
-                            isGeneric ? 'var(--text-muted)' :
-                                '#7c3aed',
-                        border: isBest ? '1px solid rgba(139, 92, 246, 0.2)' : '1px solid var(--border-soft)'
-                    }}
-                >
-                    {isGeneric ? <Mail size={14} /> : initial}
-                </div>
-
-                {/* Details */}
-                <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                            {contact.name || contact.email?.split('@')[0]}
-                        </span>
-                        {contact.role && (
-                            <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-                                {contact.role}
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                            {contact.email}
-                        </span>
-
-                        {/* Badges */}
-                        <div className="flex items-center gap-1.5">
-                            {/* Verification Badge */}
-                            <VerificationBadge deliverability={contact.deliverability} />
-
-                            {/* Source Badges */}
-                            {contact.sources?.map((source, i) => (
-                                <SourceBadge key={i} source={source} />
-                            ))}
-                        </div>
-                    </div>
-                </div>
+        <div
+            className={`flex items-center gap-3 p-2 rounded-lg transition-all cursor-pointer ${isSelected ? 'ring-2 ring-purple-400' : ''
+                }`}
+            style={{ background: isSelected ? 'rgba(139, 92, 246, 0.08)' : 'var(--bg-card-muted)' }}
+            onClick={onSelect}
+        >
+            {/* Avatar */}
+            <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                style={{
+                    background: 'linear-gradient(135deg, rgb(139, 92, 246), rgb(59, 130, 246))',
+                    color: 'white'
+                }}
+            >
+                {displayName[0]?.toUpperCase() || '?'}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-1 flex-shrink-0">
-                <button
-                    onClick={onCopy}
-                    className="p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                    style={{ color: isCopied ? 'var(--accent-mint-text)' : 'var(--text-muted)' }}
-                    title="Copy email"
-                >
-                    {isCopied ? <Check size={14} /> : <Copy size={14} />}
-                </button>
-                <button
-                    onClick={onUse}
-                    className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${isSelected
-                        ? 'bg-indigo-600 text-white'
-                        : 'opacity-0 group-hover:opacity-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
-                        }`}
-                    title="Use this email"
-                >
-                    {isSelected ? 'Selected' : 'Use'}
-                </button>
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                        {displayName}
+                    </span>
+                    {contact.verified && <Shield size={12} className="text-green-500" />}
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                        {contact.email}
+                    </span>
+                    <SourceBadge source={source} />
+                </div>
+                {contact.role && (
+                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        {contact.role}
+                    </span>
+                )}
             </div>
+
+            {/* Copy Button */}
+            <button
+                onClick={(e) => { e.stopPropagation(); onCopy(); }}
+                className="p-1.5 rounded-md transition-all hover:bg-gray-200"
+                style={{ color: 'var(--text-muted)' }}
+            >
+                {isCopied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+            </button>
         </div>
     );
-}
-
-// Verification Badge Component
-function VerificationBadge({ deliverability }: { deliverability?: string }) {
-    switch (deliverability) {
-        case 'high':
-            return (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-green-50 text-green-700 border border-green-200">
-                    <Shield size={9} />
-                    Verified
-                </span>
-            );
-        case 'medium':
-        case 'catch-all':
-            return (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                    <AlertCircle size={9} />
-                    Risky
-                </span>
-            );
-        case 'low':
-            return (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-red-50 text-red-600 border border-red-200">
-                    <AlertCircle size={9} />
-                    Invalid
-                </span>
-            );
-        default:
-            return null;
-    }
 }
 
 // Source Badge Component
@@ -411,16 +514,28 @@ function SourceBadge({ source }: { source: string }) {
         pattern: { icon: Mail, label: 'Pattern', bg: 'rgba(139, 92, 246, 0.1)', color: 'rgb(109, 40, 217)' }
     };
 
-    const config = configs[source?.toLowerCase()] || configs.website;
+    const config = configs[source] || configs.website;
     const Icon = config.icon;
 
     return (
         <span
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full"
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium"
             style={{ background: config.bg, color: config.color }}
         >
             <Icon size={9} />
             {config.label}
         </span>
     );
+}
+
+// Helper function
+function isGenericEmail(email: string): boolean {
+    if (!email) return false;
+    const genericPrefixes = [
+        'info', 'contact', 'hello', 'support', 'admin', 'sales', 'marketing',
+        'team', 'office', 'enquiries', 'inquiries', 'help', 'careers', 'jobs',
+        'press', 'media', 'hr', 'recruitment', 'billing', 'accounts'
+    ];
+    const prefix = email.split('@')[0].toLowerCase();
+    return genericPrefixes.includes(prefix);
 }
