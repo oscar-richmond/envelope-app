@@ -441,7 +441,7 @@ function updateComposeButton() {
     elements.btnCompose.disabled = selectedWithValidEmail.length === 0;
 }
 
-// Find contacts using Phase 2 email discovery
+// Find contacts using Phase 3 email discovery v3
 async function findContacts() {
     const website = elements.fieldWebsite.value.trim();
 
@@ -459,25 +459,24 @@ async function findContacts() {
     elements.contactsList.classList.add('hidden');
     elements.contactsLoading.classList.remove('hidden');
 
-    // Update loading text to show progress
+    // Update loading text
     const loadingText = elements.contactsLoading.querySelector('p');
     if (loadingText) {
-        loadingText.textContent = 'Scanning company site...';
+        loadingText.textContent = 'Scanning company site + public web...';
     }
 
-    // Use the new email-discovery endpoint
-    const requestUrl = `${API_BASE}/api/email-discovery`;
+    // Use v3 endpoint
+    const requestUrl = `${API_BASE}/api/email-discovery/v3`;
     updateDebug({
         requestId: 'pending...',
         domain: extractDomain(website),
         error: '-'
     });
 
-    let responseStatus = 0;
     let responseRequestId = '';
 
     try {
-        console.log('[Envelope Discovery] Starting email discovery for:', website);
+        console.log('[Envelope V3] Starting discovery for:', website);
 
         const res = await fetch(requestUrl, {
             method: 'POST',
@@ -488,80 +487,85 @@ async function findContacts() {
             body: JSON.stringify({
                 domain: extractDomain(website),
                 seedUrl: website,
-                maxPages: 25
+                options: { crawlSite: true, publicSearch: true }
             })
         });
 
-        responseStatus = res.status;
         responseRequestId = res.headers.get('x-request-id') || '';
-
-        console.log('[Envelope Discovery] Response status:', responseStatus);
-
         const result = await res.json();
 
-        console.log('[Envelope Discovery] Result:', result);
+        console.log('[Envelope V3] Result:', result);
 
         // Update debug info
         updateDebug({
             requestId: result.requestId || responseRequestId || '-',
             domain: extractDomain(website),
-            pages: result.crawlStats ? `${result.crawlStats.pagesVisited}/${result.crawlStats.pagesTotal}` : '-',
-            duration: result.crawlStats ? `${result.crawlStats.durationMs}ms` : '-',
-            pattern: result.detectedPatterns?.length > 0 ? result.detectedPatterns.join(', ') : 'none',
-            error: result.error || '-'
+            pages: result.stats?.pagesCrawled || '-',
+            public: result.stats?.publicResultsFetched || 0,
+            pdfs: result.stats?.pdfsParsed || 0,
+            duration: result.stats?.durationMs ? `${result.stats.durationMs}ms` : '-',
+            pattern: result.patterns?.length > 0
+                ? result.patterns.map(p => `${p.pattern} (${p.verified ? 'verified' : 'likely'})`).join(', ')
+                : 'none',
+            error: result.error || result.warnings?.join(', ') || '-'
         });
 
-        // Handle error response
+        // Handle error
         if (!result.success) {
-            const errorMsg = result.error || 'Could not find contacts';
-            console.error('[Envelope Discovery] API error:', errorMsg);
-            showContactsError(errorMsg);
+            showContactsError(result.error || 'Discovery failed');
             return;
         }
 
-        // Process emails
-        if (result.emails?.length > 0) {
-            console.log('[Envelope Discovery] Found', result.emails.length, 'emails');
+        // Clear existing contacts (except manual)
+        contacts = contacts.filter(c => c.source === 'manual');
 
-            // Clear existing contacts (except manual ones) and add new
-            contacts = contacts.filter(c => c.source === 'manual');
-
-            result.emails.forEach(email => {
-                // Avoid duplicates
-                if (!contacts.find(existing => existing.email === email.email)) {
+        // Add best contacts first (highlighted)
+        if (result.bestContacts?.length > 0) {
+            console.log('[Envelope V3] Best contacts:', result.bestContacts.length);
+            result.bestContacts.forEach(c => {
+                if (!contacts.find(existing => existing.email === c.email)) {
                     addContact({
-                        name: email.name || '',
-                        role: email.role || '',
-                        email: email.email,
-                        type: email.isGeneric ? 'generic' : 'person',
-                        confidence: email.confidence || 'medium',
-                        source: email.sources?.[0]?.pageType || 'website',
-                        evidence: email.sources?.[0] ? {
-                            url: email.sources[0].url,
-                            snippet: email.sources[0].snippet,
-                            pageType: email.sources[0].pageType
-                        } : null,
-                        isGeneric: email.isGeneric || false
+                        name: c.name || '',
+                        role: c.role || '',
+                        email: c.email,
+                        type: 'person',
+                        confidence: c.confidence || 'high',
+                        source: c.sources?.[0]?.type || 'website',
+                        evidence: c.sources?.[0] || null,
+                        isGeneric: false,
+                        isBestContact: true
                     });
                 }
             });
+        }
 
-            // Show pattern detection if found
-            if (result.detectedPatterns?.length > 0) {
-                console.log('[Envelope Discovery] Detected patterns:', result.detectedPatterns);
-                showPatternInfo(result.detectedPatterns);
-            }
-        } else {
-            console.log('[Envelope Discovery] No emails found');
+        // Add other emails
+        if (result.emails?.length > 0) {
+            result.emails.forEach(e => {
+                if (!contacts.find(existing => existing.email === e.email)) {
+                    addContact({
+                        name: e.name || '',
+                        role: e.role || '',
+                        email: e.email,
+                        type: e.isGeneric ? 'generic' : 'person',
+                        confidence: e.confidence || 'medium',
+                        source: e.sources?.[0]?.type || 'website',
+                        evidence: e.sources?.[0] || null,
+                        isGeneric: e.isGeneric || false
+                    });
+                }
+            });
+        }
+
+        // Show patterns
+        if (result.patterns?.length > 0) {
+            showPatternInfo(result.patterns);
         }
 
     } catch (e) {
-        console.error('[Envelope Discovery] Error:', e.message || e);
+        console.error('[Envelope V3] Error:', e.message || e);
         showContactsError(`Network error: ${e.message || 'Connection failed'}`);
-        updateDebug({
-            error: e.message || 'Network error',
-            requestId: responseRequestId || 'N/A'
-        });
+        updateDebug({ error: e.message || 'Network error', requestId: responseRequestId || 'N/A' });
     } finally {
         elements.btnFindContacts.disabled = false;
         elements.contactsLoading.classList.add('hidden');
@@ -570,12 +574,12 @@ async function findContacts() {
     }
 }
 
-// Show pattern info in UI
+// Show pattern info
 function showPatternInfo(patterns) {
-    // Add pattern info to debug section
-    const patternText = `Detected email pattern: ${patterns.join(', ')}`;
-    console.log('[Envelope Discovery]', patternText);
-    // Could add a UI element here in the future
+    for (const p of patterns) {
+        const status = p.verified ? `✓ Verified (${p.matches} matches)` : `Likely (${p.matches} match)`;
+        console.log(`[Envelope V3] Pattern: ${p.pattern} - ${status}`);
+    }
 }
 
 // Update debug UI
