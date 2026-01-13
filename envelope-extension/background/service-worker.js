@@ -1,6 +1,6 @@
 // Envelope Chrome Extension - Background Service Worker
 
-const API_BASE = 'https://envelope-app-git-main-oscar-richmonds-projects.vercel.app';
+const API_BASE = 'https://envelope-app-sage.vercel.app';
 const DEBUG = true; // Set to false in production
 
 function log(...args) {

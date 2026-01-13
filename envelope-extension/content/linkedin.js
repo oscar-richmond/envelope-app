@@ -1061,7 +1061,7 @@
   });
 
   // API base for sign-in redirect
-  const API_BASE = 'https://envelope-app-git-main-oscar-richmonds-projects.vercel.app';
+  const API_BASE = 'https://envelope-app-sage.vercel.app';
 
   // Show toast with optional CTA and error details
   function showToast(message, options = {}) {
