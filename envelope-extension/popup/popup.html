@@ -38,6 +38,19 @@
       <h2>Sign in to capture leads</h2>
       <p>Connect your Envelope account to start capturing leads.</p>
       <button id="btn-signin" class="btn btn-primary">Sign in to Envelope</button>
+
+      <!-- Auth Debug Panel -->
+      <div id="auth-debug-panel" class="auth-debug-panel"
+        style="margin-top: 16px; padding: 12px; background: #f3f4f6; border-radius: 8px; font-size: 11px; text-align: left; display: none;">
+        <div style="font-weight: 600; margin-bottom: 8px; color: #374151;">🔧 Auth Debug</div>
+        <div id="debug-web-origin" style="color: #6b7280;">Origin: checking...</div>
+        <div id="debug-session-status" style="color: #6b7280;">Session: checking...</div>
+        <div id="debug-user-email" style="color: #6b7280;">User: none</div>
+        <div id="debug-last-error" style="color: #dc2626;">Error: none</div>
+        <button id="btn-copy-debug"
+          style="margin-top: 8px; padding: 4px 8px; font-size: 10px; background: #e5e7eb; border: none; border-radius: 4px; cursor: pointer;">Copy
+          Debug Info</button>
+      </div>
     </div>
 
     <!-- Loading State -->

@@ -127,12 +127,34 @@ async function init() {
     }
 }
 
-// Verify session by calling the API directly (SINGLE SOURCE OF TRUTH)
+// Verify session using /api/health/auth (SINGLE SOURCE OF TRUTH)
+// This is the deterministic approach - always returns auth state
 async function verifySessionViaAPI() {
-    try {
-        console.log('[Envelope] Calling session verification API...');
+    const debugPanel = document.getElementById('auth-debug-panel');
+    const debugOrigin = document.getElementById('debug-web-origin');
+    const debugSession = document.getElementById('debug-session-status');
+    const debugUser = document.getElementById('debug-user-email');
+    const debugError = document.getElementById('debug-last-error');
+    const btnCopyDebug = document.getElementById('btn-copy-debug');
 
-        const response = await fetch(`${API_BASE}/api/auth/extension-session`, {
+    // Show debug panel
+    if (debugPanel) debugPanel.style.display = 'block';
+
+    const debugInfo = {
+        timestamp: new Date().toISOString(),
+        webOrigin: API_BASE,
+        endpoint: `${API_BASE}/api/health/auth`,
+        response: null,
+        error: null,
+        bucket: null
+    };
+
+    try {
+        console.log('[Envelope] Checking auth health at:', debugInfo.endpoint);
+        if (debugOrigin) debugOrigin.textContent = `Origin: ${API_BASE}`;
+        if (debugSession) debugSession.textContent = 'Session: checking...';
+
+        const response = await fetch(`${API_BASE}/api/health/auth`, {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -140,16 +162,37 @@ async function verifySessionViaAPI() {
             }
         });
 
+        console.log('[Envelope] Health API status:', response.status);
+        debugInfo.responseStatus = response.status;
+
         if (!response.ok) {
-            console.log('[Envelope] Session API returned non-OK:', response.status);
+            debugInfo.error = `HTTP ${response.status}`;
+            debugInfo.bucket = 'BUCKET 4: API returned error';
+            if (debugSession) debugSession.textContent = `Session: API error (${response.status})`;
+            if (debugError) debugError.textContent = `Error: ${debugInfo.bucket}`;
+            updateCopyDebugButton(btnCopyDebug, debugInfo);
             return false;
         }
 
         const data = await response.json();
-        console.log('[Envelope] Session API response:', data);
+        debugInfo.response = data;
+        console.log('[Envelope] Health check response:', data);
 
-        if (data.authenticated && data.user) {
-            // Store in chrome.storage for UI display
+        // Update debug panel
+        if (debugSession) {
+            debugSession.textContent = `Session: ${data.hasSession ? 'ACTIVE' : 'NONE'}`;
+            debugSession.style.color = data.hasSession ? '#059669' : '#dc2626';
+        }
+        if (debugUser) {
+            debugUser.textContent = `User: ${data.user?.email || 'none'}`;
+        }
+
+        // Analyze response for bucket classification
+        if (data.hasSession && data.user) {
+            debugInfo.bucket = 'SUCCESS';
+            if (debugError) debugError.textContent = 'Error: none';
+
+            // Store in chrome.storage
             await chrome.storage.local.set({
                 authToken: 'verified',
                 userEmail: data.user.email
@@ -164,33 +207,50 @@ async function verifySessionViaAPI() {
             }
 
             authToken = 'verified';
+            updateCopyDebugButton(btnCopyDebug, debugInfo);
             return true;
         }
 
-        console.log('[Envelope] Session not authenticated');
-        // Clear stored auth data
+        // No session - classify the bucket
+        if (!data.debug?.hasAuthCookies) {
+            debugInfo.bucket = 'BUCKET 1: No auth cookies present';
+        } else if (data.debug?.host !== new URL(API_BASE).host) {
+            debugInfo.bucket = 'BUCKET 2: Cookie on wrong domain';
+        } else {
+            debugInfo.bucket = 'BUCKET 3/5: Cookie present but session not valid';
+        }
+
+        if (debugError) debugError.textContent = `Error: ${debugInfo.bucket}`;
+        console.log('[Envelope] Auth failed -', debugInfo.bucket);
+
+        // Clear stored auth
         await chrome.storage.local.remove(['authToken', 'userEmail']);
+        updateCopyDebugButton(btnCopyDebug, debugInfo);
         return false;
 
     } catch (error) {
-        console.error('[Envelope] Session verification failed:', error);
+        console.error('[Envelope] Health check failed:', error);
+        debugInfo.error = error.message;
+        debugInfo.bucket = 'BUCKET 4: Network/CORS error';
 
-        // Fallback: check if we have stored auth
-        const stored = await chrome.storage.local.get(['authToken', 'userEmail']);
-        if (stored.authToken) {
-            console.log('[Envelope] Using cached auth (API unreachable)');
-            authToken = stored.authToken;
-            if (stored.userEmail && elements.userEmail) {
-                elements.userEmail.textContent = stored.userEmail;
-            }
-            if (elements.userBadge) {
-                elements.userBadge.classList.remove('hidden');
-            }
-            return true;
-        }
+        if (debugSession) debugSession.textContent = 'Session: NETWORK ERROR';
+        if (debugError) debugError.textContent = `Error: ${error.message}`;
 
+        updateCopyDebugButton(btnCopyDebug, debugInfo);
         return false;
     }
+}
+
+// Helper to set up copy debug button
+function updateCopyDebugButton(btn, debugInfo) {
+    if (!btn) return;
+    btn.onclick = () => {
+        const text = JSON.stringify(debugInfo, null, 2);
+        navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = 'Copy Debug Info'; }, 2000);
+        });
+    };
 }
 
 // Detect page context - enhanced for Phase 9

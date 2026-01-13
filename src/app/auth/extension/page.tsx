@@ -2,20 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 /**
  * Extension Auth Page
  * 
- * Handles sign-in and communicates success back to extension
- * Uses postMessage for cross-origin communication
+ * Handles sign-in and redirects to success page
  */
 
 export default function ExtensionAuthPage() {
     const { data: session, status } = useSession();
+    const router = useRouter();
     const [authStatus, setAuthStatus] = useState<string>('Initializing...');
-    const [authComplete, setAuthComplete] = useState(false);
 
     useEffect(() => {
+        console.log('[ExtensionAuth] Status:', status, 'Has session:', !!session?.user);
+
         if (status === 'loading') {
             setAuthStatus('Checking session...');
             return;
@@ -23,53 +25,32 @@ export default function ExtensionAuthPage() {
 
         if (status === 'unauthenticated') {
             setAuthStatus('Redirecting to sign in...');
-            // Sign in and return to this page
+            // Sign in and return to success page
             signIn('google', {
-                callbackUrl: window.location.href
+                callbackUrl: `${window.location.origin}/auth/extension/success`
             });
             return;
         }
 
-        if (status === 'authenticated' && session?.user && !authComplete) {
-            setAuthComplete(true);
-            handleAuthSuccess();
+        if (status === 'authenticated' && session?.user) {
+            setAuthStatus('✓ Session found! Redirecting...');
+            // Store success marker and redirect
+            try {
+                localStorage.setItem('envelope-auth-success', JSON.stringify({
+                    success: true,
+                    email: session.user.email,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                console.error('[ExtensionAuth] localStorage error:', e);
+            }
+
+            // Redirect to success page
+            setTimeout(() => {
+                router.push('/auth/extension/success');
+            }, 500);
         }
-    }, [status, session, authComplete]);
-
-    const handleAuthSuccess = () => {
-        setAuthStatus('✓ Signed in! Notifying extension...');
-
-        console.log('[ExtensionAuth] Auth successful:', session?.user?.email);
-
-        // Store success marker in localStorage for extension to detect
-        try {
-            localStorage.setItem('envelope-auth-success', JSON.stringify({
-                success: true,
-                email: session?.user?.email,
-                timestamp: Date.now()
-            }));
-            console.log('[ExtensionAuth] Success marker stored');
-        } catch (e) {
-            console.error('[ExtensionAuth] localStorage error:', e);
-        }
-
-        // Also broadcast via postMessage (for any listening windows)
-        try {
-            window.postMessage({
-                type: 'ENVELOPE_AUTH_SUCCESS',
-                email: session?.user?.email,
-                timestamp: Date.now()
-            }, '*');
-            console.log('[ExtensionAuth] postMessage sent');
-        } catch (e) {
-            console.error('[ExtensionAuth] postMessage error:', e);
-        }
-
-        // After 2 seconds, show manual close message
-        setTimeout(() => {
-            setAuthStatus('✓ Connected! You can close this tab and use the extension.');
-        }, 1500);
-    };
+    }, [status, session, router]);
 
     const getStatusColor = () => {
         if (authStatus.includes('✓')) return { bg: '#d1fae5', color: '#065f46' };
