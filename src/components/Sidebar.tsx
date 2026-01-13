@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-    List, Settings, PlusCircle, Send, Users,
+    List, Settings, PlusCircle, Send, Search,
     LayoutDashboard, ChevronLeft, ChevronRight,
     Mail, LogOut, User as UserIcon, RefreshCw, MessageCircle, Columns3
 } from 'lucide-react';
@@ -25,7 +25,7 @@ const navItems: NavItemConfig[] = [
     // Main
     { label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard', group: 'Main' },
     { label: 'Lead Board', icon: List, route: '/leads', group: 'Main' },
-    { label: 'Prospects', icon: Users, route: '/prospects', group: 'Main' },
+    { label: 'Prospect Search', icon: Search, route: '/prospects', group: 'Main' },
     // Outreach
     { label: 'Inbox', icon: Mail, route: '/outreach/sent', group: 'Outreach' },
     { label: 'CRM', icon: Columns3, route: '/outreach/deals', group: 'Outreach' },

@@ -1,6 +1,6 @@
 import { SignInForm } from '@/components/auth/SignInForm';
 import Link from 'next/link';
-import { Search, TrendingUp, Mail, Users, BarChart3 } from 'lucide-react';
+import { Search, TrendingUp, Mail, Users, BarChart3, Sparkles } from 'lucide-react';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 
 export default function SignInPage() {
@@ -119,6 +119,14 @@ export default function SignInPage() {
                             title="Inbox Queue"
                             subtitle="Reply tracking & follow-up automation"
                             color="mint"
+                        />
+
+                        {/* Preview Card 4: AI Outreach */}
+                        <PreviewCard
+                            icon={<Sparkles size={18} />}
+                            title="AI Outreach"
+                            subtitle="Generate personalised outreach drafts in seconds."
+                            color="lilac"
                         />
 
                         {/* Stats Preview */}
