@@ -3,10 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { publicEmailDiscovery, isPublicDiscoveryEnabled, ExtractedEmail } from '@/lib/services/public-email-discovery';
-import { HunterProvider } from '@/lib/providers/hunter';
-
-// Hunter provider instance
-const hunterProvider = new HunterProvider();
+import { hunterDomainSearch, formatPattern, EmailCandidate } from '@/lib/services/hunter-domain-search';
 
 // ============================================
 // TYPES
@@ -508,30 +505,35 @@ export async function POST(request: Request) {
             warnings.push('Public search disabled: no SERPAPI_KEY or GOOGLE_SEARCH_KEY configured');
         }
 
-        // Run Hunter Domain Search
+        // Run Hunter Domain Search (with pagination)
         let hunterContacts: BestContact[] = [];
         let hunterResultsCount = 0;
+        let hunterPattern: string | null = null;
+        let hunterPagesScanned = 0;
 
         try {
-            const hunterResults = await hunterProvider.find(domain);
-            hunterResultsCount = hunterResults.length;
-            console.log(`[DiscoveryV3] ${requestId} - Hunter returned ${hunterResultsCount} contacts`);
+            const hunterResult = await hunterDomainSearch(domain, { maxResults: 50 });
+            hunterResultsCount = hunterResult.emails.length;
+            hunterPattern = hunterResult.pattern;
+            hunterPagesScanned = hunterResult.pagesScanned;
+
+            console.log(`[DiscoveryV3] ${requestId} - Hunter: ${hunterResultsCount} emails, pattern: ${hunterPattern}, pages: ${hunterPagesScanned}`);
 
             // Convert Hunter results to BestContact format
-            hunterContacts = hunterResults.map(h => ({
-                email: h.email || '',
-                name: h.firstName && h.lastName ? `${h.firstName} ${h.lastName}` : h.firstName || h.lastName || null,
-                role: h.title || null,
+            hunterContacts = hunterResult.emails.map((h: EmailCandidate) => ({
+                email: h.email,
+                name: h.fullName,
+                role: h.position,
                 confidence: h.confidence >= 80 ? 'high' as const : h.confidence >= 50 ? 'medium' as const : 'low' as const,
                 score: h.confidence,
-                sources: [{
-                    url: `https://hunter.io/search/${domain}`,
-                    title: 'Hunter.io',
-                    snippet: h.title || 'Professional email',
+                sources: h.sources.map(s => ({
+                    url: s.url,
+                    title: s.title || 'Hunter.io',
+                    snippet: h.position || 'Professional email',
                     type: 'directory' as const
-                }],
-                isGeneric: GENERIC_PREFIXES.has(h.email?.split('@')[0]?.toLowerCase() || '')
-            })).filter(c => c.email);
+                })),
+                isGeneric: h.type === 'generic'
+            }));
         } catch (err: any) {
             console.log(`[DiscoveryV3] ${requestId} - Hunter error: ${err.message}`);
             warnings.push('Hunter search unavailable');
@@ -559,18 +561,20 @@ export async function POST(request: Request) {
         // Build result
         const result: DiscoveryV3Result = {
             bestContacts,
-            emails: allContacts.slice(0, 25),
+            emails: allContacts.slice(0, 50), // Increased from 25 to 50
             patterns,
             stats: {
                 pagesCrawled,
                 publicResultsFetched,
                 pdfsParsed,
                 hunterResultsCount,
+                hunterPagesScanned,
                 durationMs: Date.now() - startTime
             },
             meta: {
                 totalFound: allContacts.length,
-                totalReturned: Math.min(allContacts.length, 25),
+                totalReturned: Math.min(allContacts.length, 50),
+                hunterPattern: hunterPattern ? formatPattern(hunterPattern, domain) : null,
             },
             warnings
         };
