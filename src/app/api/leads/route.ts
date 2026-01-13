@@ -151,6 +151,12 @@ export async function POST(request: Request) {
             },
         });
 
+        // AUTO-SCAN: Trigger scans asynchronously after lead creation
+        // This runs in the background and doesn't block the response
+        triggerAutoScan(lead.id, body.companyProspectId).catch(err => {
+            console.error('[AutoScan] Failed to trigger:', err);
+        });
+
         return NextResponse.json(lead, { status: 201 });
     } catch (error) {
         // Handle unique constraint on websiteUrl
@@ -158,5 +164,32 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Lead with this website already exists' }, { status: 409 });
         }
         return NextResponse.json({ error: 'Failed to create lead' }, { status: 500 });
+    }
+}
+
+// Trigger auto-scan for website and financials
+async function triggerAutoScan(leadId: number, companyProspectId?: string) {
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
+
+    try {
+        // Trigger website scan
+        await fetch(`${baseUrl}/api/scan/website`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ leadId, companyProspectId })
+        });
+
+        // Trigger financial scan
+        await fetch(`${baseUrl}/api/scan/financials`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ leadId, companyProspectId })
+        });
+
+        console.log(`[AutoScan] Triggered scans for lead ${leadId}`);
+    } catch (error) {
+        console.error(`[AutoScan] Error for lead ${leadId}:`, error);
     }
 }

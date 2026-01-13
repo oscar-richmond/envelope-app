@@ -74,6 +74,46 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
     const [deletingLead, setDeletingLead] = useState<any>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Bulk Scan State
+    const [bulkScanning, setBulkScanning] = useState(false);
+
+    // Bulk scan handler
+    const handleBulkScan = async (mode: 'missing' | 'stale' | 'force') => {
+        if (bulkScanning) return;
+        setBulkScanning(true);
+
+        try {
+            const res = await fetch('/api/scan/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    leadIds: filteredLeads.map(l => l.id),
+                    type: 'both',
+                    mode
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(`Bulk scan complete: ${data.completed} updated, ${data.skipped} skipped`);
+
+                // Refresh leads list
+                const refreshRes = await fetch('/api/leads');
+                if (refreshRes.ok) {
+                    const updatedLeads = await refreshRes.json();
+                    setLeads(updatedLeads);
+                }
+            } else {
+                showToast('Bulk scan failed', 'error');
+            }
+        } catch (e) {
+            showToast('Bulk scan failed', 'error');
+        } finally {
+            setBulkScanning(false);
+        }
+    };
+
     // Auto-open composer from URL params (extension flow)
     useEffect(() => {
         const leadId = searchParams.get('leadId');
@@ -319,19 +359,50 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                 title="Lead Board"
                 subtitle="Manage and analyze your prospecting pipeline"
                 actions={
-                    <>
+                    <div className="flex items-center gap-3">
                         <SearchInput
                             value={filter}
                             onChange={setFilter}
                             placeholder="Filter companies..."
                         />
+
+                        {/* Bulk Scan Controls */}
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: 'var(--bg-card-muted)' }}>
+                            <button
+                                onClick={() => handleBulkScan('missing')}
+                                disabled={bulkScanning || filteredLeads.length === 0}
+                                className="text-xs font-medium px-3 py-1.5 rounded-md transition-all hover:scale-[1.02]"
+                                style={{
+                                    background: 'rgba(84, 130, 237, 0.12)',
+                                    color: 'rgb(84, 130, 237)',
+                                    cursor: bulkScanning ? 'wait' : 'pointer',
+                                    opacity: bulkScanning ? 0.6 : 1
+                                }}
+                            >
+                                {bulkScanning ? 'Scanning...' : 'Scan Missing'}
+                            </button>
+                            <button
+                                onClick={() => handleBulkScan('stale')}
+                                disabled={bulkScanning || filteredLeads.length === 0}
+                                className="text-xs font-medium px-3 py-1.5 rounded-md transition-all hover:scale-[1.02]"
+                                style={{
+                                    background: 'rgba(245, 158, 11, 0.12)',
+                                    color: 'rgb(217, 119, 6)',
+                                    cursor: bulkScanning ? 'wait' : 'pointer',
+                                    opacity: bulkScanning ? 0.6 : 1
+                                }}
+                            >
+                                Rescan Stale
+                            </button>
+                        </div>
+
                         <button
                             onClick={() => setIsAddModalOpen(true)}
                             className="btn btn-primary"
                         >
                             Add Lead
                         </button>
-                    </>
+                    </div>
                 }
             />
 
