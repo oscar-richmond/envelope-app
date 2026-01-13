@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
@@ -76,6 +76,16 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
 
     // Bulk Scan State
     const [bulkScanning, setBulkScanning] = useState(false);
+
+    // Filtering & Sorting (moved up to avoid initialization error)
+    const filteredLeads = useMemo(() => leads
+        .filter(l => l.companyName.toLowerCase().includes(filter.toLowerCase()))
+        .sort((a, b) => {
+            if (sort === 'date') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            if (sort === 'priority') return (b.priorityScore || 0) - (a.priorityScore || 0);
+            if (sort === 'health') return (b.stalenessScore || 0) - (a.stalenessScore || 0);
+            return 0;
+        }), [leads, filter, sort]);
 
     // Bulk scan handler
     const handleBulkScan = async (mode: 'missing' | 'stale' | 'force') => {
@@ -252,15 +262,7 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
         }
     }, [searchParams, leads, router]);
 
-    // Filtering & Sorting
-    const filteredLeads = leads
-        .filter(l => l.companyName.toLowerCase().includes(filter.toLowerCase()))
-        .sort((a, b) => {
-            if (sort === 'date') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-            if (sort === 'priority') return (b.priorityScore || 0) - (a.priorityScore || 0);
-            if (sort === 'health') return (b.stalenessScore || 0) - (a.stalenessScore || 0);
-            return 0;
-        });
+    // (filteredLeads moved earlier in component to fix initialization order)
 
     // =====================
     // CTA Handlers
