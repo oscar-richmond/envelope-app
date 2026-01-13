@@ -391,16 +391,22 @@ function createContactRow(contact) {
 
 // Create suggested contact row (from Companies House)
 function createSuggestedContactRow(contact) {
-    const verifyBtnText = contact.verificationStatus === 'pending' ? 'Verify' :
-        contact.verificationStatus === 'valid' ? '✓ Valid' :
-            contact.verificationStatus === 'invalid' ? '✗ Invalid' : 'Check';
+    const hasEmail = contact.hasEmail !== false && !contact.email.startsWith('[');
+
+    const verifyBtnText = !hasEmail ? '' :
+        contact.verificationStatus === 'pending' ? 'Verify' :
+            contact.verificationStatus === 'valid' ? '✓ Valid' :
+                contact.verificationStatus === 'invalid' ? '✗ Invalid' : 'Check';
 
     const verifyBtnClass = contact.verificationStatus === 'valid' ? 'btn-verified' :
         contact.verificationStatus === 'invalid' ? 'btn-invalid' : '';
 
+    const badgeText = hasEmail ? 'Suggested' : 'Director';
+    const badgeClass = hasEmail ? 'badge-suggested' : 'badge-info';
+
     return `
-        <div class="contact-row contact-suggested" data-contact-id="${contact.id}">
-            <input type="checkbox" class="contact-checkbox" ${contact.selected ? 'checked' : ''}>
+        <div class="contact-row contact-suggested ${!hasEmail ? 'contact-info-only' : ''}" data-contact-id="${contact.id}">
+            ${hasEmail ? `<input type="checkbox" class="contact-checkbox" ${contact.selected ? 'checked' : ''}>` : '<span class="contact-checkbox-placeholder"></span>'}
             <div class="contact-info">
                 <div class="contact-name-row">
                     <span class="contact-type-icon" title="Director (Companies House)">🏛️</span>
@@ -408,13 +414,13 @@ function createSuggestedContactRow(contact) {
                 </div>
                 <span class="contact-role-text">${escapeHtml(contact.role || 'Director')}</span>
                 <div class="contact-email-row">
-                    <span class="contact-email-suggested">${escapeHtml(contact.email)}</span>
-                    <span class="badge badge-suggested">Suggested</span>
+                    <span class="contact-email-suggested">${hasEmail ? escapeHtml(contact.email) : 'No verified email pattern'}</span>
+                    <span class="badge ${badgeClass}">${badgeText}</span>
                 </div>
             </div>
             <div class="contact-actions">
-                <button class="btn-verify ${verifyBtnClass}" onclick="verifyEmail(${contact.id})">${verifyBtnText}</button>
-                <button class="btn-use" onclick="useSuggestedContact(${contact.id})">Use</button>
+                ${hasEmail ? `<button class="btn-verify ${verifyBtnClass}" onclick="verifyEmail(${contact.id})">${verifyBtnText}</button>` : ''}
+                ${hasEmail ? `<button class="btn-use" onclick="useSuggestedContact(${contact.id})">Use</button>` : ''}
             </div>
         </div>
     `;
@@ -596,13 +602,13 @@ async function findContacts() {
         // Show patterns
         if (result.patterns?.length > 0) {
             showPatternInfo(result.patterns);
-
-            // If verified pattern exists, try Companies House enrichment
-            const verifiedPattern = result.patterns.find(p => p.verified);
-            if (verifiedPattern && result.emails?.length > 0) {
-                await enrichWithDirectors(extractDomain(website), result.emails, verifiedPattern);
-            }
         }
+
+        // Always try Companies House enrichment for UK companies
+        // Will show directors even without verified pattern (as informational)
+        // Suggested emails only generated if pattern is verified
+        const verifiedPattern = result.patterns?.find(p => p.verified) || null;
+        await enrichWithDirectors(extractDomain(website), result.emails || [], verifiedPattern);
 
     } catch (e) {
         console.error('[Envelope V3] Error:', e.message || e);
@@ -619,12 +625,12 @@ async function findContacts() {
 // Enrich with UK directors from Companies House
 async function enrichWithDirectors(domain, foundEmails, pattern) {
     try {
-        // First resolve company
         const companyName = elements.fieldCompany.value.trim();
         if (!companyName) return;
 
         console.log('[Envelope V3] Attempting UK director enrichment for:', companyName);
 
+        // Resolve company
         const resolveRes = await fetch(`${API_BASE}/api/enrichment/companies-house/resolve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -633,43 +639,58 @@ async function enrichWithDirectors(domain, foundEmails, pattern) {
 
         const resolveData = await resolveRes.json();
 
-        if (!resolveData.success || resolveData.status !== 'matched') {
-            console.log('[Envelope V3] No CH match:', resolveData.status);
+        // Accept matched or uncertain (with candidates)
+        let companyNumber = resolveData.companyNumber;
+        if (!companyNumber && resolveData.candidates?.length > 0) {
+            // Use top candidate
+            companyNumber = resolveData.candidates[0].companyNumber;
+            console.log('[Envelope V3] Using top CH candidate:', companyNumber);
+        }
+
+        if (!companyNumber) {
+            console.log('[Envelope V3] No CH match found');
             return;
         }
 
-        // Get suggestions
-        const suggestRes = await fetch(`${API_BASE}/api/enrichment/email/suggest-from-officers`, {
+        // Fetch officers directly
+        const officersRes = await fetch(`${API_BASE}/api/enrichment/companies-house/officers`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                companyNumber: resolveData.companyNumber,
-                domain,
-                foundEmails: foundEmails.map(e => ({ email: e.email, name: e.name }))
-            })
+            body: JSON.stringify({ companyNumber })
         });
 
-        const suggestData = await suggestRes.json();
+        const officersData = await officersRes.json();
 
-        if (!suggestData.success || !suggestData.canSuggest) {
-            console.log('[Envelope V3] Cannot suggest:', suggestData.reason);
+        if (!officersData.success || !officersData.decisionMakers?.length) {
+            console.log('[Envelope V3] No decision makers found');
             return;
         }
 
-        // Add suggested contacts
-        console.log('[Envelope V3] Adding', suggestData.suggestedContacts.length, 'suggested directors');
+        console.log('[Envelope V3] Found', officersData.decisionMakers.length, 'decision makers');
+        updateDebug({ directors: officersData.decisionMakers.length });
 
-        for (const suggestion of suggestData.suggestedContacts) {
+        // If we have a verified pattern, generate email suggestions
+        // Otherwise show directors as informational only (no email)
+        const canSuggestEmails = pattern?.verified && foundEmails?.length > 0;
+
+        for (const officer of officersData.decisionMakers) {
+            // Generate suggested email if pattern exists
+            let suggestedEmail = null;
+            if (canSuggestEmails && pattern) {
+                suggestedEmail = generatePatternEmail(officer.firstName, officer.lastName, pattern.pattern, domain);
+            }
+
             // Skip if email already exists
-            if (contacts.find(c => c.email === suggestion.emailSuggested)) continue;
+            if (suggestedEmail && contacts.find(c => c.email === suggestedEmail)) continue;
 
             addSuggestedContact({
-                name: suggestion.name,
-                role: suggestion.role,
-                email: suggestion.emailSuggested,
-                patternType: suggestion.patternType,
-                confidence: suggestion.confidence,
-                source: 'companies_house'
+                name: officer.fullName,
+                role: officer.role,
+                email: suggestedEmail || `[${officer.role}]`, // Show role if no email
+                patternType: canSuggestEmails ? 'pattern' : 'info',
+                confidence: canSuggestEmails ? 'likely' : 'info',
+                source: 'companies_house',
+                hasEmail: !!suggestedEmail
             });
         }
 
@@ -677,6 +698,28 @@ async function enrichWithDirectors(domain, foundEmails, pattern) {
 
     } catch (err) {
         console.log('[Envelope V3] Director enrichment error:', err.message);
+    }
+}
+
+// Generate email from pattern
+function generatePatternEmail(firstName, lastName, patternStr, domain) {
+    if (!firstName || !lastName) return null;
+
+    const first = firstName.toLowerCase().replace(/[^a-z]/g, '');
+    const last = lastName.toLowerCase().replace(/[^a-z]/g, '');
+    const fInitial = first[0] || '';
+
+    // Pattern is like "first.last@domain.com", extract the format
+    const format = patternStr.split('@')[0];
+
+    switch (format) {
+        case 'first.last': return `${first}.${last}@${domain}`;
+        case 'first': return `${first}@${domain}`;
+        case 'f.last': return `${fInitial}.${last}@${domain}`;
+        case 'firstlast': return `${first}${last}@${domain}`;
+        case '{f}last': return `${fInitial}${last}@${domain}`;
+        case '{f}.last': return `${fInitial}.${last}@${domain}`;
+        default: return `${first}.${last}@${domain}`;
     }
 }
 
@@ -692,6 +735,7 @@ function addSuggestedContact(data) {
         source: data.source || 'companies_house',
         patternType: data.patternType,
         isSuggested: true,
+        hasEmail: data.hasEmail !== false, // true unless explicitly false
         verificationStatus: 'pending',
         selected: false // Suggested contacts not selected by default
     };
