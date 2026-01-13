@@ -104,8 +104,47 @@
         </div>
       </section>
 
+      <!-- Opportunity Score Card (shown after conversion) -->
+      <div id="opportunity-card" class="opportunity-card hidden">
+        <div class="opportunity-header">
+          <span class="opportunity-title">Opportunity Score</span>
+          <span id="opportunity-score" class="opportunity-score">--</span>
+        </div>
+        <div class="opportunity-breakdown">
+          <div class="score-bar">
+            <span class="score-label">Need</span>
+            <div class="score-progress">
+              <div id="score-need" class="score-fill"></div>
+            </div>
+            <span id="score-need-val" class="score-value">--</span>
+          </div>
+          <div class="score-bar">
+            <span class="score-label">Ability</span>
+            <div class="score-progress">
+              <div id="score-ability" class="score-fill"></div>
+            </div>
+            <span id="score-ability-val" class="score-value">--</span>
+          </div>
+          <div class="score-bar">
+            <span class="score-label">Confidence</span>
+            <div class="score-progress">
+              <div id="score-confidence" class="score-fill"></div>
+            </div>
+            <span id="score-confidence-val" class="score-value">--</span>
+          </div>
+        </div>
+        <div id="opportunity-action" class="opportunity-action"></div>
+      </div>
+
       <!-- Actions -->
       <section class="section section-actions">
+        <button id="btn-convert" class="btn btn-convert btn-full">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          </svg>
+          <span id="btn-convert-text">Convert to Lead</span>
+        </button>
         <button id="btn-add" class="btn btn-primary btn-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 5v14M5 12h14" />

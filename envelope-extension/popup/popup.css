@@ -778,3 +778,146 @@ body {
   background: #fef2f2;
   border-radius: 4px;
 }
+
+/* Phase 6: Opportunity Card */
+.opportunity-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.opportunity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.opportunity-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.opportunity-score {
+  font-size: 24px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 8px;
+}
+
+.opportunity-score.score-high {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.opportunity-score.score-medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.opportunity-score.score-low {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.opportunity-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.score-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.score-label {
+  font-size: 11px;
+  color: #64748b;
+  width: 70px;
+}
+
+.score-progress {
+  flex: 1;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.score-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.score-value {
+  font-size: 11px;
+  color: #64748b;
+  width: 40px;
+  text-align: right;
+}
+
+.opportunity-action {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.action-recommendation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.action-recommendation.action-compose {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.action-recommendation.action-add {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.action-recommendation.action-review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.action-label {
+  font-weight: 600;
+}
+
+.action-reason {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.action-summary {
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Convert button */
+.btn-convert {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  font-weight: 600;
+}
+
+.btn-convert:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}

@@ -1,6 +1,6 @@
 // Envelope Chrome Extension - Popup Script
 
-const API_BASE = 'https://envelope-app-git-main-oscar-richmonds-projects.vercel.app';
+const API_BASE = 'https://envelope-app-sage.vercel.app';
 
 // DOM Elements
 const elements = {
@@ -32,6 +32,19 @@ const elements = {
     btnCompose: document.getElementById('btn-compose'),
     btnRetry: document.getElementById('btn-retry'),
     btnRetryContacts: document.getElementById('btn-retry-contacts'),
+    btnConvert: document.getElementById('btn-convert'),
+    btnConvertText: document.getElementById('btn-convert-text'),
+
+    // Opportunity card
+    opportunityCard: document.getElementById('opportunity-card'),
+    opportunityScore: document.getElementById('opportunity-score'),
+    opportunityAction: document.getElementById('opportunity-action'),
+    scoreNeed: document.getElementById('score-need'),
+    scoreAbility: document.getElementById('score-ability'),
+    scoreConfidence: document.getElementById('score-confidence'),
+    scoreNeedVal: document.getElementById('score-need-val'),
+    scoreAbilityVal: document.getElementById('score-ability-val'),
+    scoreConfidenceVal: document.getElementById('score-confidence-val'),
 
     detailSource: document.getElementById('detail-source'),
     detailType: document.getElementById('detail-type'),
@@ -1096,6 +1109,128 @@ function handleSignIn() {
     chrome.tabs.create({ url: `${API_BASE}/auth/extension-callback` });
 }
 
+// Convert to Lead (full pipeline)
+async function convertToLead() {
+    const companyName = elements.fieldCompany.value.trim();
+    const website = elements.fieldWebsite.value.trim();
+
+    if (!companyName || !website) {
+        alert('Company name and website required');
+        return;
+    }
+
+    const domain = extractDomain(website);
+
+    if (elements.btnConvert) elements.btnConvert.disabled = true;
+    if (elements.btnConvertText) elements.btnConvertText.textContent = 'Converting...';
+
+    try {
+        console.log('[Envelope] Starting conversion pipeline...');
+
+        // Step 1: Update UI
+        if (elements.btnConvertText) elements.btnConvertText.textContent = 'Discovering...';
+
+        const res = await fetch(`${API_BASE}/api/prospects/convert`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prospectId: `ext_${Date.now()}`,
+                companyName,
+                domain,
+                website,
+            }),
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Conversion failed');
+        }
+
+        console.log('[Envelope] Conversion complete:', data);
+
+        // Show opportunity card
+        showOpportunityScore(data.opportunityScore, data.recommendedAction, data.summary);
+
+        // Update contacts if found
+        if (data.contacts?.length > 0) {
+            contacts = [];
+            data.contacts.forEach(c => {
+                addContact({
+                    name: c.name || '',
+                    role: c.role || '',
+                    email: c.email,
+                    type: 'person',
+                    confidence: c.verified ? 'verified' : 'medium',
+                    verificationStatus: c.verified ? 'valid' : 'pending',
+                });
+            });
+            renderContacts();
+        }
+
+        // Success
+        if (elements.btnConvertText) {
+            elements.btnConvertText.textContent = '✓ Converted';
+        }
+
+    } catch (err) {
+        console.error('[Envelope] Convert error:', err);
+        if (elements.btnConvertText) elements.btnConvertText.textContent = 'Convert failed';
+    } finally {
+        if (elements.btnConvert) elements.btnConvert.disabled = false;
+    }
+}
+
+// Display opportunity score
+function showOpportunityScore(score, action, summary) {
+    if (!elements.opportunityCard || !score) return;
+
+    elements.opportunityCard.classList.remove('hidden');
+
+    // Total score
+    if (elements.opportunityScore) {
+        elements.opportunityScore.textContent = score.total;
+        elements.opportunityScore.className = `opportunity-score score-${getScoreClass(score.total)}`;
+    }
+
+    // Breakdown bars
+    if (elements.scoreNeed) elements.scoreNeed.style.width = `${(score.need / 40) * 100}%`;
+    if (elements.scoreAbility) elements.scoreAbility.style.width = `${(score.ability / 35) * 100}%`;
+    if (elements.scoreConfidence) elements.scoreConfidence.style.width = `${(score.confidence / 25) * 100}%`;
+
+    if (elements.scoreNeedVal) elements.scoreNeedVal.textContent = score.need + '/40';
+    if (elements.scoreAbilityVal) elements.scoreAbilityVal.textContent = score.ability + '/35';
+    if (elements.scoreConfidenceVal) elements.scoreConfidenceVal.textContent = score.confidence + '/25';
+
+    // Action recommendation
+    if (elements.opportunityAction && action) {
+        const actionClass = action.type === 'compose' ? 'action-compose' :
+            action.type === 'add_pipeline' ? 'action-add' : 'action-review';
+
+        elements.opportunityAction.innerHTML = `
+            <div class="action-recommendation ${actionClass}">
+                <span class="action-label">${action.label}</span>
+                ${action.reason?.length > 0 ? `<span class="action-reason">${action.reason[0]}</span>` : ''}
+            </div>
+        `;
+
+        // If summary available
+        if (summary) {
+            elements.opportunityAction.innerHTML += `
+                <div class="action-summary">
+                    ${summary.contactsFound} contacts • ${summary.contactsVerified} verified • ${Math.round(summary.durationMs / 1000)}s
+                </div>
+            `;
+        }
+    }
+}
+
+function getScoreClass(score) {
+    if (score >= 70) return 'high';
+    if (score >= 50) return 'medium';
+    return 'low';
+}
+
 // Event listeners
 elements.btnSignin?.addEventListener('click', handleSignIn);
 elements.btnAdd?.addEventListener('click', () => capture(false));
@@ -1103,6 +1238,7 @@ elements.btnCompose?.addEventListener('click', () => capture(true));
 elements.btnRetry?.addEventListener('click', init);
 elements.btnRetryContacts?.addEventListener('click', findContacts);
 elements.btnFindContacts?.addEventListener('click', findContacts);
+elements.btnConvert?.addEventListener('click', convertToLead);
 
 elements.btnAddManual?.addEventListener('click', () => {
     addContact({ name: '', role: '', email: '', confidence: 'missing', source: 'manual' });
