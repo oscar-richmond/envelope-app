@@ -7,11 +7,20 @@ import { cookies } from "next/headers"
 import { PasskeyService } from "@/lib/auth/passkeys"
 import Credentials from "next-auth/providers/credentials"
 
+// Canonical production URL - MUST match Vercel env
+const CANONICAL_URL = process.env.NEXTAUTH_URL ||
+    process.env.AUTH_URL ||
+    'https://envelope-app-sage.vercel.app';
+
+console.log('[Auth] Using canonical URL:', CANONICAL_URL);
+
 // We need to merge the providers carefully because we want to enable the real Credentials logic here
 // which relies on the DB, unavailable in auth.config.ts
 const fullConfig = {
     ...authConfig,
     adapter: PrismaAdapter(prisma),
+    // CRITICAL: Trust the host header on Vercel
+    trustHost: true,
     providers: [
         ...authConfig.providers.filter(p => p.id !== 'credentials'), // Remove mock
         Credentials({
