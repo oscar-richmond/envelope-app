@@ -780,8 +780,8 @@ async function findContacts() {
         const verifiedPattern = result.patterns?.find(p => p.verified) || null;
         await enrichWithDirectors(extractDomain(website), result.emails || [], verifiedPattern);
 
-        // Auto-verify top 3 contacts (budget control)
-        await autoVerifyTopContacts(3);
+        // Auto-verify top 8 contacts
+        await autoVerifyTopContacts(8);
 
         // Auto-select best contact
         autoSelectBestContact();
@@ -960,7 +960,7 @@ function useSuggestedContact(contactId) {
 }
 
 // Auto-verify top N contacts (budget control)
-async function autoVerifyTopContacts(n = 3) {
+async function autoVerifyTopContacts(n = 8) {
     console.log(`[Envelope V3] Auto-verifying top ${n} contacts`);
 
     // Get valid email contacts (not suggested without email)

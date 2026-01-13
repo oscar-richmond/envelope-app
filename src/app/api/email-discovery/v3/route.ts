@@ -510,13 +510,17 @@ export async function POST(request: Request) {
         // Build result
         const result: DiscoveryV3Result = {
             bestContacts,
-            emails: allContacts.slice(0, 20),
+            emails: allContacts.slice(0, 25),
             patterns,
             stats: {
                 pagesCrawled,
                 publicResultsFetched,
                 pdfsParsed,
                 durationMs: Date.now() - startTime
+            },
+            meta: {
+                totalFound: allContacts.length,
+                totalReturned: Math.min(allContacts.length, 25),
             },
             warnings
         };

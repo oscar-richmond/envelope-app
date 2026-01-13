@@ -109,7 +109,7 @@ export async function POST(request: Request) {
             const discoveryData = await discoveryRes.json();
 
             if (discoveryData.success) {
-                contacts = (discoveryData.emails || []).slice(0, 5).map((e: any) => ({
+                contacts = (discoveryData.emails || []).slice(0, 25).map((e: any) => ({
                     email: e.email,
                     name: e.name,
                     role: e.role,
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
             });
         }
 
-        // Step 4: Verification (top 3)
+        // Step 4: Verification (top 8)
         job = updateStep(job, 'verification', {
             status: 'running',
             startedAt: new Date().toISOString()
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
         let bestContact: typeof contacts[0] | null = null;
 
         try {
-            const toVerify = contacts.slice(0, 3);
+            const toVerify = contacts.slice(0, 8);
 
             for (const contact of toVerify) {
                 try {
@@ -217,7 +217,8 @@ export async function POST(request: Request) {
             },
             opportunityScore: score,
             recommendedAction: action,
-            contacts: contacts.slice(0, 5),
+            bestContacts: contacts.slice(0, 3),
+            contacts: contacts.slice(0, 25),
             bestContact,
             summary: {
                 contactsFound: contacts.length,

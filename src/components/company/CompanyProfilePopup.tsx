@@ -36,6 +36,40 @@ interface Props {
     onCompose?: () => void;
 }
 
+// Expandable emails section
+function EmailsSection({ emails }: { emails: { email: string; name: string | null; role: string | null }[] }) {
+    const [expanded, setExpanded] = useState(false);
+    const displayCount = expanded ? emails.length : Math.min(3, emails.length);
+
+    return (
+        <div className="border-t border-gray-100 pt-4">
+            <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                Contacts ({emails.length})
+            </h4>
+            <div className="space-y-2">
+                {emails.slice(0, displayCount).map((e, i) => (
+                    <div key={i} className="text-sm">
+                        <div className="text-gray-900">{e.email}</div>
+                        {(e.name || e.role) && (
+                            <div className="text-gray-400 text-xs">
+                                {e.name}{e.name && e.role && ' · '}{e.role}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+            {emails.length > 3 && (
+                <button
+                    onClick={() => setExpanded(!expanded)}
+                    className="mt-2 text-sm text-blue-600 hover:text-blue-700"
+                >
+                    {expanded ? 'Show less' : `View all contacts (${emails.length})`}
+                </button>
+            )}
+        </div>
+    );
+}
+
 export function CompanyProfilePopup({ prospectId, onClose, onAddToLeads, onCompose }: Props) {
     const [profile, setProfile] = useState<ProfileData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -266,21 +300,7 @@ export function CompanyProfilePopup({ prospectId, onClose, onAddToLeads, onCompo
 
                         {/* Emails */}
                         {profile.emails.length > 0 && (
-                            <div className="border-t border-gray-100 pt-4">
-                                <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Contacts</h4>
-                                <div className="space-y-2">
-                                    {profile.emails.slice(0, 3).map((e, i) => (
-                                        <div key={i} className="text-sm">
-                                            <div className="text-gray-900">{e.email}</div>
-                                            {(e.name || e.role) && (
-                                                <div className="text-gray-400 text-xs">
-                                                    {e.name}{e.name && e.role && ' · '}{e.role}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            <EmailsSection emails={profile.emails} />
                         )}
                     </div>
                 )}
