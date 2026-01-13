@@ -747,7 +747,7 @@ function showPatternInfo(patterns) {
     }
 }
 
-// Update debug UI
+// Update debug UI with enhanced diagnostics
 function updateDebug(info) {
     if (info.requestId !== undefined && elements.debugRequestId) {
         elements.debugRequestId.textContent = info.requestId;
@@ -769,6 +769,36 @@ function updateDebug(info) {
     }
     if (info.error !== undefined && elements.debugError) {
         elements.debugError.textContent = info.error;
+    }
+
+    // Enhanced diagnostics
+    if (info.pages !== undefined) {
+        const el = document.getElementById('debug-pages');
+        if (el) el.textContent = info.pages;
+    }
+    if (info.public !== undefined) {
+        const el = document.getElementById('debug-public');
+        if (el) el.textContent = info.public.toString();
+    }
+    if (info.pdfs !== undefined) {
+        const el = document.getElementById('debug-pdfs');
+        if (el) el.textContent = info.pdfs.toString();
+    }
+    if (info.duration !== undefined) {
+        const el = document.getElementById('debug-duration');
+        if (el) el.textContent = info.duration;
+    }
+    if (info.pattern !== undefined) {
+        const el = document.getElementById('debug-pattern');
+        if (el) el.textContent = info.pattern;
+    }
+    if (info.cache !== undefined) {
+        const el = document.getElementById('debug-cache');
+        if (el) el.textContent = info.cache ? 'HIT' : 'MISS';
+    }
+    if (info.directors !== undefined) {
+        const el = document.getElementById('debug-directors');
+        if (el) el.textContent = info.directors.toString();
     }
 }
 
