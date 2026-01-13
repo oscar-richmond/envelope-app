@@ -128,7 +128,7 @@ export default function PrivacyPolicyPage() {
                             If you have any questions about this Privacy Policy or our data practices, please contact us at:
                         </p>
                         <p className="text-gray-600">
-                            <strong>Email:</strong> privacy@envelope-app.com
+                            <strong>Email:</strong> hello@selfhood-studios.com
                         </p>
                     </section>
                 </div>
