@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { runTestSuite, runSingleCompanyTest } from '@/lib/qa/test-runner';
 import { TEST_COMPANIES } from '@/lib/qa/test-fixtures';
 
-const API_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://envelope-app-git-main-oscar-richmonds-projects.vercel.app';
+const API_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://envelope-app-sage.vercel.app';
 
 function getHeaders() {
     return {
