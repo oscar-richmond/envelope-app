@@ -47,9 +47,9 @@ export default function AuthLayout({
             />
 
             {/* Main Content */}
-            <div className="w-full max-w-6xl flex flex-col items-center gap-8">
-                {/* Centered Logo - Above both cards */}
-                <div className="flex justify-center mb-2 animate-in fade-in duration-500">
+            <div className="w-full max-w-6xl flex flex-col items-start gap-6">
+                {/* Logo - Left-aligned with Sign in heading */}
+                <div className="w-full lg:w-[420px] pl-0 animate-in fade-in duration-500">
                     <img
                         src="/brand/envelope-logo-dark.png"
                         alt="Envelope"
