@@ -26,7 +26,10 @@ function ScoreCard({
     band,
     accent,
     icon: Icon,
-    onWhy
+    onWhy,
+    ctaLabel = 'View report',
+    notScanned = false,
+    notScannedCtaLabel = 'Scan now'
 }: {
     label: string;
     score: number;
@@ -34,6 +37,9 @@ function ScoreCard({
     accent: 'mint' | 'lilac' | 'blue' | 'default';
     icon: any;
     onWhy?: () => void;
+    ctaLabel?: string;
+    notScanned?: boolean;
+    notScannedCtaLabel?: string;
 }) {
     const accentStyles: Record<string, { border: string; iconBg: string; iconColor: string; badgeBg: string; badgeColor: string }> = {
         mint: {
@@ -70,7 +76,7 @@ function ScoreCard({
 
     return (
         <div
-            className="relative overflow-hidden transition-all duration-200 group cursor-pointer"
+            className="relative overflow-hidden transition-all duration-200 group"
             style={{
                 background: 'var(--bg-card)',
                 borderRadius: 'var(--radius-xl)',
@@ -79,7 +85,6 @@ function ScoreCard({
                 boxShadow: 'var(--shadow-card)',
                 padding: '20px'
             }}
-            onClick={onWhy}
         >
             {/* Header */}
             <div className="flex justify-between items-start mb-3">
@@ -97,6 +102,15 @@ function ScoreCard({
                         {label}
                     </span>
                 </div>
+                {/* Not Scanned Label */}
+                {notScanned && (
+                    <span
+                        className="text-[9px] font-medium px-2 py-0.5 rounded"
+                        style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'rgb(180, 83, 9)' }}
+                    >
+                        Not scanned
+                    </span>
+                )}
             </div>
 
             {/* Score */}
@@ -105,13 +119,13 @@ function ScoreCard({
                     className="text-4xl font-bold tracking-tight"
                     style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.03em' }}
                 >
-                    {score}
+                    {notScanned ? '—' : score}
                 </span>
-                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>/100</span>
+                {!notScanned && <span className="text-sm" style={{ color: 'var(--text-muted)' }}>/100</span>}
             </div>
 
             {/* Band */}
-            {band && (
+            {band && !notScanned && (
                 <div
                     className="mt-3 inline-flex items-center px-2.5 py-1 rounded-[var(--radius-badge)] text-[10px] font-bold uppercase tracking-wide"
                     style={{ background: style.badgeBg, color: style.badgeColor }}
@@ -120,14 +134,23 @@ function ScoreCard({
                 </div>
             )}
 
-            {/* View CTA */}
+            {/* CTA Button - Always Visible */}
             {onWhy && (
-                <div
-                    className="absolute bottom-4 right-4 text-xs font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ color: 'var(--accent-blue)' }}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onWhy();
+                    }}
+                    className="absolute bottom-4 right-4 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all hover:scale-[1.02]"
+                    style={{
+                        background: notScanned ? 'var(--brand)' : 'var(--bg-card-muted)',
+                        color: notScanned ? 'white' : 'var(--text-secondary)',
+                        border: notScanned ? 'none' : '1px solid var(--border-soft)'
+                    }}
                 >
-                    View <ChevronRight size={12} />
-                </div>
+                    {notScanned ? notScannedCtaLabel : ctaLabel}
+                    <ChevronRight size={12} />
+                </button>
             )}
         </div>
     );
@@ -424,6 +447,9 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                 accent={getScoreAccent(kpis.websiteScore)}
                                 icon={Monitor}
                                 onWhy={() => setIsWebsiteModalOpen(true)}
+                                ctaLabel="View report"
+                                notScanned={!kpis.websiteScore || kpis.websiteScore === 0}
+                                notScannedCtaLabel="Scan website"
                             />
                             <ScoreCard
                                 label="Financial Health"
@@ -432,6 +458,9 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                 accent={getScoreAccent(kpis.financialScore)}
                                 icon={TrendingUp}
                                 onWhy={() => setIsFinancialModalOpen(true)}
+                                ctaLabel="View report"
+                                notScanned={!kpis.financialScore || kpis.financialScore === 0}
+                                notScannedCtaLabel="Sync financials"
                             />
                             <ScoreCard
                                 label="Outreach Status"
