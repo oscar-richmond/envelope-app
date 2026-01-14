@@ -14,13 +14,14 @@ interface Recipient {
 }
 
 interface RecipientPickerProps {
-    leadId: number | undefined;
+    leadId?: number;
+    companyId?: number; // Preferred - fetches from /api/companies/{id}/contacts
     selectedEmails: string[];
     onSelectionChange: (emails: string[]) => void;
     onRiskChange?: (hasHighRisk: boolean) => void;
 }
 
-export function RecipientPicker({ leadId, selectedEmails, onSelectionChange, onRiskChange }: RecipientPickerProps) {
+export function RecipientPicker({ leadId, companyId, selectedEmails, onSelectionChange, onRiskChange }: RecipientPickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [recipients, setRecipients] = useState<Recipient[]>([]);
     const [loading, setLoading] = useState(false);
@@ -39,22 +40,60 @@ export function RecipientPicker({ leadId, selectedEmails, onSelectionChange, onR
     const [verificationMap, setVerificationMap] = useState<Record<string, string>>({});
     const [verifying, setVerifying] = useState<Record<string, boolean>>({});
 
-    // Fetch Recipients on Mount or Lead Change
+    // Fetch Recipients on Mount or ID Change (prefer companyId)
     useEffect(() => {
-        if (leadId) {
-            fetchRecipients();
+        if (companyId) {
+            fetchFromCompany(companyId);
+        } else if (leadId) {
+            fetchFromLead(leadId);
         }
-    }, [leadId]);
+    }, [companyId, leadId]);
 
-    const fetchRecipients = () => {
+    // Fetch from company contacts API (preferred)
+    const fetchFromCompany = (id: number) => {
         setLoading(true);
-        fetch(`/api/leads/${leadId}/recipients`)
+        console.log(`[RecipientPicker] Fetching from /api/companies/${id}/contacts`);
+        fetch(`/api/companies/${id}/contacts`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.contacts) {
+                    console.log(`[RecipientPicker] Got ${data.contacts.length} contacts from company API`);
+                    // Map to Recipient format
+                    const mapped: Recipient[] = data.contacts.map((c: any) => ({
+                        email: c.email,
+                        name: c.fullName || c.firstName || null,
+                        role: c.role || c.roleTitle || 'Unknown role',
+                        source: c.isManual ? 'MANUAL' : (c.source === 'website' ? 'WEBSITE' : 'CONTACT'),
+                        confidence: c.confidence > 0.7 ? 'HIGH' : c.confidence > 0.4 ? 'MEDIUM' : 'LOW',
+                        sendabilityStatus: c.verified ? 'GOOD' : undefined,
+                        id: c.id || `company-${id}-${c.email}`
+                    }));
+                    setRecipients(mapped);
+
+                    // Pre-populate verification map
+                    const map: Record<string, string> = {};
+                    mapped.forEach((r: Recipient) => {
+                        if (r.sendabilityStatus) map[r.email] = r.sendabilityStatus;
+                    });
+                    setVerificationMap(prev => ({ ...prev, ...map }));
+                }
+            })
+            .catch(e => {
+                console.error('[RecipientPicker] Error fetching from company:', e);
+            })
+            .finally(() => setLoading(false));
+    };
+
+    // Fallback: fetch from leads API (legacy)
+    const fetchFromLead = (id: number) => {
+        setLoading(true);
+        console.log(`[RecipientPicker] Fetching from /api/leads/${id}/recipients (legacy)`);
+        fetch(`/api/leads/${id}/recipients`)
             .then(res => res.json())
             .then(data => {
                 if (data.recipients) {
-                    console.log("Recipients fetched:", data.recipients);
+                    console.log(`[RecipientPicker] Got ${data.recipients.length} recipients from lead API`);
                     setRecipients(data.recipients);
-                    // Pre-populate map
                     const map: Record<string, string> = {};
                     data.recipients.forEach((r: Recipient) => {
                         if (r.sendabilityStatus) map[r.email] = r.sendabilityStatus;
@@ -64,7 +103,7 @@ export function RecipientPicker({ leadId, selectedEmails, onSelectionChange, onR
             })
             .catch(console.error)
             .finally(() => setLoading(false));
-    }
+    };
 
     // ... (Outside Click & Verification Effect same as before)
     // Outside Click

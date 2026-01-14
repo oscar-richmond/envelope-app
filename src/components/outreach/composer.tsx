@@ -229,6 +229,7 @@ export default function OutreachComposer({ isOpen, onClose, prospect, lead, init
                         <div className="flex-1">
                             <ErrorBoundary name="RecipientPicker">
                                 <RecipientPicker
+                                    companyId={prospect?.id}
                                     leadId={lead?.id}
                                     selectedEmails={toEmails}
                                     onSelectionChange={setToEmails}
