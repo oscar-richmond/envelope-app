@@ -108,16 +108,30 @@ export function MessageThreadComposerModal({
     }, [emailId, leadId]);
 
     async function fetchThreadData() {
+        const startTime = Date.now();
         setLoading(true);
         setError(null);
 
+        // Determine source for logging
+        const source = emailId ? 'thread' : leadId ? 'lead' : prospectId ? 'prospect' : 'initialData';
+
+        console.log(`[Composer] fetchThreadData started`, {
+            source,
+            emailId,
+            leadId,
+            prospectId,
+            hasInitialData: !!initialData
+        });
+
         try {
-            // Case 1: Existing email with thread
+            // Case 1: Existing email with thread (special handling)
             if (emailId) {
+                console.log(`[Composer] Fetching thread for email ${emailId}`);
                 const res = await fetch(`/api/outreach/sent/${emailId}/thread`);
                 const data = await res.json();
 
                 if (!res.ok || data.success === false) {
+                    console.error(`[Composer] Thread API error:`, { status: res.status, error: data.error });
                     setError(data.error || 'Failed to load thread');
                     return;
                 }
@@ -125,140 +139,130 @@ export function MessageThreadComposerModal({
                 setThread(data);
                 setToEmail(data.contact?.email || '');
                 setDraftSubject(data.email?.subject ? `Re: ${data.email.subject}` : '');
+                console.log(`[Composer] Thread loaded in ${Date.now() - startTime}ms`);
+                return;
             }
-            // Case 2: Lead without existing thread
-            else if (leadId) {
-                const res = await fetch(`/api/leads/${leadId}`);
 
-                // Handle network/server errors gracefully
-                if (!res.ok) {
-                    console.error(`[Modal] Lead API returned ${res.status}`);
-                    // Fall back to initialData if available
-                    if (initialData) {
-                        const lead = initialData.lead || {};
-                        setThread({
-                            email: null,
-                            company: {
-                                name: lead.companyName || initialData.companyName || 'Company',
-                                domain: lead.websiteUrl?.replace(/^https?:\/\/(www\.)?/, '')
-                            },
-                            contact: {
-                                name: initialData.contactName || '',
-                                email: initialData.contactEmail || ''
-                            },
-                            messages: [],
-                            threadId: null,
-                            lead
-                        });
-                        setToEmail(initialData.contactEmail || '');
-                        setDraftSubject(lead.subjectLine1 || '');
-                        setDraftContent(lead.emailDraftHtml || lead.emailDraft || '');
-                        return;
-                    }
-                    setError('Failed to load lead - please try again');
+            // Case 2-4: Use unified resolver endpoint
+            const resolverParams = new URLSearchParams({ source });
+
+            if (leadId) resolverParams.set('leadId', String(leadId));
+            if (prospectId) resolverParams.set('companyId', String(prospectId));
+            if (!leadId && !prospectId && initialData?.lead?.companyProspectId) {
+                resolverParams.set('companyId', String(initialData.lead.companyProspectId));
+            }
+
+            // If we only have companyId and no lead, allow creation
+            if (!leadId && prospectId) {
+                resolverParams.set('createLeadIfMissing', 'true');
+            }
+
+            const resolverUrl = `/api/composer/resolve?${resolverParams.toString()}`;
+            console.log(`[Composer] Calling resolver: ${resolverUrl}`);
+
+            const res = await fetch(resolverUrl);
+            const data = await res.json();
+
+            console.log(`[Composer] Resolver response:`, {
+                status: res.status,
+                success: data.success,
+                hasLead: data.hasLead,
+                hasCompany: !!data.company,
+                contactCount: data.contacts?.length || 0,
+                timing: data.timing
+            });
+
+            // Handle errors with specific messages
+            if (!res.ok) {
+                const errorMessage = data.code === 'LEAD_NOT_FOUND'
+                    ? `Lead not found (ID: ${data.leadId})`
+                    : data.code === 'COMPANY_NOT_FOUND'
+                        ? `Company not found (ID: ${data.companyId})`
+                        : data.error || 'Failed to load data';
+
+                console.error(`[Composer] Resolver error: ${errorMessage}`);
+
+                // Try fallback to initialData
+                if (initialData) {
+                    console.log(`[Composer] Falling back to initialData`);
+                    buildThreadFromInitialData();
                     return;
                 }
 
-                const lead = await res.json();
-
-                // Get first contact from response
-                const contacts = Array.isArray(lead.contacts) ? lead.contacts : [];
-                const firstContact = contacts[0] || {};
-                const contactName = firstContact.fullName || firstContact.firstName || initialData?.contactName || '';
-                const contactEmail = firstContact.email || initialData?.contactEmail || '';
-
-                // Build thread data from lead
-                setThread({
-                    email: null,
-                    company: {
-                        id: lead.companyProspectId,
-                        name: lead.companyName || initialData?.companyName || 'Company',
-                        domain: lead.websiteUrl?.replace(/^https?:\/\/(www\.)?/, '')
-                    },
-                    contact: {
-                        name: contactName,
-                        email: contactEmail
-                    },
-                    messages: [],
-                    threadId: null,
-                    lead,
-                    contacts // Include all contacts for recipient picker
-                });
-
-                setToEmail(contactEmail);
-                setDraftSubject(lead.subjectLine1 || '');
-                setDraftContent(lead.emailDraftHtml || lead.emailDraft || '');
-            }
-            // Case 3: Prospect without lead
-            else if (prospectId || initialData?.prospect) {
-                const prospect = initialData?.prospect;
-
-                setThread({
-                    email: null,
-                    company: {
-                        id: prospect?.id,
-                        name: prospect?.brandNameOverride || prospect?.websiteBrandName || prospect?.companyName || 'Company',
-                        domain: prospect?.websiteUrl?.replace(/^https?:\/\/(www\.)?/, '')
-                    },
-                    contact: {
-                        name: initialData?.contactName || '',
-                        email: initialData?.contactEmail || ''
-                    },
-                    messages: [],
-                    threadId: null,
-                    prospect
-                });
-
-                setToEmail(initialData?.contactEmail || '');
-            }
-            // Case 4: Just initial data
-            else if (initialData) {
-                setThread({
-                    email: null,
-                    company: { name: initialData.companyName || 'Company' },
-                    contact: {
-                        name: initialData.contactName || '',
-                        email: initialData.contactEmail || ''
-                    },
-                    messages: [],
-                    threadId: null,
-                    lead: initialData.lead,
-                    prospect: initialData.prospect
-                });
-
-                setToEmail(initialData.contactEmail || '');
-            }
-            // Case 5: No data at all - show empty state, not error
-            else {
-                setThread({
-                    email: null,
-                    company: { name: 'Unknown Company' },
-                    contact: { name: '', email: '' },
-                    messages: [],
-                    threadId: null
-                });
-            }
-        } catch (e) {
-            console.error('[Modal] Fetch error:', e);
-            // Try fallback to initialData
-            if (initialData) {
-                setThread({
-                    email: null,
-                    company: { name: initialData.companyName || 'Company' },
-                    contact: {
-                        name: initialData.contactName || '',
-                        email: initialData.contactEmail || ''
-                    },
-                    messages: [],
-                    threadId: null,
-                    lead: initialData.lead
-                });
+                setError(errorMessage);
                 return;
             }
+
+            // Build thread data from resolver response
+            const lead = data.lead;
+            const company = data.company;
+            const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+            const firstContact = contacts[0] || {};
+
+            setThread({
+                email: null,
+                company: company ? {
+                    id: company.id,
+                    name: company.name || 'Company',
+                    domain: company.domain
+                } : { name: initialData?.companyName || 'Company' },
+                contact: {
+                    name: firstContact.fullName || firstContact.firstName || initialData?.contactName || '',
+                    email: firstContact.email || initialData?.contactEmail || ''
+                },
+                messages: [],
+                threadId: null,
+                lead,
+                contacts
+            });
+
+            setToEmail(firstContact.email || initialData?.contactEmail || '');
+            setDraftSubject(lead?.subjectLine1 || '');
+            setDraftContent(lead?.emailDraftHtml || lead?.emailDraft || '');
+
+            console.log(`[Composer] Data loaded successfully in ${Date.now() - startTime}ms`);
+
+        } catch (e: any) {
+            console.error('[Composer] Fetch exception:', e);
+
+            // Try fallback to initialData
+            if (initialData) {
+                console.log(`[Composer] Exception fallback to initialData`);
+                buildThreadFromInitialData();
+                return;
+            }
+
             setError('Failed to load data - please try again');
         } finally {
             setLoading(false);
         }
+    }
+
+    // Helper to build thread from initialData (fallback)
+    function buildThreadFromInitialData() {
+        const lead = initialData?.lead || {};
+        const prospect = initialData?.prospect;
+
+        setThread({
+            email: null,
+            company: {
+                id: lead.companyProspectId || prospect?.id,
+                name: lead.companyName || prospect?.companyName || initialData?.companyName || 'Company',
+                domain: (lead.websiteUrl || prospect?.websiteUrl)?.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]
+            },
+            contact: {
+                name: initialData?.contactName || '',
+                email: initialData?.contactEmail || ''
+            },
+            messages: [],
+            threadId: null,
+            lead,
+            prospect
+        });
+
+        setToEmail(initialData?.contactEmail || '');
+        setDraftSubject(lead.subjectLine1 || '');
+        setDraftContent(lead.emailDraftHtml || lead.emailDraft || '');
     }
 
     function handleInsertSuggestion(text: string) {
