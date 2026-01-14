@@ -167,11 +167,24 @@ export function MessageThreadComposerModal({
 
     // Fetch contacts separately when thread loads
     useEffect(() => {
+        // Try multiple sources for companyId
         const companyId = thread?.company?.id || prospectId || initialData?.lead?.companyProspectId;
+
+        console.log(`[Composer] Contacts useEffect triggered`, {
+            threadCompanyId: thread?.company?.id,
+            prospectId,
+            initialDataCompanyId: initialData?.lead?.companyProspectId,
+            resolvedCompanyId: companyId,
+            loading
+        });
+
         if (companyId && !loading) {
+            console.log(`[Composer] Fetching contacts for companyId: ${companyId}`);
             fetchCompanyContacts(companyId);
+        } else if (companyId && loading) {
+            console.log(`[Composer] Will fetch contacts after loading completes`);
         }
-    }, [thread?.company?.id, loading]);
+    }, [thread?.company?.id, loading, prospectId]);
 
     async function fetchThreadData() {
         const startTime = Date.now();

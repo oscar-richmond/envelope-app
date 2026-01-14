@@ -196,10 +196,15 @@ export function ComposePane({
                             You can still write your draft. Find contacts to add an email.
                         </p>
                     </div>
-                    <button className="btn btn-sm btn-secondary">
-                        <Search size={14} />
-                        Find Contacts
-                    </button>
+                    {onFindContacts && (
+                        <button
+                            onClick={onFindContacts}
+                            className="btn btn-sm btn-secondary"
+                        >
+                            <Search size={14} />
+                            Find Contacts
+                        </button>
+                    )}
                 </div>
             )}
 
