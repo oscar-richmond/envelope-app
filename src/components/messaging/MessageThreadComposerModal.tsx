@@ -129,30 +129,63 @@ export function MessageThreadComposerModal({
             // Case 2: Lead without existing thread
             else if (leadId) {
                 const res = await fetch(`/api/leads/${leadId}`);
-                const lead = await res.json();
 
+                // Handle network/server errors gracefully
                 if (!res.ok) {
-                    setError('Failed to load lead');
+                    console.error(`[Modal] Lead API returned ${res.status}`);
+                    // Fall back to initialData if available
+                    if (initialData) {
+                        const lead = initialData.lead || {};
+                        setThread({
+                            email: null,
+                            company: {
+                                name: lead.companyName || initialData.companyName || 'Company',
+                                domain: lead.websiteUrl?.replace(/^https?:\/\/(www\.)?/, '')
+                            },
+                            contact: {
+                                name: initialData.contactName || '',
+                                email: initialData.contactEmail || ''
+                            },
+                            messages: [],
+                            threadId: null,
+                            lead
+                        });
+                        setToEmail(initialData.contactEmail || '');
+                        setDraftSubject(lead.subjectLine1 || '');
+                        setDraftContent(lead.emailDraftHtml || lead.emailDraft || '');
+                        return;
+                    }
+                    setError('Failed to load lead - please try again');
                     return;
                 }
+
+                const lead = await res.json();
+
+                // Get first contact from response
+                const contacts = Array.isArray(lead.contacts) ? lead.contacts : [];
+                const firstContact = contacts[0] || {};
+                const contactName = firstContact.fullName || firstContact.firstName || initialData?.contactName || '';
+                const contactEmail = firstContact.email || initialData?.contactEmail || '';
 
                 // Build thread data from lead
                 setThread({
                     email: null,
                     company: {
+                        id: lead.companyProspectId,
                         name: lead.companyName || initialData?.companyName || 'Company',
                         domain: lead.websiteUrl?.replace(/^https?:\/\/(www\.)?/, '')
                     },
                     contact: {
-                        name: initialData?.contactName || '',
-                        email: initialData?.contactEmail || ''
+                        name: contactName,
+                        email: contactEmail
                     },
                     messages: [],
                     threadId: null,
-                    lead
+                    lead,
+                    contacts // Include all contacts for recipient picker
                 });
 
-                setToEmail(initialData?.contactEmail || '');
+                setToEmail(contactEmail);
                 setDraftSubject(lead.subjectLine1 || '');
                 setDraftContent(lead.emailDraftHtml || lead.emailDraft || '');
             }
@@ -195,8 +228,34 @@ export function MessageThreadComposerModal({
 
                 setToEmail(initialData.contactEmail || '');
             }
+            // Case 5: No data at all - show empty state, not error
+            else {
+                setThread({
+                    email: null,
+                    company: { name: 'Unknown Company' },
+                    contact: { name: '', email: '' },
+                    messages: [],
+                    threadId: null
+                });
+            }
         } catch (e) {
-            setError('Failed to load data');
+            console.error('[Modal] Fetch error:', e);
+            // Try fallback to initialData
+            if (initialData) {
+                setThread({
+                    email: null,
+                    company: { name: initialData.companyName || 'Company' },
+                    contact: {
+                        name: initialData.contactName || '',
+                        email: initialData.contactEmail || ''
+                    },
+                    messages: [],
+                    threadId: null,
+                    lead: initialData.lead
+                });
+                return;
+            }
+            setError('Failed to load data - please try again');
         } finally {
             setLoading(false);
         }
