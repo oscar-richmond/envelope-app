@@ -8,10 +8,11 @@ import prisma from '@/lib/prisma';
  */
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const companyId = parseInt(params.id);
+        const { id } = await context.params;
+        const companyId = parseInt(id);
         if (isNaN(companyId)) {
             return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
         }
@@ -156,10 +157,11 @@ export async function GET(
  */
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const companyId = parseInt(params.id);
+        const { id } = await context.params;
+        const companyId = parseInt(id);
         if (isNaN(companyId)) {
             return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
         }
