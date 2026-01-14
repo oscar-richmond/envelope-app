@@ -11,6 +11,10 @@ interface RecentActivityProps {
 }
 
 export default function RecentActivity({ outbound, replies, loading }: RecentActivityProps) {
+    // Ensure arrays are defined to prevent "Cannot read properties of undefined" errors
+    const safeOutbound = outbound ?? [];
+    const safeReplies = replies ?? [];
+
     if (loading) {
         return (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
@@ -56,7 +60,7 @@ export default function RecentActivity({ outbound, replies, loading }: RecentAct
                     </h3>
                 </div>
                 <div>
-                    {outbound.length === 0 ? (
+                    {safeOutbound.length === 0 ? (
                         <p
                             className="p-6 text-sm text-center"
                             style={{ color: 'var(--text-muted)' }}
@@ -64,12 +68,12 @@ export default function RecentActivity({ outbound, replies, loading }: RecentAct
                             No recent emails sent.
                         </p>
                     ) : (
-                        outbound.map((item, i) => (
+                        safeOutbound.map((item, i) => (
                             <div
                                 key={item.id}
                                 className="px-6 py-4 flex items-center justify-between transition-colors hover:bg-[var(--bg-card-muted)]"
                                 style={{
-                                    borderBottom: i < outbound.length - 1 ? '1px solid var(--border-soft)' : 'none'
+                                    borderBottom: i < safeOutbound.length - 1 ? '1px solid var(--border-soft)' : 'none'
                                 }}
                             >
                                 <div>
@@ -121,7 +125,7 @@ export default function RecentActivity({ outbound, replies, loading }: RecentAct
                     </h3>
                 </div>
                 <div>
-                    {replies.length === 0 ? (
+                    {safeReplies.length === 0 ? (
                         <p
                             className="p-6 text-sm text-center"
                             style={{ color: 'var(--text-muted)' }}
@@ -129,12 +133,12 @@ export default function RecentActivity({ outbound, replies, loading }: RecentAct
                             No replies yet.
                         </p>
                     ) : (
-                        replies.map((item, i) => (
+                        safeReplies.map((item, i) => (
                             <div
                                 key={item.id}
                                 className="px-6 py-4 flex items-center justify-between transition-colors hover:bg-[var(--bg-card-muted)]"
                                 style={{
-                                    borderBottom: i < replies.length - 1 ? '1px solid var(--border-soft)' : 'none'
+                                    borderBottom: i < safeReplies.length - 1 ? '1px solid var(--border-soft)' : 'none'
                                 }}
                             >
                                 <div>

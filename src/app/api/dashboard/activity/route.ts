@@ -51,8 +51,8 @@ export async function GET() {
         });
 
         return NextResponse.json({
-            recentOutbound,
-            recentReplies
+            outbound: recentOutbound,
+            replies: recentReplies
         });
 
     } catch (error) {
