@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 
-// Helper to validate auth
+// Helper to validate auth - session OR extension token with DB verification
 async function validateAuth(request: Request): Promise<string | null> {
     // First try session auth
     const session = await auth();
@@ -19,7 +19,15 @@ async function validateAuth(request: Request): Promise<string | null> {
         try {
             const decoded = JSON.parse(Buffer.from(token, 'base64').toString());
             if (decoded.exp && decoded.exp > Date.now() && decoded.email) {
-                return decoded.email;
+                // Verify user exists in DB and is approved
+                const user = await prisma.user.findUnique({
+                    where: { email: decoded.email },
+                    select: { email: true, accessStatus: true }
+                });
+
+                if (user && user.accessStatus === 'approved') {
+                    return user.email!;
+                }
             }
         } catch (e) {
             // Invalid token format

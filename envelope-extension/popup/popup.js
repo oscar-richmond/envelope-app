@@ -99,6 +99,17 @@ async function init() {
     console.log('[Envelope] Session verified - proceeding');
     showState('loading');
 
+    // Set up periodic session check (every 3 minutes while popup is open)
+    setInterval(async () => {
+        console.log('[Envelope] Periodic session check...');
+        const stillValid = await verifySessionViaAPI();
+        if (!stillValid) {
+            console.log('[Envelope] Session expired during use');
+            showState('authRequired');
+            showSessionExpiredMessage();
+        }
+    }, 3 * 60 * 1000);
+
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const url = tab.url;
@@ -124,6 +135,15 @@ async function init() {
     } catch (e) {
         console.error('Init error:', e);
         showError('Failed to analyze page');
+    }
+}
+
+// Show session expired message
+function showSessionExpiredMessage() {
+    const msgEl = document.getElementById('auth-message');
+    if (msgEl) {
+        msgEl.textContent = 'Session expired. Please sign in again.';
+        msgEl.style.display = 'block';
     }
 }
 

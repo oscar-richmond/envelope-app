@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { headers, cookies } from 'next/headers';
+import { logServerAuthEvent } from '@/lib/auth/telemetry';
 
 /**
  * Auth Health Check Endpoint
@@ -55,6 +56,15 @@ export async function GET(request: Request) {
             // @ts-ignore
             accessStatus: session.user.accessStatus,
         } : null;
+
+        // Log session validation result
+        logServerAuthEvent({
+            type: hasSession ? 'session_set_success' : 'session_validation_fail',
+            email: user?.email || undefined,
+            source: 'extension',
+            success: hasSession,
+            details: { origin, hasAuthCookies }
+        });
 
         console.log('[AuthHealth] Session check:', {
             hasSession,

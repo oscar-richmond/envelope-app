@@ -41,12 +41,13 @@ interface CapturePayload {
     contacts?: ContactPayload[];
 }
 
-// Validate auth - check session OR extension token
-async function validateAuth(request: Request): Promise<{ email: string | null; error?: string; status?: number }> {
-    // First try session auth
+// Validate auth - check session OR extension token with DB verification
+async function validateAuth(request: Request): Promise<{ email: string | null; userId?: string; error?: string; status?: number }> {
+    // First try session auth (most reliable)
     const session = await auth();
     if (session?.user?.email) {
-        return { email: session.user.email };
+        console.log('[Capture API] Auth via session:', session.user.email);
+        return { email: session.user.email, userId: session.user.id };
     }
 
     // If no session, try extension token
@@ -65,6 +66,7 @@ async function validateAuth(request: Request): Promise<{ email: string | null; e
 
         // Check token expiry
         if (!decoded.exp || decoded.exp <= Date.now()) {
+            console.log('[Capture API] Token expired');
             return { email: null, error: 'Session expired - please sign in again', status: 401 };
         }
 
@@ -72,8 +74,26 @@ async function validateAuth(request: Request): Promise<{ email: string | null; e
             return { email: null, error: 'Invalid token format', status: 401 };
         }
 
-        return { email: decoded.email };
+        // CRITICAL: Verify user exists in database and is approved
+        const user = await prisma.user.findUnique({
+            where: { email: decoded.email },
+            select: { id: true, email: true, accessStatus: true }
+        });
+
+        if (!user) {
+            console.log('[Capture API] Token email not found in DB:', decoded.email);
+            return { email: null, error: 'User not found - please sign in again', status: 401 };
+        }
+
+        if (user.accessStatus !== 'approved') {
+            console.log('[Capture API] User not approved:', decoded.email, user.accessStatus);
+            return { email: null, error: 'Account pending approval', status: 403 };
+        }
+
+        console.log('[Capture API] Auth via token (DB verified):', user.email);
+        return { email: user.email!, userId: user.id };
     } catch (e) {
+        console.error('[Capture API] Token parse error:', e);
         return { email: null, error: 'Invalid token', status: 401 };
     }
 }

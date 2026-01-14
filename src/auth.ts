@@ -6,6 +6,7 @@ import { authConfig } from "./auth.config"
 import { cookies } from "next/headers"
 import { PasskeyService } from "@/lib/auth/passkeys"
 import Credentials from "next-auth/providers/credentials"
+import { logServerAuthEvent } from "@/lib/auth/telemetry"
 
 // Canonical production URL - MUST match Vercel env
 const CANONICAL_URL = process.env.NEXTAUTH_URL ||
@@ -102,6 +103,15 @@ const fullConfig = {
             }
         },
         async signIn({ user }) {
+            // Log successful sign-in
+            logServerAuthEvent({
+                type: 'session_set_success',
+                email: user.email || undefined,
+                source: 'web',
+                success: true,
+                details: { userId: user.id }
+            });
+
             // Redundant check for existing users who missed the createUser event
             const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
             if (adminEmail && user.email === adminEmail && !user.isAdmin) {
