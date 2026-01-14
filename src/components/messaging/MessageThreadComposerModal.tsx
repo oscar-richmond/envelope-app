@@ -443,6 +443,7 @@ export function MessageThreadComposerModal({
                                         thread={thread}
                                         leadId={leadId}
                                         emailId={emailId}
+                                        companyId={thread?.company?.id}
                                         toEmail={toEmail}
                                         onToEmailChange={setToEmail}
                                         subject={draftSubject}
@@ -453,6 +454,7 @@ export function MessageThreadComposerModal({
                                             onSuccess?.();
                                             onClose();
                                         }}
+                                        contacts={(thread as any)?.contacts || []}
                                     />
                                 </ModalErrorBoundary>
                             )}

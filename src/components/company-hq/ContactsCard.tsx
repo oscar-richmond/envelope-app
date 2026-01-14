@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Users, RefreshCw, Check, Shield, AlertCircle,
+    Users, RefreshCw, Check, Shield, AlertCircle, X,
     Globe, Zap, Building2, ChevronDown, ChevronUp, Copy, Mail, Loader2, Plus, UserPlus, Sparkles, Lightbulb
 } from 'lucide-react';
 import AddContactModal from '@/components/modals/AddContactModal';
@@ -67,6 +67,8 @@ export default function ContactsCard({
     const [showMore, setShowMore] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [showAllContacts, setShowAllContacts] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Email pattern state
     const [emailPattern, setEmailPattern] = useState<any>(null);
@@ -349,6 +351,15 @@ export default function ContactsCard({
                         >
                             {totalCount}
                         </span>
+                    )}
+                    {totalCount > 5 && (
+                        <button
+                            onClick={() => setShowAllContacts(true)}
+                            className="text-xs font-medium underline decoration-dotted"
+                            style={{ color: 'var(--accent-lilac-text)' }}
+                        >
+                            View all
+                        </button>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -665,6 +676,132 @@ export default function ContactsCard({
                     setShowAddModal(false);
                 }}
             />
+
+            {/* View All Contacts Modal */}
+            {showAllContacts && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }}
+                >
+                    <div className="absolute inset-0" onClick={() => setShowAllContacts(false)} />
+                    <div
+                        className="relative z-10 w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                        style={{
+                            background: 'var(--bg-card)',
+                            borderRadius: '16px',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                            border: '1px solid var(--border-soft)'
+                        }}
+                    >
+                        {/* Modal Header */}
+                        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border-soft)' }}>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                                    All Contacts ({totalCount})
+                                </h3>
+                                <button
+                                    onClick={() => setShowAllContacts(false)}
+                                    className="p-1.5 rounded-lg transition-all hover:bg-gray-100"
+                                    style={{ color: 'var(--text-muted)' }}
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                            {/* Search */}
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search by name, email, or role..."
+                                className="w-full text-sm px-3 py-2 rounded-lg border outline-none"
+                                style={{
+                                    borderColor: 'var(--border-soft)',
+                                    background: 'var(--bg-card-muted)',
+                                    color: 'var(--text-primary)'
+                                }}
+                            />
+                        </div>
+
+                        {/* Contact List */}
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                            {contacts
+                                .filter(c => {
+                                    if (!searchQuery) return true;
+                                    const q = searchQuery.toLowerCase();
+                                    const name = (c.fullName || c.name || `${c.firstName || ''} ${c.lastName || ''}`).toLowerCase();
+                                    const role = (c.role || c.roleTitle || '').toLowerCase();
+                                    return name.includes(q) || c.email.toLowerCase().includes(q) || role.includes(q);
+                                })
+                                .map((contact) => {
+                                    const displayName = contact.fullName || contact.name || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.email.split('@')[0];
+                                    const roleDisplay = contact.role || contact.roleTitle || 'Unknown role';
+                                    const sourceLabel = contact.source === 'manual' ? 'Manual' : contact.source === 'hunter' ? 'Hunter' : contact.source === 'website' ? 'Website' : '';
+
+                                    return (
+                                        <div
+                                            key={contact.id || contact.email}
+                                            className="flex items-center gap-3 p-3 rounded-lg transition-all hover:bg-gray-50 cursor-pointer"
+                                            style={{ background: 'var(--bg-card-muted)' }}
+                                            onClick={() => {
+                                                handleSelectEmail(contact.email);
+                                                setShowAllContacts(false);
+                                            }}
+                                        >
+                                            {/* Avatar */}
+                                            <div
+                                                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                                                style={{
+                                                    background: 'linear-gradient(135deg, rgb(139, 92, 246), rgb(59, 130, 246))',
+                                                    color: 'white'
+                                                }}
+                                            >
+                                                {displayName[0]?.toUpperCase() || '?'}
+                                            </div>
+
+                                            {/* Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                                                        {displayName}
+                                                    </span>
+                                                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>• {roleDisplay}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                                                        {contact.email}
+                                                    </span>
+                                                    {sourceLabel && (
+                                                        <span
+                                                            className="text-[9px] px-1.5 py-0.5 rounded font-medium"
+                                                            style={{
+                                                                background: contact.source === 'manual' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                                                                color: contact.source === 'manual' ? 'rgb(5, 150, 105)' : 'rgb(37, 99, 235)'
+                                                            }}
+                                                        >
+                                                            {sourceLabel}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Copy */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCopyEmail(contact.email);
+                                                }}
+                                                className="p-1.5 rounded-md transition-all hover:bg-gray-200"
+                                                style={{ color: 'var(--text-muted)' }}
+                                            >
+                                                {copiedEmail === contact.email ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

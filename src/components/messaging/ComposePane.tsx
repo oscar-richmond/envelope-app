@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Send, Save, Loader2, AlertCircle, Mail, Search } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Send, Save, Loader2, AlertCircle, Mail, Search, ChevronDown, User, Users } from 'lucide-react';
 import type { ThreadData } from './MessageThreadComposerModal';
 import dynamic from 'next/dynamic';
 
@@ -10,10 +10,22 @@ const RichEditor = dynamic(() => import('../outreach/rich-editor'), {
     loading: () => <div className="h-[200px] bg-gray-50 border rounded-md animate-pulse" />
 });
 
+interface Contact {
+    id?: string;
+    email: string;
+    fullName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    role?: string | null;
+    roleTitle?: string | null;
+    source?: string;
+}
+
 interface ComposePaneProps {
     thread: ThreadData | null;
     leadId?: number;
     emailId?: number;
+    companyId?: number;
     toEmail: string;
     onToEmailChange: (email: string) => void;
     subject: string;
@@ -21,25 +33,43 @@ interface ComposePaneProps {
     content: string;
     onContentChange: (content: string) => void;
     onSuccess: () => void;
+    contacts?: Contact[];
+    onFindContacts?: () => void;
 }
 
 export function ComposePane({
     thread,
     leadId,
     emailId,
+    companyId,
     toEmail,
     onToEmailChange,
     subject,
     onSubjectChange,
     content,
     onContentChange,
-    onSuccess
+    onSuccess,
+    contacts = [],
+    onFindContacts
 }: ComposePaneProps) {
     const [bodyText, setBodyText] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+                setShowRecipientDropdown(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const hasEmail = !!toEmail;
     const canSend = hasEmail && !!subject && !!content;
@@ -175,22 +205,103 @@ export function ComposePane({
 
             {/* Compose Fields */}
             <div className="px-6 py-4 space-y-3 border-b" style={{ borderColor: 'var(--border-soft)' }}>
-                {/* To Field */}
+                {/* To Field with Dropdown */}
                 <div className="flex items-center gap-3">
                     <label className="text-sm font-medium w-16" style={{ color: 'var(--text-secondary)' }}>
                         To
                     </label>
-                    <div className="flex-1 flex items-center gap-2">
-                        <input
-                            type="email"
-                            value={toEmail}
-                            onChange={(e) => onToEmailChange(e.target.value)}
-                            placeholder="recipient@email.com"
-                            className="flex-1 text-sm outline-none bg-transparent"
-                            style={{ color: 'var(--text-primary)' }}
-                        />
-                        {hasEmail && (
-                            <Mail size={14} style={{ color: 'var(--mint-text)' }} />
+                    <div className="flex-1 relative" ref={dropdownRef}>
+                        <div
+                            className="flex items-center gap-2 cursor-pointer py-1"
+                            onClick={() => contacts.length > 0 && setShowRecipientDropdown(!showRecipientDropdown)}
+                        >
+                            <input
+                                type="email"
+                                value={toEmail}
+                                onChange={(e) => {
+                                    onToEmailChange(e.target.value);
+                                    setShowRecipientDropdown(false);
+                                }}
+                                placeholder={contacts.length > 0 ? 'Select or type email...' : 'recipient@email.com'}
+                                className="flex-1 text-sm outline-none bg-transparent"
+                                style={{ color: 'var(--text-primary)' }}
+                                onFocus={() => contacts.length > 0 && setShowRecipientDropdown(true)}
+                            />
+                            {contacts.length > 0 && (
+                                <ChevronDown
+                                    size={14}
+                                    style={{ color: 'var(--text-muted)' }}
+                                    className={`transition-transform ${showRecipientDropdown ? 'rotate-180' : ''}`}
+                                />
+                            )}
+                            {hasEmail && (
+                                <Mail size={14} style={{ color: 'var(--mint-text)' }} />
+                            )}
+                        </div>
+
+                        {/* Dropdown */}
+                        {showRecipientDropdown && contacts.length > 0 && (
+                            <div
+                                className="absolute top-full left-0 right-0 mt-1 z-50 max-h-[200px] overflow-y-auto rounded-lg shadow-lg border"
+                                style={{ background: 'var(--bg-card)', borderColor: 'var(--border-soft)' }}
+                            >
+                                {contacts.map((contact, i) => {
+                                    const name = contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.email.split('@')[0];
+                                    const role = contact.role || contact.roleTitle || 'Unknown role';
+                                    const isSelected = toEmail === contact.email;
+
+                                    return (
+                                        <div
+                                            key={contact.id || contact.email}
+                                            className={`px-3 py-2 cursor-pointer transition-all flex items-center gap-3 ${isSelected ? 'bg-purple-50' : 'hover:bg-gray-50'}`}
+                                            onClick={() => {
+                                                onToEmailChange(contact.email);
+                                                setShowRecipientDropdown(false);
+                                            }}
+                                        >
+                                            <div
+                                                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                                                style={{ background: 'linear-gradient(135deg, var(--brand), rgb(139, 92, 246))', color: 'white' }}
+                                            >
+                                                {name[0]?.toUpperCase() || '?'}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                                                    {name}
+                                                    <span className="text-xs ml-1.5" style={{ color: 'var(--text-muted)' }}>• {role}</span>
+                                                </div>
+                                                <div className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                                                    {contact.email}
+                                                </div>
+                                            </div>
+                                            {isSelected && <Mail size={14} style={{ color: 'var(--brand)' }} />}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Empty state - no contacts */}
+                        {showRecipientDropdown && contacts.length === 0 && (
+                            <div
+                                className="absolute top-full left-0 right-0 mt-1 z-50 p-4 rounded-lg shadow-lg border text-center"
+                                style={{ background: 'var(--bg-card)', borderColor: 'var(--border-soft)' }}
+                            >
+                                <Users size={24} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
+                                <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>No contacts saved</p>
+                                {onFindContacts && (
+                                    <button
+                                        onClick={() => {
+                                            setShowRecipientDropdown(false);
+                                            onFindContacts();
+                                        }}
+                                        className="text-xs font-medium px-3 py-1.5 rounded-lg"
+                                        style={{ background: 'var(--brand)', color: 'white' }}
+                                    >
+                                        Find Contacts
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
