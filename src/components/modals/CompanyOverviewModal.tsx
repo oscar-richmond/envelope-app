@@ -585,35 +585,14 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                         )}
 
                         {activeTab === 'contacts' && (
-                            <div
-                                style={{
-                                    background: 'var(--bg-card)',
-                                    borderRadius: 'var(--radius-xl)',
-                                    border: '1px solid var(--border-soft)',
-                                    boxShadow: 'var(--shadow-card)',
-                                    overflow: 'hidden'
-                                }}
-                            >
-                                <div
-                                    className="px-6 py-4 flex justify-between items-center"
-                                    style={{ background: 'var(--accent-lilac-bg)', borderBottom: '1px solid rgba(184, 166, 255, 0.3)' }}
-                                >
-                                    <h3
-                                        className="font-semibold"
-                                        style={{ fontFamily: 'var(--font-display)', color: 'var(--accent-lilac-text)' }}
-                                    >
-                                        Key Contacts
-                                    </h3>
-                                    <button
-                                        className="text-xs font-semibold flex items-center gap-1 transition-colors"
-                                        style={{ color: 'var(--accent-lilac-text)' }}
-                                    >
-                                        <RefreshCw size={12} /> Find More
-                                    </button>
-                                </div>
-                                <div className="max-h-[400px] overflow-y-auto">
-                                    <ContactsCard leadId={leadId} contacts={contacts} />
-                                </div>
+                            <div className="max-h-[500px] overflow-y-auto">
+                                <ContactsCard
+                                    companyId={data?.companyProspectId || prospectId}
+                                    prospectId={data?.companyProspectId || prospectId}
+                                    leadId={resolvedLeadId || leadId}
+                                    companyName={data?.companyName || brand}
+                                    contacts={contacts}
+                                />
                             </div>
                         )}
 
