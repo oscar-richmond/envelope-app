@@ -537,6 +537,47 @@ export default function ProspectSearch() {
 
 
 
+    // --- Inspect Handler (saves prospect first if needed) ---
+    const handleInspect = async (company: any, index: number) => {
+        // If the company already has a database ID, just open the modal
+        if (company.id) {
+            openCompanyOverview({ prospectId: company.id });
+            return;
+        }
+
+        // Otherwise, save the prospect first to get an ID
+        try {
+            const saveRes = await fetch('/api/prospects', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(company)
+            });
+
+            if (!saveRes.ok) {
+                const err = await saveRes.json();
+                throw new Error(`Save failed: ${err.error || saveRes.statusText}`);
+            }
+
+            const saved = await saveRes.json();
+            const id = saved.id;
+
+            if (!id) throw new Error("Saved prospect returned no ID");
+
+            // Update the results array with the new ID so future actions work
+            setResults(prev => {
+                const next = [...prev];
+                next[index] = { ...next[index], id };
+                return next;
+            });
+
+            // Now open the modal with the saved ID
+            openCompanyOverview({ prospectId: id });
+        } catch (e: any) {
+            console.error("Inspect failed:", e);
+            alert(`Failed to load company profile: ${e.message}`);
+        }
+    };
+
     // --- Email Discovery ---
     const [viewEmails, setViewEmails] = useState<any | null>(null);
     const [emailResults, setEmailResults] = useState<any[]>([]);
@@ -997,7 +1038,7 @@ export default function ProspectSearch() {
                                 onFindEmails={() => handleOpenDiscovery(c)}
                                 onDraftEmail={() => handleGenerateDraft(c)}
                                 onViewLocation={() => setViewLocation(c.location)}
-                                onInspect={() => openCompanyOverview({ prospectId: c.id })}
+                                onInspect={() => handleInspect(c, i)}
 
                                 // Evidence Handlers
                                 onMatchEvidence={() => setViewEvidence(JSON.parse(c.websiteMatchEvidence || '{}'))}
