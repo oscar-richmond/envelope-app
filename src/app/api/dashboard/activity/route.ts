@@ -16,7 +16,7 @@ export async function GET() {
             take: 5,
             select: {
                 id: true,
-                toEmail: true,
+                formattedTo: true,
                 subject: true,
                 sentAt: true,
                 status: true,
@@ -38,7 +38,7 @@ export async function GET() {
             take: 5,
             select: {
                 id: true,
-                toEmail: true,
+                formattedTo: true,
                 subject: true,
                 updatedAt: true,
                 status: true,

@@ -86,7 +86,7 @@ export async function GET(request: Request) {
                         select: {
                             id: true,
                             subject: true,
-                            toEmail: true,
+                            formattedTo: true,
                             sentAt: true,
                             status: true
                         }
