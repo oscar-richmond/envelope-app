@@ -85,7 +85,65 @@ export function MessageThreadComposerModal({
     const [aiSummary, setAiSummary] = useState<string | null>(null);
     const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
 
+    // Contacts state (separate from resolver for direct fetch)
+    const [contacts, setContacts] = useState<any[]>([]);
+    const [isFindingContacts, setIsFindingContacts] = useState(false);
+
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Fetch contacts directly from company endpoint
+    async function fetchCompanyContacts(companyId: number) {
+        console.log(`[Composer] Fetching contacts for company ${companyId}`);
+        try {
+            const res = await fetch(`/api/companies/${companyId}/contacts`);
+            if (res.ok) {
+                const data = await res.json();
+                console.log(`[Composer] Got ${data.contacts?.length || 0} contacts`);
+                setContacts(data.contacts || []);
+
+                // Auto-select first contact if no email set
+                if (!toEmail && data.contacts?.[0]?.email) {
+                    setToEmail(data.contacts[0].email);
+                }
+            }
+        } catch (e) {
+            console.error('[Composer] Failed to fetch contacts:', e);
+        }
+    }
+
+    // Handle Find Contacts button - triggers rescan
+    async function handleFindContacts() {
+        const companyId = thread?.company?.id || prospectId || (initialData?.lead?.companyProspectId);
+        if (!companyId) {
+            console.error('[Composer] No companyId for contact scan');
+            return;
+        }
+
+        setIsFindingContacts(true);
+        console.log(`[Composer] Triggering contact scan for company ${companyId}`);
+
+        try {
+            // Trigger contact rescan
+            const res = await fetch(`/api/companies/${companyId}/contacts/rescan`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                // Wait a bit then fetch fresh contacts
+                await new Promise(r => setTimeout(r, 1000));
+                await fetchCompanyContacts(companyId);
+            } else {
+                // If rescan fails, just try to fetch existing
+                await fetchCompanyContacts(companyId);
+            }
+        } catch (e) {
+            console.error('[Composer] Contact scan failed:', e);
+            // Still try to fetch existing
+            await fetchCompanyContacts(companyId);
+        } finally {
+            setIsFindingContacts(false);
+        }
+    }
 
     // Load thread data
     useEffect(() => {
@@ -106,6 +164,14 @@ export function MessageThreadComposerModal({
             if (saved) setDraftContent(saved);
         }
     }, [emailId, leadId]);
+
+    // Fetch contacts separately when thread loads
+    useEffect(() => {
+        const companyId = thread?.company?.id || prospectId || initialData?.lead?.companyProspectId;
+        if (companyId && !loading) {
+            fetchCompanyContacts(companyId);
+        }
+    }, [thread?.company?.id, loading]);
 
     async function fetchThreadData() {
         const startTime = Date.now();
@@ -454,7 +520,8 @@ export function MessageThreadComposerModal({
                                             onSuccess?.();
                                             onClose();
                                         }}
-                                        contacts={(thread as any)?.contacts || []}
+                                        contacts={contacts.length > 0 ? contacts : (thread as any)?.contacts || []}
+                                        onFindContacts={handleFindContacts}
                                     />
                                 </ModalErrorBoundary>
                             )}
