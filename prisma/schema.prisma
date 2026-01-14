@@ -139,6 +139,13 @@ model CompanyProspect {
   manualContacts            String?   @db.Text  // JSON: manually added contacts
   contactsLastScannedAt     DateTime?           // When contacts were last scanned
 
+  // Structured Scan Results (Job-Based)
+  webHealthData             String?   @db.Text  // JSON: { score, label, signals[], lastScannedAt }
+  finHealthData             String?   @db.Text  // JSON: { score, band, breakdown[], lastSyncedAt }
+  
+  // Scan Job Relations
+  scanJobs                  ScanJob[]
+
   // Relations
   leads                   Lead[]
   
@@ -481,4 +488,36 @@ model PasskeyCredential {
   transports   String?
   createdAt    DateTime @default(now())
   lastUsedAt   DateTime?
+}
+
+// --- Scan Job System ---
+
+model ScanJob {
+  id                    String    @id @default(cuid())
+  companyId             Int
+  company               CompanyProspect @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  scanType              String    // web_health, financial_health, contacts
+  status                String    @default("queued") // queued, running, success, failed, cancelled
+  progress              Int       @default(0) // 0-100
+  
+  requestedByUserId     String?
+  requestedFromSurface  String?   // leadboard, company_profile, prospects, extension, system
+  
+  startedAt             DateTime?
+  finishedAt            DateTime?
+  
+  errorCode             String?
+  errorMessage          String?
+  attemptCount          Int       @default(0)
+  
+  resultSummary         String?   // Brief result (e.g. "Score: 85, 3 signals")
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([scanType])
+  @@index([companyId, scanType, status])
 }
