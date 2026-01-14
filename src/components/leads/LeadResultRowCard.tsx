@@ -258,11 +258,30 @@ export default function LeadResultRowCard({
                                     score={finScore}
                                     scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
                                 />
-                                {lead.financialLastScanned && (
-                                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                                        {formatRelativeTime(lead.financialLastScanned)}
-                                    </span>
-                                )}
+                                <div className="flex items-center justify-between">
+                                    {lead.financialLastScanned && (
+                                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                            {formatRelativeTime(lead.financialLastScanned)}
+                                        </span>
+                                    )}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setScanningFin(true);
+                                            onRescan?.('financial').finally(() => setScanningFin(false));
+                                        }}
+                                        disabled={scanningFin}
+                                        className="text-[10px] font-medium px-2 py-0.5 rounded transition-all"
+                                        style={{
+                                            background: scanningFin ? 'rgba(45, 212, 191, 0.2)' : 'rgba(45, 212, 191, 0.1)',
+                                            color: 'rgb(20, 184, 166)',
+                                            cursor: scanningFin ? 'wait' : 'pointer',
+                                            opacity: scanningFin ? 0.7 : 1
+                                        }}
+                                    >
+                                        {scanningFin ? '...' : 'Sync'}
+                                    </button>
+                                </div>
                             </>
                         ) : (
                             <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'rgba(45, 212, 191, 0.06)', border: '1px solid rgba(45, 212, 191, 0.15)' }}>

@@ -492,6 +492,29 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                             >
                                 Rescan Stale
                             </button>
+                            <button
+                                onClick={handleBulkWebHealthRescan}
+                                disabled={bulkWebHealthScanning || filteredLeads.length === 0}
+                                className="text-xs font-medium px-3 py-1.5 rounded-md transition-all hover:scale-[1.02] flex items-center gap-1"
+                                style={{
+                                    background: bulkWebHealthScanning ? 'var(--brand)' : 'rgba(84, 130, 237, 0.12)',
+                                    color: bulkWebHealthScanning ? 'white' : 'rgb(84, 130, 237)',
+                                    cursor: bulkWebHealthScanning ? 'wait' : 'pointer'
+                                }}
+                                title={`Rescan all ${filteredLeads.length} visible leads`}
+                            >
+                                {bulkWebHealthScanning ? (
+                                    <>
+                                        <RefreshCw size={12} className="animate-spin" />
+                                        Rescanning {filteredLeads.length}...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshCw size={12} />
+                                        Rescan All ({filteredLeads.length})
+                                    </>
+                                )}
+                            </button>
                         </div>
 
                         <button
