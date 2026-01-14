@@ -13,6 +13,7 @@ interface ProspectResultRowCardProps {
     onFindEmails: () => void;
     onDraftEmail: () => void;
     onViewLocation: () => void;
+    onInspect: () => void; // Opens company overview modal
 
     // Evidence Handlers
     onMatchEvidence: () => void;
@@ -37,6 +38,7 @@ export default function ProspectResultRowCard({
     onFindEmails,
     onDraftEmail,
     onViewLocation,
+    onInspect,
     onMatchEvidence,
     onFinancialEvidence,
     onPriorityEvidence,
@@ -314,7 +316,7 @@ export default function ProspectResultRowCard({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <TooltipButton
                             icon={Maximize2}
-                            onClick={() => document.getElementById(`company-link-${c.id}`)?.click()}
+                            onClick={onInspect}
                             label="Inspect"
                             baseColor="blue"
                         />

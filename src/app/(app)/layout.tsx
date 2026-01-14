@@ -6,6 +6,7 @@ import { CompanyViewerProvider } from "@/components/modals/CompanyViewerProvider
 import { CompanyOverviewModalProvider } from "@/components/modals/CompanyOverviewModalProvider";
 import CompanyInspectorWrapper from "@/components/CompanyInspectorWrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { DebugOverlayWrapper } from "@/components/debug/DebugOverlayWrapper";
 
 export default async function AppLayout({
     children,
@@ -47,6 +48,10 @@ export default async function AppLayout({
                     </CompanyOverviewModalProvider>
                 </CompanyViewerProvider>
             </main>
+
+            {/* CTA Debug Mode - toggle with Cmd+Shift+D */}
+            <DebugOverlayWrapper />
         </div>
     );
 }
+

@@ -12,9 +12,11 @@ import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import ProspectResultRowCard from '@/components/prospects/ProspectResultRowCard';
+import { useCompanyOverviewModal } from '@/components/modals/CompanyOverviewModalProvider';
 
 export default function ProspectSearch() {
     const router = useRouter();
+    const { openCompanyOverview } = useCompanyOverviewModal();
     const [filters, setFilters] = useState<{
         industry: string[];
         size: string;
@@ -995,6 +997,7 @@ export default function ProspectSearch() {
                                 onFindEmails={() => handleOpenDiscovery(c)}
                                 onDraftEmail={() => handleGenerateDraft(c)}
                                 onViewLocation={() => setViewLocation(c.location)}
+                                onInspect={() => openCompanyOverview({ prospectId: c.id })}
 
                                 // Evidence Handlers
                                 onMatchEvidence={() => setViewEvidence(JSON.parse(c.websiteMatchEvidence || '{}'))}
