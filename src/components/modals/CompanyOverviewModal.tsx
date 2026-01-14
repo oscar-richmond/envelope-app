@@ -721,11 +721,11 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                 lastChecked={data.companyProspect?.financialLastCheckedAt}
             />
 
-            {/* Compose Modal */}
-            {isComposeModalOpen && (
+            {/* Compose Modal - only render if we have at least one ID */}
+            {isComposeModalOpen && (resolvedLeadId || data.companyProspectId || prospectId) && (
                 <MessageThreadComposerModal
                     leadId={resolvedLeadId || undefined}
-                    prospectId={data.companyProspectId || prospectId}
+                    prospectId={!resolvedLeadId ? (data.companyProspectId || prospectId) : undefined}
                     initialData={{
                         companyName: data.companyName,
                         contactName: contacts[0]?.name || '',

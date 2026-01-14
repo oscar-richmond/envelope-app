@@ -270,14 +270,27 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
 
     // COMPOSE OUTREACH
     const handleCompose = useCallback(async (lead: any) => {
+        // Validate lead has ID
+        if (!lead?.id) {
+            console.error('[Dashboard] Cannot open composer - lead missing ID:', lead);
+            showToast('Unable to open composer - lead not saved', 'error');
+            return;
+        }
         setComposerLead(lead);
         setComposerEmailId(null);
         setComposerDefaultTab('compose');
         setComposerOpen(true);
-    }, []);
+    }, [showToast]);
 
     // VIEW THREAD
     const handleViewThread = useCallback(async (lead: any) => {
+        // Validate lead has ID
+        if (!lead?.id) {
+            console.error('[Dashboard] Cannot view thread - lead missing ID:', lead);
+            showToast('Unable to view thread - lead not saved', 'error');
+            return;
+        }
+
         try {
             // Check if lead has sent emails
             const hasEmails = lead.sentEmails?.length > 0 ||

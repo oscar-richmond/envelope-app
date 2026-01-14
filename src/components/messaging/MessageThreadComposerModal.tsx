@@ -145,8 +145,18 @@ export function MessageThreadComposerModal({
         }
     }
 
-    // Load thread data
+    // Load thread data with parameter validation
     useEffect(() => {
+        // Must have at least one valid identifier
+        const hasValidId = !!(emailId || leadId || prospectId || initialData?.lead || initialData?.prospect);
+
+        if (!hasValidId) {
+            console.error('[Composer] No valid ID provided:', { emailId, leadId, prospectId, hasInitialData: !!initialData });
+            setLoading(false);
+            setError('No company or lead selected. Please select a lead first.');
+            return;
+        }
+
         fetchThreadData();
 
         const handleEscape = (e: KeyboardEvent) => {
@@ -352,6 +362,9 @@ export function MessageThreadComposerModal({
     const hasThread = (thread?.messages?.length ?? 0) > 0;
     const hasEmail = !!toEmail;
 
+    // Safe contacts array
+    const safeContacts = Array.isArray(contacts) ? contacts : [];
+
     const tabs: { id: Tab; label: string; disabled?: boolean }[] = [
         { id: 'thread', label: 'Thread' },
         { id: 'ai', label: 'AI' },
@@ -533,7 +546,7 @@ export function MessageThreadComposerModal({
                                             onSuccess?.();
                                             onClose();
                                         }}
-                                        contacts={contacts.length > 0 ? contacts : (thread as any)?.contacts || []}
+                                        contacts={safeContacts.length > 0 ? safeContacts : (thread as any)?.contacts || []}
                                         onFindContacts={handleFindContacts}
                                     />
                                 </ModalErrorBoundary>
@@ -542,6 +555,28 @@ export function MessageThreadComposerModal({
                     )}
                 </div>
             </div>
+
+            {/* Dev-only Debug Panel */}
+            {process.env.NODE_ENV === 'development' && (
+                <div
+                    className="fixed bottom-4 left-4 z-[60] text-xs font-mono p-3 rounded-lg max-w-xs"
+                    style={{
+                        background: 'rgba(0, 0, 0, 0.85)',
+                        color: '#4ade80',
+                        border: '1px solid rgba(74, 222, 128, 0.3)'
+                    }}
+                >
+                    <div className="font-bold mb-1" style={{ color: '#f59e0b' }}>🔧 Composer Debug</div>
+                    <div>leadId: {leadId ?? 'null'}</div>
+                    <div>prospectId: {prospectId ?? 'null'}</div>
+                    <div>emailId: {emailId ?? 'null'}</div>
+                    <div>companyId: {thread?.company?.id ?? 'null'}</div>
+                    <div>contacts: {safeContacts.length}</div>
+                    <div>hasThread: {String(hasThread)}</div>
+                    <div>loading: {String(loading)}</div>
+                    <div>error: {error || 'none'}</div>
+                </div>
+            )}
         </div>
     );
 }
