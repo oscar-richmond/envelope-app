@@ -7,6 +7,8 @@ import { CompanyOverviewModalProvider } from "@/components/modals/CompanyOvervie
 import CompanyInspectorWrapper from "@/components/CompanyInspectorWrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DebugOverlayWrapper } from "@/components/debug/DebugOverlayWrapper";
+import { ActionRouterProvider } from "@/lib/context/ActionRouter";
+import { CTADebugProvider } from "@/lib/context/CTADebug";
 
 export default async function AppLayout({
     children,
@@ -38,15 +40,19 @@ export default async function AppLayout({
                     paddingBottom: '20px'
                 }}
             >
-                <CompanyViewerProvider>
-                    <CompanyOverviewModalProvider>
-                        <CompanyInspectorWrapper>
-                            <ErrorBoundary sectionName="Main App Area">
-                                {children}
-                            </ErrorBoundary>
-                        </CompanyInspectorWrapper>
-                    </CompanyOverviewModalProvider>
-                </CompanyViewerProvider>
+                <CTADebugProvider>
+                    <ActionRouterProvider>
+                        <CompanyViewerProvider>
+                            <CompanyOverviewModalProvider>
+                                <CompanyInspectorWrapper>
+                                    <ErrorBoundary sectionName="Main App Area">
+                                        {children}
+                                    </ErrorBoundary>
+                                </CompanyInspectorWrapper>
+                            </CompanyOverviewModalProvider>
+                        </CompanyViewerProvider>
+                    </ActionRouterProvider>
+                </CTADebugProvider>
             </main>
 
             {/* CTA Debug Mode - toggle with Cmd+Shift+D */}
