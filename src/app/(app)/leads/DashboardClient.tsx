@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { Building2, CheckCircle, AlertCircle, PenTool } from 'lucide-react';
+import { Building2, CheckCircle, AlertCircle, PenTool, RefreshCw } from 'lucide-react';
 import { ResultsListContainer, ResultsListHeader, ResultsListEmptyState } from '@/components/ui/ResultsList';
 import LeadResultRowCard from '@/components/leads/LeadResultRowCard';
 import AddLeadModal from '@/components/AddLeadModal';
