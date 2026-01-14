@@ -12,7 +12,10 @@ interface Contact {
     email: string;
     name?: string | null;
     fullName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
     role?: string | null;
+    roleTitle?: string | null;
     type?: 'person' | 'personal' | 'department' | 'generic';
     source?: string;
     sources?: string[];
@@ -321,7 +324,11 @@ export default function ContactsCard({
 
     const totalCount = contacts.length;
     const isScanning = scanState === 'scanning' || scanState === 'polling';
-    const canInteract = loadState !== 'loading' && !isScanning;
+    const isLoading = loadState === 'loading';
+    // Rescan: disabled during loading or scanning
+    const canRescan = !isLoading && !isScanning && !!id;
+    // Add: always enabled if we have an ID (even during error state)
+    const canAdd = !!id && !showAddModal;
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -352,13 +359,13 @@ export default function ContactsCard({
                     )}
                     <button
                         onClick={() => handleScan(true)}
-                        disabled={!canInteract || !id}
+                        disabled={!canRescan}
                         className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
                         style={{
                             background: 'rgba(139, 92, 246, 0.15)',
                             color: 'var(--accent-lilac-text)',
-                            cursor: canInteract && id ? 'pointer' : 'not-allowed',
-                            opacity: canInteract && id ? 1 : 0.5
+                            cursor: canRescan ? 'pointer' : 'not-allowed',
+                            opacity: canRescan ? 1 : 0.5
                         }}
                     >
                         {isScanning ? (
@@ -371,13 +378,13 @@ export default function ContactsCard({
                     {/* Add Contact Button */}
                     <button
                         onClick={() => setShowAddModal(true)}
-                        disabled={!canInteract || !id}
+                        disabled={!canAdd}
                         className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
                         style={{
                             background: 'var(--brand)',
                             color: 'white',
-                            cursor: canInteract && id ? 'pointer' : 'not-allowed',
-                            opacity: canInteract && id ? 1 : 0.5
+                            cursor: canAdd ? 'pointer' : 'not-allowed',
+                            opacity: canAdd ? 1 : 0.5
                         }}
                     >
                         <Plus size={12} />
@@ -676,7 +683,19 @@ function ContactRow({
     onSelect: () => void;
     onCopy: () => void;
 }) {
-    const displayName = contact.name || contact.fullName || contact.email.split('@')[0];
+    // Build display name: prefer firstName + lastName, fallback to fullName, then name, then email
+    const buildDisplayName = () => {
+        if (contact.firstName || contact.lastName) {
+            return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+        }
+        if (contact.fullName) return contact.fullName;
+        if (contact.name) return contact.name;
+        // Fallback to email local part with capitalization
+        const localPart = contact.email.split('@')[0];
+        return localPart.charAt(0).toUpperCase() + localPart.slice(1).replace(/[._-]/g, ' ');
+    };
+    const displayName = buildDisplayName();
+    const roleDisplay = contact.role || contact.roleTitle || '';
     const source = contact.source || (contact.sources?.[0]) || 'unknown';
 
     return (
@@ -711,9 +730,9 @@ function ContactRow({
                     </span>
                     <SourceBadge source={source} />
                 </div>
-                {contact.role && (
+                {roleDisplay && (
                     <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                        {contact.role}
+                        {roleDisplay}
                     </span>
                 )}
             </div>
