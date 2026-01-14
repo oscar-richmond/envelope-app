@@ -18,6 +18,67 @@ function formatRelativeTime(dateStr: string | Date): string {
     return `${Math.floor(diffDays / 30)} months ago`;
 }
 
+// Unified Health Card CTA Component
+const healthCtaStyles = {
+    web: {
+        bg: 'rgba(84, 130, 237, 0.12)',
+        bgHover: 'rgba(84, 130, 237, 0.18)',
+        bgActive: 'rgba(84, 130, 237, 0.25)',
+        border: 'rgba(84, 130, 237, 0.35)',
+        color: 'rgb(84, 130, 237)',
+        cardBg: 'rgba(84, 130, 237, 0.06)',
+        cardBorder: 'rgba(84, 130, 237, 0.15)'
+    },
+    finance: {
+        bg: 'rgba(45, 212, 191, 0.12)',
+        bgHover: 'rgba(45, 212, 191, 0.18)',
+        bgActive: 'rgba(45, 212, 191, 0.25)',
+        border: 'rgba(45, 212, 191, 0.35)',
+        color: 'rgb(20, 184, 166)',
+        cardBg: 'rgba(45, 212, 191, 0.06)',
+        cardBorder: 'rgba(45, 212, 191, 0.15)'
+    }
+};
+
+function HealthCardCTA({
+    variant,
+    label,
+    loadingLabel,
+    isLoading,
+    onClick,
+    size = 'small'
+}: {
+    variant: 'web' | 'finance';
+    label: string;
+    loadingLabel?: string;
+    isLoading?: boolean;
+    onClick: (e: React.MouseEvent) => void;
+    size?: 'small' | 'full';
+}) {
+    const style = healthCtaStyles[variant];
+
+    return (
+        <button
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick(e);
+            }}
+            disabled={isLoading}
+            className={`font-medium rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] ${size === 'full' ? 'w-full text-xs px-3 py-1.5' : 'text-[10px] px-2 py-0.5'
+                }`}
+            style={{
+                background: style.bg,
+                border: `1px solid ${style.border}`,
+                color: style.color,
+                cursor: isLoading ? 'wait' : 'pointer',
+                opacity: isLoading ? 0.7 : 1
+            }}
+        >
+            {isLoading ? (loadingLabel || '...') : label}
+        </button>
+    );
+}
+
 interface LeadResultRowCardProps {
     lead: any;
     index: number;
@@ -204,46 +265,27 @@ export default function LeadResultRowCard({
                                             {formatRelativeTime(lead.websiteLastScanned)}
                                         </span>
                                     )}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            console.log('[LeadBoard] Bulk rescan triggered from row');
-                                            onBulkWebHealthRescan?.();
-                                        }}
-                                        disabled={bulkWebHealthScanning}
-                                        className="text-[10px] font-medium px-2 py-0.5 rounded transition-all"
-                                        style={{
-                                            background: bulkWebHealthScanning ? 'rgba(84, 130, 237, 0.2)' : 'rgba(84, 130, 237, 0.1)',
-                                            color: 'rgb(84, 130, 237)',
-                                            cursor: bulkWebHealthScanning ? 'wait' : 'pointer',
-                                            opacity: bulkWebHealthScanning ? 0.7 : 1
-                                        }}
-                                        title="Rescans all leads on this page"
-                                    >
-                                        {bulkWebHealthScanning ? '...' : 'Rescan'}
-                                    </button>
+                                    <HealthCardCTA
+                                        variant="web"
+                                        label="Rescan"
+                                        loadingLabel="..."
+                                        isLoading={bulkWebHealthScanning}
+                                        onClick={() => onBulkWebHealthRescan?.()}
+                                        size="small"
+                                    />
                                 </div>
                             </>
                         ) : (
-                            <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'rgba(84, 130, 237, 0.06)', border: '1px solid rgba(84, 130, 237, 0.15)' }}>
+                            <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: healthCtaStyles.web.cardBg, border: `1px solid ${healthCtaStyles.web.cardBorder}` }}>
                                 <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Web Health</span>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        console.log('[LeadBoard] Bulk scan triggered from row - no prior data');
-                                        onBulkWebHealthRescan?.();
-                                    }}
-                                    disabled={bulkWebHealthScanning}
-                                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:scale-[1.02]"
-                                    style={{
-                                        background: 'rgba(84, 130, 237, 0.15)',
-                                        color: 'rgb(84, 130, 237)',
-                                        cursor: bulkWebHealthScanning ? 'wait' : 'pointer'
-                                    }}
-                                    title="Scans all leads on this page"
-                                >
-                                    {bulkWebHealthScanning ? 'Scanning...' : 'Scan'}
-                                </button>
+                                <HealthCardCTA
+                                    variant="web"
+                                    label="Scan Website"
+                                    loadingLabel="Scanning..."
+                                    isLoading={bulkWebHealthScanning}
+                                    onClick={() => onBulkWebHealthRescan?.()}
+                                    size="full"
+                                />
                             </div>
                         )}
                     </div>
@@ -264,40 +306,30 @@ export default function LeadResultRowCard({
                                             {formatRelativeTime(lead.financialLastScanned)}
                                         </span>
                                     )}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
+                                    <HealthCardCTA
+                                        variant="finance"
+                                        label="Sync"
+                                        loadingLabel="..."
+                                        isLoading={scanningFin}
+                                        onClick={() => {
                                             setScanningFin(true);
                                             onRescan?.('financial').finally(() => setScanningFin(false));
                                         }}
-                                        disabled={scanningFin}
-                                        className="text-[10px] font-medium px-2 py-0.5 rounded transition-all"
-                                        style={{
-                                            background: scanningFin ? 'rgba(45, 212, 191, 0.2)' : 'rgba(45, 212, 191, 0.1)',
-                                            color: 'rgb(20, 184, 166)',
-                                            cursor: scanningFin ? 'wait' : 'pointer',
-                                            opacity: scanningFin ? 0.7 : 1
-                                        }}
-                                    >
-                                        {scanningFin ? '...' : 'Sync'}
-                                    </button>
+                                        size="small"
+                                    />
                                 </div>
                             </>
                         ) : (
-                            <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: 'rgba(45, 212, 191, 0.06)', border: '1px solid rgba(45, 212, 191, 0.15)' }}>
+                            <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: healthCtaStyles.finance.cardBg, border: `1px solid ${healthCtaStyles.finance.cardBorder}` }}>
                                 <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Fin Health</span>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onRescan?.('financial'); }}
-                                    disabled={scanning}
-                                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:scale-[1.02]"
-                                    style={{
-                                        background: 'rgba(45, 212, 191, 0.15)',
-                                        color: 'rgb(20, 184, 166)',
-                                        cursor: scanning ? 'wait' : 'pointer'
-                                    }}
-                                >
-                                    {scanning ? 'Scanning...' : 'Scan Financials'}
-                                </button>
+                                <HealthCardCTA
+                                    variant="finance"
+                                    label="Scan Financials"
+                                    loadingLabel="Scanning..."
+                                    isLoading={scanning}
+                                    onClick={() => onRescan?.('financial')}
+                                    size="full"
+                                />
                             </div>
                         )}
                     </div>
