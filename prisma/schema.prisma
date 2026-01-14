@@ -134,6 +134,11 @@ model CompanyProspect {
   displayBrandName          String?
   displayBrandNameSource    String?   // brandOverride, websiteBrand, places, domain, legal
 
+  // Contact Enrichment (for Extension + Site Scans)
+  enrichmentData            String?   @db.Text  // JSON: contacts, patterns, etc.
+  manualContacts            String?   @db.Text  // JSON: manually added contacts
+  contactsLastScannedAt     DateTime?           // When contacts were last scanned
+
   // Relations
   leads                   Lead[]
   
