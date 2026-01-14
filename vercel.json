@@ -1,8 +1,5 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/check-replies",
-      "schedule": "0 0 * * *"
-    }
-  ]
+  "buildCommand": "npx prisma generate && npx prisma db push && next build",
+  "crons": [],
+  "$schema": "https://openapi.vercel.sh/vercel.json"
 }
