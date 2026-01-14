@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 
 /**
  * GET /api/company/[id]
- * Fetch full company profile with all related data
+ * Fetch full company profile with all related data including workspace metadata
  */
 export async function GET(
     req: NextRequest,
@@ -19,32 +19,46 @@ export async function GET(
         }
 
         // Fetch company with all related data
-        const company = await prisma.companyProspect.findUnique({
-            where: { id: companyId },
-            include: {
-                leads: {
-                    include: {
-                        sentEmails: {
-                            select: {
-                                id: true,
-                                subject: true,
-                                status: true,
-                                sentAt: true,
-                                replyDetectedAt: true,
-                                replyIntent: true,
-                                conversationOutcome: true,
-                                formattedTo: true
-                            },
-                            orderBy: { sentAt: 'desc' },
-                            take: 10
+        const [company, scanJobs, manualContacts] = await Promise.all([
+            prisma.companyProspect.findUnique({
+                where: { id: companyId },
+                include: {
+                    leads: {
+                        include: {
+                            sentEmails: {
+                                select: {
+                                    id: true,
+                                    subject: true,
+                                    status: true,
+                                    sentAt: true,
+                                    bodyText: true,
+                                    replyDetectedAt: true,
+                                    replyIntent: true,
+                                    conversationOutcome: true,
+                                    formattedTo: true
+                                },
+                                orderBy: { sentAt: 'desc' },
+                                take: 10
+                            }
                         }
+                    },
+                    discoveredEmails: {
+                        orderBy: { confidence: 'desc' }
                     }
-                },
-                discoveredEmails: {
-                    orderBy: { confidence: 'desc' }
                 }
-            }
-        });
+            }),
+            // Fetch latest scan jobs for this company
+            prisma.scanJob.findMany({
+                where: { companyId },
+                orderBy: { createdAt: 'desc' },
+                take: 10
+            }),
+            // Fetch manual contacts count
+            prisma.companyProspect.findUnique({
+                where: { id: companyId },
+                select: { manualContacts: true, contactsLastScannedAt: true }
+            })
+        ]);
 
         if (!company) {
             return NextResponse.json({ error: 'Company not found' }, { status: 404 });
@@ -136,11 +150,55 @@ export async function GET(
             } : null,
             contacts,
             outreachTimeline,
-            discoveredEmails: company.discoveredEmails
+            discoveredEmails: company.discoveredEmails,
+            // Workspace-specific metadata for unified loading
+            workspace: {
+                // Scan status for each scan type
+                scanStatus: {
+                    web_health: getScanStatus(scanJobs, 'web_health'),
+                    financial_health: getScanStatus(scanJobs, 'financial_health'),
+                    contacts: getScanStatus(scanJobs, 'contacts')
+                },
+                // Thread summary for email preview
+                threadSummary: outreachTimeline.length > 0 ? {
+                    totalEmails: outreachTimeline.length,
+                    latestSubject: outreachTimeline[0].subject,
+                    latestStatus: outreachTimeline[0].status || 'SENT',
+                    latestAt: outreachTimeline[0].sentAt,
+                    latestPreview: outreachTimeline[0].bodyText?.substring(0, 150) || '',
+                    hasReply: outreachTimeline.some(e => e.replyDetectedAt)
+                } : null,
+                // Contacts summary
+                contactsSummary: {
+                    total: contacts.length + (manualContacts?.manualContacts ?
+                        (JSON.parse(manualContacts.manualContacts as string) || []).length : 0),
+                    leadContacts: contacts.length,
+                    manualContacts: manualContacts?.manualContacts ?
+                        (JSON.parse(manualContacts.manualContacts as string) || []).length : 0,
+                    discoveredEmails: company.discoveredEmails.length,
+                    lastScannedAt: manualContacts?.contactsLastScannedAt
+                }
+            }
         });
 
     } catch (e: any) {
         console.error('[Company API] Error:', e);
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
+}
+
+/**
+ * Helper to get latest scan status for a given scan type
+ */
+function getScanStatus(scanJobs: any[], scanType: string) {
+    const job = scanJobs.find(j => j.scanType === scanType);
+    if (!job) {
+        return { status: 'idle', lastRunAt: null };
+    }
+    return {
+        status: job.status,
+        progress: job.progress,
+        lastRunAt: job.updatedAt || job.createdAt,
+        error: job.error
+    };
 }

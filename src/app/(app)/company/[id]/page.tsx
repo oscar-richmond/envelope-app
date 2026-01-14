@@ -1,14 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
     ArrowLeft, Building2, Globe, MapPin, Phone, Star, Users,
     RefreshCw, ExternalLink, Mail, Send, TrendingUp, Activity,
     Clock, AlertCircle, CheckCircle, ChevronRight, FileText,
-    DollarSign, BarChart3, Eye, MessageSquare, Calendar
+    DollarSign, BarChart3, Eye, MessageSquare, Calendar, UserPlus,
+    Search, Loader2, Monitor, Zap
 } from 'lucide-react';
+import ModuleSkeleton, { ScreenshotSkeleton, ScoreCardSkeleton, ContactsSkeleton } from '@/components/company-hq/ModuleSkeleton';
+import ModuleEmptyState from '@/components/company-hq/ModuleEmptyState';
+import ModuleErrorState from '@/components/company-hq/ModuleErrorState';
+import { useScanStatus } from '@/lib/hooks/useScanStatus';
+import AddContactModal from '@/components/modals/AddContactModal';
+
+interface ScanStatus {
+    status: 'idle' | 'queued' | 'running' | 'success' | 'failed';
+    progress?: number;
+    lastRunAt: string | null;
+    error?: string;
+}
 
 interface CompanyProfile {
     company: {
@@ -73,12 +86,35 @@ interface CompanyProfile {
         subject: string;
         status: string;
         sentAt: string;
+        bodyText?: string;
         replyDetectedAt: string | null;
         replyIntent: string | null;
         contactName: string;
         contactEmail: string;
     }>;
     discoveredEmails: Array<{ email: string; confidence: string }>;
+    workspace: {
+        scanStatus: {
+            web_health: ScanStatus;
+            financial_health: ScanStatus;
+            contacts: ScanStatus;
+        };
+        threadSummary: {
+            totalEmails: number;
+            latestSubject: string;
+            latestStatus: string;
+            latestAt: string;
+            latestPreview: string;
+            hasReply: boolean;
+        } | null;
+        contactsSummary: {
+            total: number;
+            leadContacts: number;
+            manualContacts: number;
+            discoveredEmails: number;
+            lastScannedAt: string | null;
+        };
+    };
 }
 
 export default function CompanyWorkspacePage() {
@@ -88,9 +124,15 @@ export default function CompanyWorkspacePage() {
 
     const [profile, setProfile] = useState<CompanyProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
     const [screenshotLoading, setScreenshotLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'financial' | 'contacts'>('overview');
+    const [showAllContacts, setShowAllContacts] = useState(false);
+    const [addContactOpen, setAddContactOpen] = useState(false);
+
+    // Scan status hook
+    const scanStatus = useScanStatus(parseInt(companyId) || 0);
 
     useEffect(() => {
         fetchProfile();
@@ -98,18 +140,21 @@ export default function CompanyWorkspacePage() {
 
     async function fetchProfile() {
         setLoading(true);
+        setError(null);
         try {
             const res = await fetch(`/api/company/${companyId}`);
-            if (res.ok) {
-                const data = await res.json();
-                setProfile(data);
-                // Auto-fetch screenshot if website exists
-                if (data.company.website) {
-                    fetchScreenshot(data.company.website);
-                }
+            if (!res.ok) {
+                throw new Error(res.status === 404 ? 'Company not found' : 'Failed to load company');
             }
-        } catch (e) {
+            const data = await res.json();
+            setProfile(data);
+            // Auto-fetch screenshot if website exists
+            if (data.company.website) {
+                fetchScreenshot(data.company.website);
+            }
+        } catch (e: any) {
             console.error(e);
+            setError(e.message || 'Something went wrong');
         } finally {
             setLoading(false);
         }
@@ -130,27 +175,92 @@ export default function CompanyWorkspacePage() {
         }
     }
 
+    // Handle scan triggers
+    const handleWebHealthScan = useCallback(() => {
+        scanStatus.triggerScan('web_health');
+    }, [scanStatus]);
+
+    const handleFinancialScan = useCallback(() => {
+        scanStatus.triggerScan('financial_health');
+    }, [scanStatus]);
+
+    const handleContactsScan = useCallback(() => {
+        scanStatus.triggerScan('contacts');
+    }, [scanStatus]);
+
+    // Skeleton loading state
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-gray-400 animate-pulse">Loading company...</div>
+            <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
+                {/* Header Skeleton */}
+                <header className="hero-surface hero-surface-brand px-6 py-6 sticky top-0 z-10">
+                    <div className="max-w-7xl mx-auto flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-gray-200 animate-pulse" />
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-gray-200 animate-pulse" />
+                                <div className="space-y-2">
+                                    <div className="h-5 w-40 bg-gray-200 rounded animate-pulse" />
+                                    <div className="h-3 w-28 bg-gray-100 rounded animate-pulse" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+                <main className="max-w-7xl mx-auto p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <div className="lg:col-span-2"><ScreenshotSkeleton /></div>
+                        <ScoreCardSkeleton />
+                    </div>
+                    <div className="flex gap-2 mb-6">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="h-9 w-24 bg-gray-200 rounded-lg animate-pulse" />
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <ModuleSkeleton lines={4} />
+                        <ModuleSkeleton lines={5} />
+                        <div className="lg:col-span-2"><ModuleSkeleton lines={3} /></div>
+                    </div>
+                </main>
+            </div>
+        );
+    }
+
+    // Error state
+    if (error) {
+        return (
+            <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
+                <div className="max-w-md mx-auto py-24">
+                    <ModuleErrorState
+                        message={error}
+                        onRetry={fetchProfile}
+                    />
+                    <div className="text-center mt-4">
+                        <Link href="/prospects" className="text-indigo-600 hover:underline text-sm">
+                            ← Back to Prospects
+                        </Link>
+                    </div>
+                </div>
             </div>
         );
     }
 
     if (!profile) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-                <AlertCircle size={48} className="text-gray-300 mb-4" />
-                <h2 className="text-lg font-semibold text-gray-700">Company not found</h2>
-                <Link href="/prospects" className="mt-4 text-indigo-600 hover:underline">
-                    ← Back to Prospects
-                </Link>
+            <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
+                <div className="flex flex-col items-center justify-center min-h-[60vh]">
+                    <AlertCircle size={48} className="text-gray-300 mb-4" />
+                    <h2 className="text-lg font-semibold text-gray-700">Company not found</h2>
+                    <Link href="/prospects" className="mt-4 text-indigo-600 hover:underline">
+                        ← Back to Prospects
+                    </Link>
+                </div>
             </div>
         );
     }
 
-    const { company, financial, staleness, priority, places, website, ai, contacts, outreachTimeline, discoveredEmails } = profile;
+    const { company, financial, staleness, priority, places, website, ai, contacts, outreachTimeline, discoveredEmails, workspace } = profile;
 
     return (
         <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
@@ -433,53 +543,149 @@ export default function CompanyWorkspacePage() {
                 )}
 
                 {activeTab === 'contacts' && (
-                    <Card title="Contacts" icon={<Users size={16} className="text-indigo-500" />}>
-                        {contacts.length === 0 && discoveredEmails.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400">
-                                <Users size={32} className="mx-auto mb-2 opacity-50" />
-                                <p>No contacts found</p>
+                    <div className="bg-white rounded-2xl border border-gray-200">
+                        {/* Header with CTAs */}
+                        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Users size={16} className="text-indigo-500" />
+                                <h3 className="font-semibold text-gray-900">
+                                    Contacts
+                                    {workspace?.contactsSummary?.total > 0 && (
+                                        <span className="ml-2 text-xs font-normal text-gray-500">
+                                            ({workspace.contactsSummary.total})
+                                        </span>
+                                    )}
+                                </h3>
                             </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {contacts.map(contact => (
-                                    <div key={contact.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                                            {contact.name.charAt(0)}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="font-medium text-gray-800">{contact.name}</p>
-                                            <p className="text-sm text-gray-500">{contact.email}</p>
-                                        </div>
-                                        {contact.role && (
-                                            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
-                                                {contact.role}
-                                            </span>
-                                        )}
-                                        <Link href={`/outreach?leadId=${contact.id}`} className="btn btn-secondary text-xs">
-                                            <Mail size={14} />
-                                            Email
-                                        </Link>
-                                    </div>
-                                ))}
-                                {discoveredEmails.length > 0 && (
-                                    <div className="pt-4 border-t border-gray-100">
-                                        <h4 className="text-xs font-medium text-gray-500 uppercase mb-3">Discovered Emails</h4>
-                                        {discoveredEmails.map((email, i) => (
-                                            <div key={i} className="flex items-center gap-2 text-sm py-1">
-                                                <Mail size={14} className="text-gray-400" />
-                                                <span className="text-gray-700">{email.email}</span>
-                                                <span className={`text-xs px-1.5 py-0.5 rounded ${email.confidence === 'HIGH' ? 'bg-green-100 text-green-700' :
-                                                    email.confidence === 'MEDIUM' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
-                                                    }`}>
-                                                    {email.confidence}
-                                                </span>
+                            <div className="flex items-center gap-2">
+                                {/* Find Contacts / Rescan button */}
+                                <button
+                                    onClick={handleContactsScan}
+                                    disabled={scanStatus.statuses.contacts?.status === 'running'}
+                                    className="btn btn-secondary btn-sm"
+                                >
+                                    {scanStatus.statuses.contacts?.status === 'running' ? (
+                                        <>
+                                            <Loader2 size={14} className="animate-spin" />
+                                            Scanning...
+                                        </>
+                                    ) : workspace?.contactsSummary?.lastScannedAt ? (
+                                        <>
+                                            <RefreshCw size={14} />
+                                            Rescan
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Search size={14} />
+                                            Find Contacts
+                                        </>
+                                    )}
+                                </button>
+                                {/* Add Contact button */}
+                                <button
+                                    onClick={() => setAddContactOpen(true)}
+                                    className="btn btn-primary btn-sm"
+                                >
+                                    <UserPlus size={14} />
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-5">
+                            {contacts.length === 0 && discoveredEmails.length === 0 ? (
+                                <ModuleEmptyState
+                                    icon={<Users size={32} className="text-gray-300" />}
+                                    title="No contacts found"
+                                    description="Find contacts for this company or add them manually."
+                                    action={{
+                                        label: workspace?.contactsSummary?.lastScannedAt ? 'Rescan' : 'Find Contacts',
+                                        onClick: handleContactsScan,
+                                        loading: scanStatus.statuses.contacts?.status === 'running'
+                                    }}
+                                    secondaryAction={{
+                                        label: 'Add manually',
+                                        onClick: () => setAddContactOpen(true)
+                                    }}
+                                />
+                            ) : (
+                                <div className="space-y-3">
+                                    {/* Show first 5 contacts, or all if expanded */}
+                                    {(showAllContacts ? contacts : contacts.slice(0, 5)).map(contact => (
+                                        <div key={contact.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                                            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                                                {contact.name.charAt(0)}
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </Card>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-gray-800 truncate">{contact.name}</p>
+                                                <p className="text-sm text-gray-500 truncate">{contact.email}</p>
+                                            </div>
+                                            {contact.role && (
+                                                <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full flex-shrink-0">
+                                                    {contact.role}
+                                                </span>
+                                            )}
+                                            <Link href={`/outreach?leadId=${contact.id}`} className="btn btn-secondary btn-sm flex-shrink-0">
+                                                <Mail size={14} />
+                                                Email
+                                            </Link>
+                                        </div>
+                                    ))}
+
+                                    {/* View all / collapse toggle */}
+                                    {contacts.length > 5 && (
+                                        <button
+                                            onClick={() => setShowAllContacts(!showAllContacts)}
+                                            className="w-full py-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center justify-center gap-1"
+                                        >
+                                            {showAllContacts ? (
+                                                <>Show less</>
+                                            ) : (
+                                                <>View all {contacts.length} contacts</>
+                                            )}
+                                        </button>
+                                    )}
+
+                                    {/* Discovered emails section */}
+                                    {discoveredEmails.length > 0 && (
+                                        <div className="pt-4 border-t border-gray-100">
+                                            <h4 className="text-xs font-medium text-gray-500 uppercase mb-3">Discovered Emails</h4>
+                                            {discoveredEmails.map((email, i) => (
+                                                <div key={i} className="flex items-center gap-2 text-sm py-1">
+                                                    <Mail size={14} className="text-gray-400" />
+                                                    <span className="text-gray-700">{email.email}</span>
+                                                    <span className={`text-xs px-1.5 py-0.5 rounded ${email.confidence === 'HIGH' ? 'bg-green-100 text-green-700' :
+                                                        email.confidence === 'MEDIUM' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                                                        }`}>
+                                                        {email.confidence}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Last scanned timestamp */}
+                                    {workspace?.contactsSummary?.lastScannedAt && (
+                                        <div className="pt-3 text-xs text-gray-400 text-center">
+                                            Last scanned {formatDate(workspace.contactsSummary.lastScannedAt)}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Add Contact Modal */}
+                {addContactOpen && (
+                    <AddContactModal
+                        companyId={parseInt(companyId)}
+                        onClose={() => setAddContactOpen(false)}
+                        onSuccess={() => {
+                            setAddContactOpen(false);
+                            fetchProfile();
+                        }}
+                    />
                 )}
             </main>
         </div>
