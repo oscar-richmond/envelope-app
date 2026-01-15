@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Save, Loader2, AlertCircle, Mail, Search, ChevronDown, User, Users } from 'lucide-react';
 import type { ThreadData } from './MessageThreadComposerModal';
+import { ComposerAIToolbar } from './ComposerAIToolbar';
 import dynamic from 'next/dynamic';
 
 const RichEditor = dynamic(() => import('../outreach/rich-editor'), {
@@ -35,6 +36,12 @@ interface ComposePaneProps {
     onSuccess: () => void;
     contacts?: Contact[];
     onFindContacts?: () => void;
+    companyContext?: {
+        websiteSignals?: string[];
+        financialSignals?: string[];
+        offering?: string;
+        industry?: string;
+    };
 }
 
 export function ComposePane({
@@ -50,7 +57,8 @@ export function ComposePane({
     onContentChange,
     onSuccess,
     contacts = [],
-    onFindContacts
+    onFindContacts,
+    companyContext
 }: ComposePaneProps) {
     const [bodyText, setBodyText] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -58,6 +66,8 @@ export function ComposePane({
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
+    const [aiSummary, setAiSummary] = useState<string | null>(null);
+    const [aiReplies, setAiReplies] = useState<string[]>([]);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown on outside click
@@ -326,6 +336,91 @@ export function ComposePane({
                     />
                 </div>
             </div>
+
+            {/* AI Toolbar */}
+            <ComposerAIToolbar
+                emailId={emailId}
+                thread={thread}
+                companyContext={companyContext}
+                onSummaryGenerated={(summary) => {
+                    setAiSummary(summary);
+                    // Show summary in a toast or panel - for now log
+                    console.log('[AI] Summary:', summary);
+                }}
+                onRepliesGenerated={(replies) => {
+                    setAiReplies(replies);
+                    // Insert first reply if available
+                    if (replies.length > 0) {
+                        onContentChange(replies[0]);
+                    }
+                }}
+                onDraftGenerated={(draft) => {
+                    onContentChange(draft);
+                }}
+            />
+
+            {/* AI Summary Panel (if generated) */}
+            {aiSummary && (
+                <div
+                    className="px-6 py-3 text-sm border-b"
+                    style={{
+                        background: 'rgba(139, 92, 246, 0.05)',
+                        borderColor: 'rgba(139, 92, 246, 0.2)',
+                        color: 'var(--text-secondary)'
+                    }}
+                >
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(139, 92, 246)' }}>
+                            AI Summary
+                        </span>
+                        <button
+                            onClick={() => setAiSummary(null)}
+                            className="ml-auto text-xs hover:underline"
+                            style={{ color: 'var(--text-muted)' }}
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                    <p className="text-sm leading-relaxed">{aiSummary}</p>
+                </div>
+            )}
+
+            {/* AI Replies Panel (if generated) */}
+            {aiReplies.length > 0 && (
+                <div
+                    className="px-6 py-3 text-sm border-b"
+                    style={{
+                        background: 'rgba(16, 185, 129, 0.05)',
+                        borderColor: 'rgba(16, 185, 129, 0.2)',
+                        color: 'var(--text-secondary)'
+                    }}
+                >
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(16, 185, 129)' }}>
+                            Suggested Replies
+                        </span>
+                        <button
+                            onClick={() => setAiReplies([])}
+                            className="ml-auto text-xs hover:underline"
+                            style={{ color: 'var(--text-muted)' }}
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {aiReplies.map((reply, i) => (
+                            <button
+                                key={i}
+                                onClick={() => onContentChange(reply)}
+                                className="text-xs px-3 py-1.5 rounded-lg border hover:bg-gray-50 transition-colors"
+                                style={{ borderColor: 'var(--border-soft)', color: 'var(--text-primary)' }}
+                            >
+                                Option {i + 1}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Editor */}
             <div className="flex-1 p-6 overflow-y-auto">
