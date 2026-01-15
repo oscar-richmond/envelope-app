@@ -60,6 +60,8 @@ const TYPE_SPECIFIC_OPTIONS: RescanOption[] = [
 
 interface RescanDropdownProps {
     totalCount: number;
+    missingCount?: number;
+    staleCount?: number;
     onScan: (scope: RescanScope, types: RescanTypes) => void;
     isScanning: boolean;
     progress?: { current: number; total: number };
@@ -68,6 +70,8 @@ interface RescanDropdownProps {
 
 export default function RescanDropdown({
     totalCount,
+    missingCount,
+    staleCount,
     onScan,
     isScanning,
     progress,
@@ -157,6 +161,22 @@ export default function RescanDropdown({
                             <div className="flex items-center justify-between">
                                 <span className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
                                     {option.label}
+                                    {option.scope === 'missing' && missingCount !== undefined && missingCount > 0 && (
+                                        <span
+                                            className="ml-2 text-xs font-normal"
+                                            style={{ color: 'var(--text-muted)' }}
+                                        >
+                                            ({missingCount})
+                                        </span>
+                                    )}
+                                    {option.scope === 'stale' && staleCount !== undefined && staleCount > 0 && (
+                                        <span
+                                            className="ml-2 text-xs font-normal"
+                                            style={{ color: 'var(--text-muted)' }}
+                                        >
+                                            ({staleCount})
+                                        </span>
+                                    )}
                                     {option.scope === 'all' && totalCount > 0 && (
                                         <span
                                             className="ml-2 text-xs font-normal"

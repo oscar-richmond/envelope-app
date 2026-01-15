@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { resolveCompanyIdentityOrError } from '@/lib/resolveCompanyIdentity';
 
 // Job tracking (use Redis in production)
 const jobs: Record<string, any> = (global as any).__contactScanJobs || {};
@@ -15,10 +16,24 @@ export async function POST(
     { params }: { params: { id: string } }
 ) {
     try {
-        const companyId = parseInt(params.id);
-        if (isNaN(companyId)) {
-            return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
+        const rawId = params.id;
+
+        // Use resolver for flexible company identification
+        const resolved = await resolveCompanyIdentityOrError({
+            companyId: !isNaN(parseInt(rawId)) ? parseInt(rawId) : undefined,
+            companiesHouseNumber: isNaN(parseInt(rawId)) ? rawId : undefined
+        });
+
+        if (!resolved.success) {
+            console.warn(`[ContactsScan] Company resolution failed for: ${rawId}`);
+            return NextResponse.json({
+                error: resolved.error,
+                errorCode: resolved.errorCode,
+                hint: resolved.hint
+            }, { status: 400 });
         }
+
+        const companyId = resolved.companyId;
 
         const body = await request.json().catch(() => ({}));
         const { domain: providedDomain, force = false } = body;

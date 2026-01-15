@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { SCAN_TTL_DAYS } from '@/lib/config/staleness-config';
 
 export async function GET() {
     try {
@@ -93,10 +94,24 @@ export async function GET() {
                 }
             };
 
+            // Compute staleness flags using TTL constants
+            const now = Date.now();
+            const webTtlMs = SCAN_TTL_DAYS.WEB_HEALTH * 24 * 60 * 60 * 1000;
+            const finTtlMs = SCAN_TTL_DAYS.FIN_HEALTH * 24 * 60 * 60 * 1000;
+
+            const staleness = {
+                isWebMissing: !websiteLastScanned,
+                isWebStale: websiteLastScanned ? (now - new Date(websiteLastScanned).getTime()) > webTtlMs : false,
+                isFinMissing: !financialLastScanned,
+                isFinStale: financialLastScanned ? (now - new Date(financialLastScanned).getTime()) > finTtlMs : false
+            };
+
             return {
                 ...lead,
                 // NEW: Stable signals contract
                 signals,
+                // Staleness flags for bulk operations
+                staleness,
                 // Legacy fields for backwards compat
                 financialScore,
                 stalenessScore,

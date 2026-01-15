@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { resolveCompanyIdentityOrError } from '@/lib/resolveCompanyIdentity';
 
 /**
  * GET /api/companies/[id]/contacts
@@ -12,11 +13,23 @@ export async function GET(
 ) {
     try {
         const { id } = await context.params;
-        const companyId = parseInt(id);
-        if (isNaN(companyId)) {
-            return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
+
+        // Use resolver for flexible company identification
+        const resolved = await resolveCompanyIdentityOrError({
+            companyId: !isNaN(parseInt(id)) ? parseInt(id) : undefined,
+            companiesHouseNumber: isNaN(parseInt(id)) ? id : undefined
+        });
+
+        if (!resolved.success) {
+            console.warn(`[Contacts GET] Company resolution failed for: ${id}`);
+            return NextResponse.json({
+                error: resolved.error,
+                errorCode: resolved.errorCode,
+                hint: resolved.hint
+            }, { status: 400 });
         }
 
+        const companyId = resolved.companyId;
         console.log(`[Contacts GET] Fetching contacts for company ${companyId}`);
 
         // Get company prospect with contacts
@@ -34,12 +47,21 @@ export async function GET(
         });
 
         if (!prospect) {
-            return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+            return NextResponse.json({
+                error: 'Company not found',
+                errorCode: 'COMPANY_NOT_FOUND'
+            }, { status: 404 });
         }
 
         // Parse enrichment data for scanned contacts
         let scannedContacts: any[] = [];
-        let scanStatus = 'idle';
+        // Compute status: never_scanned | success | stale
+        let scanStatus: 'never_scanned' | 'success' | 'stale' | 'failed' = 'never_scanned';
+
+        if (prospect.contactsLastScannedAt) {
+            const daysSinceScan = (Date.now() - new Date(prospect.contactsLastScannedAt).getTime()) / (1000 * 60 * 60 * 24);
+            scanStatus = daysSinceScan > 30 ? 'stale' : 'success';
+        }
 
         try {
             if (prospect.enrichmentData) {
@@ -163,10 +185,23 @@ export async function POST(
 ) {
     try {
         const { id } = await context.params;
-        const companyId = parseInt(id);
-        if (isNaN(companyId)) {
-            return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
+
+        // Use resolver for flexible company identification
+        const resolved = await resolveCompanyIdentityOrError({
+            companyId: !isNaN(parseInt(id)) ? parseInt(id) : undefined,
+            companiesHouseNumber: isNaN(parseInt(id)) ? id : undefined
+        });
+
+        if (!resolved.success) {
+            console.warn(`[Contacts POST] Company resolution failed for: ${id}`);
+            return NextResponse.json({
+                error: resolved.error,
+                errorCode: resolved.errorCode,
+                hint: resolved.hint
+            }, { status: 400 });
         }
+
+        const companyId = resolved.companyId;
 
         const body = await request.json();
         const { firstName, lastName, roleTitle, email } = body;

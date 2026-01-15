@@ -14,6 +14,30 @@ export default function WebsitePreview({ url, screenshotUrl }: WebsitePreviewPro
     const [imageError, setImageError] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
+    // Handle missing or invalid URL
+    if (!url) {
+        return (
+            <div className={hqStyles.card}>
+                <div className="bg-gray-100 px-4 py-2 flex items-center gap-2 border-b border-gray-200 rounded-t-xl">
+                    <div className="flex gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+                    </div>
+                    <div className="flex-1 mx-4 bg-white rounded-md h-6 flex items-center px-3 text-xs text-gray-400 shadow-sm">
+                        No website URL
+                    </div>
+                </div>
+                <div className="aspect-video bg-gray-50 flex items-center justify-center rounded-b-xl">
+                    <div className="text-center">
+                        <Globe size={32} className="text-gray-300 mx-auto mb-2" />
+                        <span className="text-xs text-gray-400 block">No website URL available</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     let hostname = 'website';
     try {
         hostname = new URL(url).hostname;

@@ -1,14 +1,15 @@
 'use client';
 
 import { hqStyles } from './SharedStyles';
-import { Mail, MessageCircle, Clock } from 'lucide-react';
+import { Mail, MessageCircle, PenLine } from 'lucide-react';
 import Link from 'next/link';
 
 interface ThreadPreviewProps {
     sentEmails: any[];
+    onCompose?: () => void;
 }
 
-export default function ThreadPreview({ sentEmails }: ThreadPreviewProps) {
+export default function ThreadPreview({ sentEmails, onCompose }: ThreadPreviewProps) {
     // SAFE: ensure sentEmails is always an array
     const emails = Array.isArray(sentEmails) ? sentEmails : [];
     const latestEmail = emails.length > 0 ? emails[0] : null;
@@ -44,10 +45,22 @@ export default function ThreadPreview({ sentEmails }: ThreadPreviewProps) {
                         </div>
                     </div>
                 ) : (
-                    <div className="text-center py-6 text-gray-400">
+                    <div className="text-center py-6">
                         <Mail size={24} className="mx-auto mb-2 text-gray-300" />
-                        <p className="text-sm">No outreach sent yet.</p>
-                        <p className="text-xs">Draft a message below to start.</p>
+                        <p className="text-sm text-gray-400">No outreach sent yet.</p>
+                        {onCompose && (
+                            <button
+                                onClick={onCompose}
+                                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all"
+                                style={{
+                                    background: 'var(--brand)',
+                                    color: 'white'
+                                }}
+                            >
+                                <PenLine size={12} />
+                                Compose Outreach
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

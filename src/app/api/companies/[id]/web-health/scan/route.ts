@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { resolveCompanyIdentityOrError } from '@/lib/resolveCompanyIdentity';
 
 /**
  * POST /api/companies/[id]/web-health/scan
@@ -12,11 +13,24 @@ export async function POST(
     { params }: { params: { id: string } }
 ) {
     try {
-        const companyId = parseInt(params.id);
-        if (isNaN(companyId)) {
-            return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
+        const rawId = params.id;
+
+        // Use resolver for flexible company identification
+        const resolved = await resolveCompanyIdentityOrError({
+            companyId: !isNaN(parseInt(rawId)) ? parseInt(rawId) : undefined,
+            companiesHouseNumber: isNaN(parseInt(rawId)) ? rawId : undefined
+        });
+
+        if (!resolved.success) {
+            console.warn(`[WebHealthScan] Company resolution failed for: ${rawId}`);
+            return NextResponse.json({
+                error: resolved.error,
+                errorCode: resolved.errorCode,
+                hint: resolved.hint
+            }, { status: 400 });
         }
 
+        const companyId = resolved.companyId;
         console.log(`[WebHealthScan] Starting scan for company ${companyId}...`);
 
         // Get company prospect
@@ -25,7 +39,11 @@ export async function POST(
         });
 
         if (!prospect) {
-            return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+            return NextResponse.json({
+                error: 'Company not found',
+                errorCode: 'COMPANY_NOT_FOUND',
+                hint: 'The company may have been deleted'
+            }, { status: 404 });
         }
 
         // Normalize domain
@@ -40,16 +58,36 @@ export async function POST(
         }
 
         if (!domain) {
+            // Persist failed status
+            const failedData = {
+                score: 0,
+                label: 'No Website',
+                signals: [],
+                breakdown: [],
+                status: 'failed',
+                failureReason: 'No website URL found',
+                lastScannedAt: new Date().toISOString()
+            };
+
+            await prisma.companyProspect.update({
+                where: { id: companyId },
+                data: { webHealthData: JSON.stringify(failedData) }
+            });
+
             return NextResponse.json({
+                success: false,
+                status: 'failed',
                 error: 'No website URL found',
-                status: 'no_domain'
+                errorCode: 'NO_WEBSITE_URL'
             }, { status: 400 });
         }
 
-        console.log(`[WebHealthScan] Scanning domain: ${domain}`);
+        console.log(`[WebHealthScan] Scanning domain: ${domain}`)
 
         // Perform website scan
-        let webHealthData: any = null;
+        let score = 50;
+        const signals: string[] = [];
+        const breakdown: { label: string; points: number; text?: string; status?: 'good' | 'ok' | 'risk' }[] = [];
 
         try {
             // Fetch website to check if it's reachable
@@ -65,28 +103,31 @@ export async function POST(
 
             clearTimeout(timeout);
 
-            let score = 50;
-            const signals: string[] = [];
-
             if (response) {
                 // Website is reachable
                 score += 20;
                 signals.push('Website is reachable');
+                breakdown.push({ label: 'Website Reachable', points: 20, text: 'Site responds to requests', status: 'good' });
 
                 // Check SSL
                 if (url.startsWith('https://')) {
                     score += 10;
                     signals.push('SSL certificate is active');
+                    breakdown.push({ label: 'SSL Certificate', points: 10, text: 'HTTPS enabled', status: 'good' });
                 }
 
                 // Check response time (via status)
                 if (response.ok) {
                     score += 10;
                     signals.push('Website returns 200 OK');
+                    breakdown.push({ label: 'HTTP Status', points: 10, text: 'Returns 200 OK', status: 'good' });
+                } else {
+                    breakdown.push({ label: 'HTTP Status', points: 0, text: `Returns ${response.status}`, status: 'ok' });
                 }
             } else {
                 score -= 20;
                 signals.push('Website may be unreachable');
+                breakdown.push({ label: 'Website Reachable', points: -20, text: 'Could not connect', status: 'risk' });
             }
 
             // Calculate staleness based on discovery date
@@ -96,60 +137,66 @@ export async function POST(
                 if (daysSinceDiscovery < 7) {
                     score += 10;
                     signals.push('Recently verified');
+                    breakdown.push({ label: 'Verification Recency', points: 10, text: 'Verified in last week', status: 'good' });
                 } else if (daysSinceDiscovery < 30) {
-                    // Keep current score
                     signals.push('Verified within last month');
+                    breakdown.push({ label: 'Verification Recency', points: 0, text: 'Verified in last month', status: 'ok' });
                 } else {
                     score -= 10;
                     signals.push('May need re-verification');
+                    breakdown.push({ label: 'Verification Recency', points: -10, text: 'Over 30 days old', status: 'risk' });
                 }
             }
 
-            // Score capped at 0-100
-            score = Math.max(0, Math.min(100, score));
-
-            // Determine status label
-            let label = 'Fresh';
-            if (score >= 70) label = 'Fresh';
-            else if (score >= 40) label = 'Stale';
-            else label = 'Risk';
-
-            webHealthData = {
-                score,
-                label,
-                signals,
-                isReachable: !!response?.ok
-            };
-
         } catch (e: any) {
             console.error('[WebHealthScan] Scan error:', e);
-            webHealthData = {
-                score: 30,
-                label: 'Unknown',
-                signals: ['Could not verify website'],
-                isReachable: false
-            };
+            score = 30;
+            signals.push('Could not verify website');
+            breakdown.push({ label: 'Scan Error', points: 0, text: 'Could not complete scan', status: 'risk' });
         }
 
-        // Update database
+        // Score capped at 0-100
+        score = Math.max(0, Math.min(100, score));
+
+        // Determine status label
+        let label = 'Fresh';
+        if (score >= 70) label = 'Healthy';
+        else if (score >= 40) label = 'Needs Work';
+        else label = 'At Risk';
+
+        // Build complete webHealthData JSON
+        const webHealthData = {
+            score,
+            label,
+            signals,
+            breakdown,
+            status: 'success',
+            domain,
+            lastScannedAt: new Date().toISOString()
+        };
+
+        // Update database - persist to BOTH legacy fields AND webHealthData JSON
         await prisma.companyProspect.update({
             where: { id: companyId },
             data: {
                 websiteDomain: domain,
                 websiteDiscoveryDate: new Date(),
-                websiteSignals: JSON.stringify(webHealthData.signals),
-                stalenessScore: webHealthData.score,
-                stalenessLabel: webHealthData.label
+                websiteSignals: JSON.stringify(signals),
+                stalenessScore: score,
+                stalenessLabel: label,
+                webHealthData: JSON.stringify(webHealthData)
             }
         });
 
-        console.log(`[WebHealthScan] Completed for company ${companyId}: score=${webHealthData.score}`);
+        console.log(`[WebHealthScan] Completed for company ${companyId}: score=${score}`);
 
         return NextResponse.json({
             success: true,
-            score: webHealthData.score,
-            label: webHealthData.label,
-            signals: webHealthData.signals,
+            status: 'success',
+            score,
+            label,
+            signals,
+            breakdown,
             domain,
             lastScanned: new Date().toISOString()
         });
@@ -157,7 +204,8 @@ export async function POST(
     } catch (error: any) {
         console.error('[WebHealthScan] Error:', error);
         return NextResponse.json({
-            error: error.message || 'Failed to scan website'
+            error: error.message || 'Failed to scan website',
+            errorCode: 'SCAN_FAILED'
         }, { status: 500 });
     }
 }

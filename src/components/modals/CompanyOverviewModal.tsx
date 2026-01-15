@@ -7,7 +7,7 @@ import {
     X, ExternalLink, Maximize2, Copy, Minimize2, Check,
     Monitor, TrendingUp, Target, Mail,
     RefreshCw, Send, Plus, ChevronRight,
-    Users, MessageSquare, Tag
+    Users, MessageSquare, Tag, Loader2
 } from 'lucide-react';
 import { useCompanyViewer } from '@/components/modals/CompanyViewerProvider';
 import CompanyLogo from '@/components/ui/CompanyLogo';
@@ -27,9 +27,11 @@ function ScoreCard({
     accent,
     icon: Icon,
     onWhy,
+    onScan,
     ctaLabel = 'View report',
     notScanned = false,
-    notScannedCtaLabel = 'Scan now'
+    notScannedCtaLabel = 'Scan now',
+    isScanning = false
 }: {
     label: string;
     score: number;
@@ -37,9 +39,11 @@ function ScoreCard({
     accent: 'mint' | 'lilac' | 'blue' | 'default';
     icon: any;
     onWhy?: () => void;
+    onScan?: () => void;
     ctaLabel?: string;
     notScanned?: boolean;
     notScannedCtaLabel?: string;
+    isScanning?: boolean;
 }) {
     const accentStyles: Record<string, { border: string; iconBg: string; iconColor: string; badgeBg: string; badgeColor: string }> = {
         mint: {
@@ -135,21 +139,35 @@ function ScoreCard({
             )}
 
             {/* CTA Button - Always Visible */}
-            {onWhy && (
+            {(onWhy || onScan) && (
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        onWhy();
+                        if (notScanned && onScan) {
+                            onScan();
+                        } else if (onWhy) {
+                            onWhy();
+                        }
                     }}
-                    className="absolute bottom-4 right-4 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all hover:scale-[1.02]"
+                    disabled={isScanning}
+                    className="absolute bottom-4 right-4 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
                     style={{
                         background: notScanned ? 'var(--brand)' : 'var(--bg-card-muted)',
                         color: notScanned ? 'white' : 'var(--text-secondary)',
                         border: notScanned ? 'none' : '1px solid var(--border-soft)'
                     }}
                 >
-                    {notScanned ? notScannedCtaLabel : ctaLabel}
-                    <ChevronRight size={12} />
+                    {isScanning ? (
+                        <>
+                            <Loader2 size={12} className="animate-spin" />
+                            Scanning...
+                        </>
+                    ) : (
+                        <>
+                            {notScanned ? notScannedCtaLabel : ctaLabel}
+                            <ChevronRight size={12} />
+                        </>
+                    )}
                 </button>
             )}
         </div>
@@ -213,6 +231,82 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
     const [copied, setCopied] = useState(false);
     const [showTagPicker, setShowTagPicker] = useState(false);
     const [isComposeModalOpen, setIsComposeModalOpen] = useState(false);
+
+    // Scan state
+    const [isWebScanning, setIsWebScanning] = useState(false);
+    const [isFinScanning, setIsFinScanning] = useState(false);
+
+    // Refetch data helper
+    const refetchData = async () => {
+        try {
+            let res;
+            if (resolvedLeadId || leadId) {
+                res = await fetch(`/api/company/${resolvedLeadId || leadId}/overview`);
+            } else if (prospectId) {
+                res = await fetch(`/api/prospects/${prospectId}/overview`);
+            }
+            if (res?.ok) {
+                const json = await res.json();
+                setData(json);
+            }
+        } catch (e) {
+            console.error('Refetch failed:', e);
+        }
+    };
+
+    // Handle website scan
+    const handleWebsiteScan = async () => {
+        const companyId = data?.companyProspectId || prospectId;
+        if (!companyId) return;
+
+        setIsWebScanning(true);
+        try {
+            const res = await fetch('/api/scan/website', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyProspectId: companyId,
+                    leadId: resolvedLeadId || leadId,
+                    force: true
+                })
+            });
+            if (res.ok) {
+                // Refetch data to get updated scores
+                await refetchData();
+            }
+        } catch (e) {
+            console.error('Website scan failed:', e);
+        } finally {
+            setIsWebScanning(false);
+        }
+    };
+
+    // Handle financial scan
+    const handleFinancialScan = async () => {
+        const companyId = data?.companyProspectId || prospectId;
+        if (!companyId) return;
+
+        setIsFinScanning(true);
+        try {
+            const res = await fetch('/api/scan/financials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyProspectId: companyId,
+                    leadId: resolvedLeadId || leadId,
+                    force: true
+                })
+            });
+            if (res.ok) {
+                // Refetch data to get updated scores
+                await refetchData();
+            }
+        } catch (e) {
+            console.error('Financial scan failed:', e);
+        } finally {
+            setIsFinScanning(false);
+        }
+    };
 
     // Copy link handler
     const handleCopyLink = async () => {
@@ -296,8 +390,51 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
     // SAFE DEFAULTS: Ensure arrays and objects exist
     const contacts = Array.isArray(data.contacts) ? data.contacts : [];
     const sentEmails = Array.isArray(data.sentEmails) ? data.sentEmails : [];
-    const websiteSignals = Array.isArray(data.websiteSignals) ? data.websiteSignals : [];
-    const financialSignals = Array.isArray(data.financialSignals) ? data.financialSignals : [];
+
+    // Parse website evidence from structured JSON (webHealthData or websiteSignals)
+    let websiteEvidence: { signals?: string[]; breakdown?: any[]; score?: number; label?: string; status?: string } = {};
+    if (data.companyProspect?.webHealthData) {
+        try {
+            const parsed = JSON.parse(data.companyProspect.webHealthData);
+            websiteEvidence = {
+                signals: parsed.signals || [],
+                breakdown: parsed.breakdown || [],
+                score: parsed.score,
+                label: parsed.label,
+                status: parsed.status || 'success'
+            };
+        } catch { /* ignore */ }
+    } else if (data.companyProspect?.websiteSignals) {
+        try {
+            const parsed = JSON.parse(data.companyProspect.websiteSignals);
+            websiteEvidence = { signals: Array.isArray(parsed) ? parsed : [] };
+        } catch { /* ignore */ }
+    } else if (Array.isArray(data.websiteSignals)) {
+        websiteEvidence = { signals: data.websiteSignals };
+    }
+    const websiteSignals = websiteEvidence.signals || (Array.isArray(data.websiteSignals) ? data.websiteSignals : []);
+
+    // Parse financial evidence from structured JSON (finHealthData or financialSignals)
+    let financialEvidence: { breakdown?: any[]; details?: string[] } = {};
+    if (data.companyProspect?.finHealthData) {
+        try {
+            const parsed = JSON.parse(data.companyProspect.finHealthData);
+            financialEvidence = { breakdown: parsed.breakdown || [], details: parsed.details || [] };
+        } catch { /* ignore */ }
+    } else if (data.companyProspect?.financialSignals) {
+        try {
+            const parsed = JSON.parse(data.companyProspect.financialSignals);
+            financialEvidence = { breakdown: parsed.breakdown || [], details: parsed.details || [] };
+        } catch {
+            // Legacy: might be a plain array
+            if (Array.isArray(data.financialSignals)) {
+                financialEvidence = { details: data.financialSignals };
+            }
+        }
+    } else if (Array.isArray(data.financialSignals)) {
+        financialEvidence = { details: data.financialSignals };
+    }
+
     const outreach = data.outreach ?? {};
 
     // Check if this is a prospect (not yet a lead)
@@ -447,7 +584,9 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                 accent={getScoreAccent(kpis.websiteScore)}
                                 icon={Monitor}
                                 onWhy={() => setIsWebsiteModalOpen(true)}
-                                ctaLabel="View report"
+                                onScan={handleWebsiteScan}
+                                isScanning={isWebScanning}
+                                ctaLabel="View"
                                 notScanned={!kpis.websiteScore || kpis.websiteScore === 0}
                                 notScannedCtaLabel="Scan website"
                             />
@@ -458,7 +597,9 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                 accent={getScoreAccent(kpis.financialScore)}
                                 icon={TrendingUp}
                                 onWhy={() => setIsFinancialModalOpen(true)}
-                                ctaLabel="View report"
+                                onScan={handleFinancialScan}
+                                isScanning={isFinScanning}
+                                ctaLabel="View"
                                 notScanned={!kpis.financialScore || kpis.financialScore === 0}
                                 notScannedCtaLabel="Sync financials"
                             />
@@ -646,7 +787,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                         Email Thread
                                     </h3>
                                 </div>
-                                <ThreadPreview sentEmails={sentEmails} />
+                                <ThreadPreview sentEmails={sentEmails} onCompose={handleComposeOutreach} />
                             </div>
                         )}
                     </div>
@@ -705,9 +846,11 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
             <WebsiteEvidenceModal
                 isOpen={isWebsiteModalOpen}
                 onClose={() => setIsWebsiteModalOpen(false)}
-                evidence={Array.isArray(data.websiteSignals) ? data.websiteSignals : []}
+                evidence={websiteEvidence}
                 url={data.websiteUrl}
                 lastChecked={data.companyProspect?.websiteDiscoveryDate}
+                companyId={data.companyProspectId || prospectId}
+                onRefresh={refetchData}
             />
 
             <FinancialReportModal
@@ -715,10 +858,11 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                 onClose={() => setIsFinancialModalOpen(false)}
                 score={kpis.financialScore}
                 band={kpis.financialBand}
-                evidence={financialSignals}
+                evidence={financialEvidence}
                 companyName={data.companyName}
                 companyId={data.companyProspectId || prospectId}
                 lastChecked={data.companyProspect?.financialLastCheckedAt}
+                onRefresh={refetchData}
             />
 
             {/* Compose Modal - only render if we have at least one ID */}

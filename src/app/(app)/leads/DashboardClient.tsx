@@ -88,6 +88,20 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
             return 0;
         }), [leads, filter, sort]);
 
+    // Compute staleness counts from API flags
+    const stalenessCounts = useMemo(() => {
+        let missingCount = 0;
+        let staleCount = 0;
+
+        for (const lead of filteredLeads) {
+            const s = lead.staleness;
+            if (s?.isWebMissing || s?.isFinMissing) missingCount++;
+            if (s?.isWebStale || s?.isFinStale) staleCount++;
+        }
+
+        return { missingCount, staleCount };
+    }, [filteredLeads]);
+
     // Unified Bulk Scan Handler
     const [scanProgress, setScanProgress] = useState<{ current: number; total: number } | undefined>();
 
@@ -393,6 +407,8 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                         {/* Unified Rescan Dropdown */}
                         <RescanDropdown
                             totalCount={filteredLeads.length}
+                            missingCount={stalenessCounts.missingCount}
+                            staleCount={stalenessCounts.staleCount}
                             onScan={handleUnifiedBulkScan}
                             isScanning={bulkScanning}
                             progress={scanProgress}

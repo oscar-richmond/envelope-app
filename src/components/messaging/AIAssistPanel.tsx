@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Sparkles, MessageSquareText, Wand2, RefreshCw, X, ArrowRight, Type, Zap, MessageCircle, Mail, PenTool } from 'lucide-react';
+import { Loader2, Sparkles, MessageSquareText, Wand2, RefreshCw, X, ArrowRight, Type, Zap, MessageCircle, Mail, PenTool, Building2 } from 'lucide-react';
 import type { ThreadData, ThreadMessage } from './MessageThreadComposerModal';
 
 interface AIAssistPanelProps {
     emailId?: number;
+    companyId?: number;
     thread: ThreadData | null;
     summary: string | null;
     onSummaryChange: (summary: string | null) => void;
@@ -16,6 +17,13 @@ interface AIAssistPanelProps {
     currentDraft?: string;
     onDraftChange?: (draft: string) => void;
     onSubjectChange?: (subject: string) => void;
+    // Company context for outreach mode
+    companyContext?: {
+        websiteSignals?: string[];
+        financialSignals?: string[];
+        offering?: string;
+        industry?: string;
+    };
 }
 
 // Rewrite styles
@@ -45,6 +53,7 @@ const QUICK_SNIPPETS = [
 
 export function AIAssistPanel({
     emailId,
+    companyId,
     thread,
     summary,
     onSummaryChange,
@@ -53,7 +62,8 @@ export function AIAssistPanel({
     onInsert,
     currentDraft,
     onDraftChange,
-    onSubjectChange
+    onSubjectChange,
+    companyContext
 }: AIAssistPanelProps) {
     const [summarizing, setSummarizing] = useState(false);
     const [generating, setGenerating] = useState(false);
@@ -74,6 +84,35 @@ export function AIAssistPanel({
     }
 
     async function handleSummarize() {
+        // Outreach mode: summarize company
+        if (!hasMessages && thread?.company) {
+            setSummarizing(true);
+            setError(null);
+            try {
+                const res = await fetch('/api/ai/outreach', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'summarize_company',
+                        companyName: thread.company.name,
+                        context: companyContext
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    onSummaryChange(data.result);
+                } else {
+                    setError(data.error || 'Failed to summarize');
+                }
+            } catch (e) {
+                setError('AI service unavailable');
+            } finally {
+                setSummarizing(false);
+            }
+            return;
+        }
+
+        // Reply mode: summarize thread
         if (!emailId || !thread) return;
         setSummarizing(true);
         setError(null);
@@ -104,6 +143,38 @@ export function AIAssistPanel({
     }
 
     async function handleGenerateReplies() {
+        // Outreach mode: draft outreach
+        if (!hasMessages && thread?.company) {
+            setGenerating(true);
+            setError(null);
+            try {
+                const res = await fetch('/api/ai/outreach', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'draft_outreach',
+                        companyName: thread.company.name,
+                        contactName: thread.contact?.name,
+                        contactEmail: thread.contact?.email,
+                        context: companyContext,
+                        tone: selectedTone
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    onSuggestedRepliesChange([data.result]);
+                } else {
+                    setError(data.error || 'Failed to generate draft');
+                }
+            } catch (e) {
+                setError('AI service unavailable');
+            } finally {
+                setGenerating(false);
+            }
+            return;
+        }
+
+        // Reply mode: suggest reply
         if (!emailId || !thread) return;
         setGenerating(true);
         setError(null);
@@ -360,7 +431,7 @@ export function AIAssistPanel({
                 </div>
             </div>
 
-            {/* Thread Summary */}
+            {/* Company/Thread Summary */}
             <div
                 className="p-4 rounded-xl"
                 style={{
@@ -370,12 +441,16 @@ export function AIAssistPanel({
             >
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <MessageSquareText size={16} style={{ color: 'rgb(139, 92, 246)' }} />
+                        {hasMessages ? (
+                            <MessageSquareText size={16} style={{ color: 'rgb(139, 92, 246)' }} />
+                        ) : (
+                            <Building2 size={16} style={{ color: 'rgb(139, 92, 246)' }} />
+                        )}
                         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            Thread Summary
+                            {hasMessages ? 'Thread Summary' : 'Company Snapshot'}
                         </h3>
                     </div>
-                    {hasMessages && (
+                    {(hasMessages || thread?.company) && (
                         <button
                             onClick={handleSummarize}
                             disabled={summarizing}
@@ -395,22 +470,25 @@ export function AIAssistPanel({
                     )}
                 </div>
 
-                {!hasMessages ? (
-                    <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
-                        No thread yet
-                    </p>
-                ) : summary ? (
+                {summary ? (
                     <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
                         {summary}
                     </p>
-                ) : (
+                ) : thread?.company ? (
                     <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        Click "Generate" for an AI summary
+                        {hasMessages
+                            ? 'Click "Generate" for an AI summary of the thread'
+                            : 'Click "Generate" for an AI snapshot of this company'
+                        }
+                    </p>
+                ) : (
+                    <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
+                        No company selected
                     </p>
                 )}
             </div>
 
-            {/* Suggested Reply */}
+            {/* Suggested Reply / Draft Outreach */}
             <div
                 className="p-4 rounded-xl"
                 style={{
@@ -422,10 +500,10 @@ export function AIAssistPanel({
                     <div className="flex items-center gap-2">
                         <Wand2 size={16} style={{ color: 'rgb(139, 92, 246)' }} />
                         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            Suggested Reply
+                            {hasMessages ? 'Suggested Reply' : 'Draft Outreach'}
                         </h3>
                     </div>
-                    {hasMessages && (
+                    {(hasMessages || thread?.company) && (
                         <button
                             onClick={handleGenerateReplies}
                             disabled={generating}
@@ -445,11 +523,7 @@ export function AIAssistPanel({
                     )}
                 </div>
 
-                {!hasMessages ? (
-                    <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
-                        Start a thread for reply suggestions
-                    </p>
-                ) : suggestedReplies.length > 0 ? (
+                {suggestedReplies.length > 0 ? (
                     <div className="space-y-3">
                         {suggestedReplies.map((reply, idx) => (
                             <div
@@ -476,9 +550,16 @@ export function AIAssistPanel({
                             </div>
                         ))}
                     </div>
-                ) : (
+                ) : thread?.company ? (
                     <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        Click "Generate" for AI reply suggestions
+                        {hasMessages
+                            ? 'Click "Generate" for AI reply suggestions'
+                            : 'Click "Generate" for an AI-drafted first outreach'
+                        }
+                    </p>
+                ) : (
+                    <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
+                        No company selected
                     </p>
                 )}
             </div>

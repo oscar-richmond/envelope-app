@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { resolveCompanyIdentityOrError } from '@/lib/resolveCompanyIdentity';
 
 /**
  * POST /api/companies/[id]/financials/sync
@@ -12,11 +13,24 @@ export async function POST(
     { params }: { params: { id: string } }
 ) {
     try {
-        const companyId = parseInt(params.id);
-        if (isNaN(companyId)) {
-            return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
+        const rawId = params.id;
+
+        // Use resolver for flexible company identification
+        const resolved = await resolveCompanyIdentityOrError({
+            companyId: !isNaN(parseInt(rawId)) ? parseInt(rawId) : undefined,
+            companiesHouseNumber: isNaN(parseInt(rawId)) ? rawId : undefined
+        });
+
+        if (!resolved.success) {
+            console.warn(`[FinancialsSync] Company resolution failed for: ${rawId}`);
+            return NextResponse.json({
+                error: resolved.error,
+                errorCode: resolved.errorCode,
+                hint: resolved.hint
+            }, { status: 400 });
         }
 
+        const companyId = resolved.companyId;
         console.log(`[FinancialsSync] Starting sync for company ${companyId}...`);
 
         // Get company prospect
@@ -25,7 +39,11 @@ export async function POST(
         });
 
         if (!prospect) {
-            return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+            return NextResponse.json({
+                error: 'Company not found',
+                errorCode: 'COMPANY_NOT_FOUND',
+                hint: 'The company may have been deleted'
+            }, { status: 404 });
         }
 
         const companyNumber = prospect.companiesHouseNumber;
@@ -85,16 +103,26 @@ export async function POST(
             };
         }
 
-        // Update database
+        // Persist breakdown to finHealthData JSON for proper parsing
+        const finHealthData = {
+            score: financialData.score,
+            band: financialData.band,
+            breakdown: financialData.breakdown,
+            details: financialData.details,
+            lastScannedAt: new Date().toISOString()
+        };
+
+        // Update database - save to BOTH legacy and new fields
         await prisma.companyProspect.update({
             where: { id: companyId },
             data: {
-                financialHealthScore: financialData.score,
-                financialHealthBand: financialData.band,
+                financialActivityScore: financialData.score,
+                financialActivityBand: financialData.band,
                 financialSignals: JSON.stringify({
                     breakdown: financialData.breakdown,
                     details: financialData.details
                 }),
+                finHealthData: JSON.stringify(finHealthData),
                 financialLastCheckedAt: new Date()
             }
         });
@@ -107,6 +135,7 @@ export async function POST(
             band: financialData.band,
             breakdown: financialData.breakdown,
             details: financialData.details,
+            status: 'COMPLETE',
             lastChecked: new Date().toISOString()
         });
 
