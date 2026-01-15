@@ -1008,24 +1008,6 @@ export default function ProspectSearch() {
                 subtitle="Search Companies House for new prospects"
             />
 
-            {/* Quick Presets */}
-            <div className="flex items-center gap-3 mb-4">
-                <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Quick Presets:</span>
-                <button
-                    onClick={() => applyPreset(activePreset === 'newly_registered' ? null : 'newly_registered')}
-                    className={`
-                        px-3 py-1.5 rounded-full text-xs font-semibold transition-all
-                        ${activePreset === 'newly_registered'
-                            ? 'bg-[var(--brand)] text-white shadow-sm'
-                            : 'bg-[var(--bg-card-muted)] text-[var(--text-secondary)] border border-[var(--border-soft)] hover:bg-[var(--bg-card)] hover:border-[var(--border-default)]'
-                        }
-                    `}
-                    title="Apply filter: Last 30 days, include companies without websites"
-                >
-                    🆕 Newly Registered
-                </button>
-            </div>
-
             {/* Bulk Action Bar - appears when rows are selected */}
             {selectedRows.size > 0 && (
                 <div
