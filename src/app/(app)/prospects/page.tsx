@@ -51,6 +51,11 @@ export default function ProspectSearch() {
     } | null>(null);
     const [loading, setLoading] = useState(false);
     const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+
+    // Preset and bulk selection state
+    const [activePreset, setActivePreset] = useState<'newly_registered' | null>(null);
+    const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set()); // companyNumber set
+    const [bulkAddLoading, setBulkAddLoading] = useState(false);
     const [viewEvidence, setViewEvidence] = useState<any>(null);
     const [viewLocation, setViewLocation] = useState<string | null>(null);
     const [viewLowPriorityConfirm, setViewLowPriorityConfirm] = useState<any>(null); // Reused for all soft-gating warnings
@@ -243,6 +248,95 @@ export default function ProspectSearch() {
             alert("Network Error: " + e.message);
         }
         finally { setLoading(false); }
+    };
+
+    // Apply a preset filter configuration
+    const applyPreset = (preset: 'newly_registered' | null) => {
+        if (preset === 'newly_registered') {
+            setFilters(prev => ({
+                ...prev,
+                registeredRecently: '30d',
+                websiteRequired: false // Include companies without websites
+            }));
+            setActivePreset('newly_registered');
+        } else {
+            // Clear preset
+            setActivePreset(null);
+        }
+    };
+
+    // Toggle row selection
+    const toggleRowSelection = (companyNumber: string) => {
+        setSelectedRows(prev => {
+            const next = new Set(prev);
+            if (next.has(companyNumber)) {
+                next.delete(companyNumber);
+            } else {
+                next.add(companyNumber);
+            }
+            return next;
+        });
+    };
+
+    // Select/deselect all visible rows
+    const toggleSelectAll = () => {
+        if (selectedRows.size === results.length) {
+            setSelectedRows(new Set());
+        } else {
+            setSelectedRows(new Set(results.map(r => r.companyNumber)));
+        }
+    };
+
+    // Bulk add selected companies to lead board
+    const handleBulkAdd = async () => {
+        if (selectedRows.size === 0) return;
+
+        setBulkAddLoading(true);
+        let added = 0;
+        let skipped = 0;
+        let failed = 0;
+
+        const selectedCompanies = results.filter(r => selectedRows.has(r.companyNumber));
+
+        for (const company of selectedCompanies) {
+            try {
+                const res = await fetch('/api/leads', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        companyName: company.companyName,
+                        websiteUrl: company.websiteUrl || null,
+                        industry: company.industry,
+                        location: company.registeredLocation || company.location,
+                        companyProspectId: company.id
+                    })
+                });
+
+                if (res.ok) {
+                    added++;
+                    // Update status map for this company
+                    const idx = results.findIndex(r => r.companyNumber === company.companyNumber);
+                    if (idx >= 0) {
+                        setStatusMap(prev => ({ ...prev, [idx]: 'ADDED' }));
+                    }
+                } else if (res.status === 409) {
+                    skipped++; // Already exists
+                } else {
+                    failed++;
+                }
+            } catch (e) {
+                failed++;
+            }
+        }
+
+        setBulkAddLoading(false);
+        setSelectedRows(new Set()); // Clear selection
+
+        // Show summary toast
+        const message = `Added ${added} to Lead Board` +
+            (skipped > 0 ? `, ${skipped} already existed` : '') +
+            (failed > 0 ? `, ${failed} failed` : '');
+        alert(message); // TODO: Replace with toast
     };
 
     const handleAction = async (company: any, index: number, action: 'ADD' | 'REJECT') => {
@@ -913,6 +1007,61 @@ export default function ProspectSearch() {
                 subtitle="Search Companies House for new prospects"
             />
 
+            {/* Quick Presets */}
+            <div className="flex items-center gap-3 mb-4">
+                <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Quick Presets:</span>
+                <button
+                    onClick={() => applyPreset(activePreset === 'newly_registered' ? null : 'newly_registered')}
+                    className={`
+                        px-3 py-1.5 rounded-full text-xs font-semibold transition-all
+                        ${activePreset === 'newly_registered'
+                            ? 'bg-[var(--brand)] text-white shadow-sm'
+                            : 'bg-[var(--bg-card-muted)] text-[var(--text-secondary)] border border-[var(--border-soft)] hover:bg-[var(--bg-card)] hover:border-[var(--border-default)]'
+                        }
+                    `}
+                    title="Apply filter: Last 30 days, include companies without websites"
+                >
+                    🆕 Newly Registered
+                </button>
+            </div>
+
+            {/* Bulk Action Bar - appears when rows are selected */}
+            {selectedRows.size > 0 && (
+                <div
+                    className="flex items-center gap-4 px-4 py-3 mb-4 rounded-[var(--radius-lg)] border border-[var(--border-default)]"
+                    style={{ background: 'linear-gradient(135deg, rgba(84,130,237,0.08), rgba(84,130,237,0.04))' }}
+                >
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="checkbox"
+                            checked={selectedRows.size === results.length && results.length > 0}
+                            onChange={toggleSelectAll}
+                            className="w-4 h-4 rounded border-[var(--border-default)]"
+                        />
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">
+                            {selectedRows.size} selected
+                        </span>
+                    </div>
+
+                    <div className="h-5 w-px bg-[var(--border-soft)]" />
+
+                    <button
+                        onClick={handleBulkAdd}
+                        disabled={bulkAddLoading}
+                        className="px-4 py-1.5 rounded-[var(--radius-button)] text-sm font-semibold bg-[var(--brand)] text-white hover:opacity-90 disabled:opacity-50 transition-all"
+                    >
+                        {bulkAddLoading ? 'Adding...' : `+ Add ${selectedRows.size} to Lead Board`}
+                    </button>
+
+                    <button
+                        onClick={() => setSelectedRows(new Set())}
+                        className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                    >
+                        Clear
+                    </button>
+                </div>
+            )}
+
             {/* Dashboard Overview Cards */}
             <StatsGrid>
                 <StatsCard
@@ -1137,36 +1286,65 @@ export default function ProspectSearch() {
                         const isLoadingFin = statusMap[`fin-${i}`] === 'LOADING';
                         const isMatchLoading = matchingMap[i];
 
+                        // Calculate days since incorporation for badge
+                        const daysSinceInc = c.incorporatedOn
+                            ? Math.floor((Date.now() - new Date(c.incorporatedOn).getTime()) / (1000 * 60 * 60 * 24))
+                            : null;
+                        const showRegisteredBadge = (activePreset === 'newly_registered' || (daysSinceInc !== null && daysSinceInc <= 30));
+
                         return (
-                            <ProspectResultRowCard
-                                key={c.companyNumber || i}
-                                index={i}
-                                company={c}
-                                status={status}
+                            <div key={c.companyNumber || i} className="flex items-start gap-3">
+                                {/* Selection Checkbox */}
+                                <div className="pt-5 flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedRows.has(c.companyNumber)}
+                                        onChange={() => toggleRowSelection(c.companyNumber)}
+                                        className="w-4 h-4 rounded border-[var(--border-default)] cursor-pointer"
+                                    />
+                                </div>
 
-                                // Action Handlers
-                                onAction={(act) => handleAction(c, i, act)}
-                                onCheckAddLead={() => checkAddLead(c, i)}
-                                onFindEmails={() => handleOpenDiscovery(c)}
-                                onDraftEmail={() => handleGenerateDraft(c)}
-                                onViewLocation={() => setViewLocation(c.location)}
-                                onInspect={() => handleInspect(c, i)}
+                                {/* Row Content */}
+                                <div className="flex-1 relative">
+                                    {/* Registered Recently Badge */}
+                                    {showRegisteredBadge && daysSinceInc !== null && (
+                                        <div className="absolute -top-1 left-3 z-10">
+                                            <span className="px-2 py-0.5 bg-[rgba(166,244,179,0.15)] text-[var(--accent-mint-text)] text-[10px] font-bold rounded-full border border-[rgba(166,244,179,0.3)]">
+                                                🆕 Registered {daysSinceInc} days ago
+                                            </span>
+                                        </div>
+                                    )}
 
-                                // Evidence Handlers
-                                onMatchEvidence={() => setViewEvidence(JSON.parse(c.websiteMatchEvidence || '{}'))}
-                                onFinancialEvidence={() => setViewFinancials(c)}
-                                onPriorityEvidence={() => setViewPriority(c)}
-                                onWebsiteHealthEvidence={() => setViewWebsiteHealth(c)}
+                                    <ProspectResultRowCard
+                                        index={i}
+                                        company={c}
+                                        status={status}
 
-                                // Logic Triggers
-                                onFindWebsite={() => handleMatch(c, i)}
-                                onCheckFinancials={() => handleCheckFinancials(c, i)}
-                                onRefreshAnalysis={() => handleReanalyze(c, c.id)}
+                                        // Action Handlers
+                                        onAction={(act) => handleAction(c, i, act)}
+                                        onCheckAddLead={() => checkAddLead(c, i)}
+                                        onFindEmails={() => handleOpenDiscovery(c)}
+                                        onDraftEmail={() => handleGenerateDraft(c)}
+                                        onViewLocation={() => setViewLocation(c.location)}
+                                        onInspect={() => handleInspect(c, i)}
 
-                                // State
-                                isFinancialLoading={isLoadingFin}
-                                isMatchLoading={isMatchLoading}
-                            />
+                                        // Evidence Handlers
+                                        onMatchEvidence={() => setViewEvidence(JSON.parse(c.websiteMatchEvidence || '{}'))}
+                                        onFinancialEvidence={() => setViewFinancials(c)}
+                                        onPriorityEvidence={() => setViewPriority(c)}
+                                        onWebsiteHealthEvidence={() => setViewWebsiteHealth(c)}
+
+                                        // Logic Triggers
+                                        onFindWebsite={() => handleMatch(c, i)}
+                                        onCheckFinancials={() => handleCheckFinancials(c, i)}
+                                        onRefreshAnalysis={() => handleReanalyze(c, c.id)}
+
+                                        // State
+                                        isFinancialLoading={isLoadingFin}
+                                        isMatchLoading={isMatchLoading}
+                                    />
+                                </div>
+                            </div>
                         );
                     })}
                 </div>
