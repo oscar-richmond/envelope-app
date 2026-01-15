@@ -21,7 +21,7 @@ export async function POST(
         // Use resolver for flexible company identification
         const resolved = await resolveCompanyIdentityOrError({
             companyId: !isNaN(parseInt(rawId)) ? parseInt(rawId) : undefined,
-            companiesHouseNumber: isNaN(parseInt(rawId)) ? rawId : undefined
+            companyNumber: isNaN(parseInt(rawId)) ? rawId : undefined
         });
 
         if (!resolved.success) {

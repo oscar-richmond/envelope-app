@@ -17,7 +17,7 @@ export async function GET(
         // Use resolver for flexible company identification
         const resolved = await resolveCompanyIdentityOrError({
             companyId: !isNaN(parseInt(id)) ? parseInt(id) : undefined,
-            companiesHouseNumber: isNaN(parseInt(id)) ? id : undefined
+            companyNumber: isNaN(parseInt(id)) ? id : undefined
         });
 
         if (!resolved.success) {
@@ -189,7 +189,7 @@ export async function POST(
         // Use resolver for flexible company identification
         const resolved = await resolveCompanyIdentityOrError({
             companyId: !isNaN(parseInt(id)) ? parseInt(id) : undefined,
-            companiesHouseNumber: isNaN(parseInt(id)) ? id : undefined
+            companyNumber: isNaN(parseInt(id)) ? id : undefined
         });
 
         if (!resolved.success) {

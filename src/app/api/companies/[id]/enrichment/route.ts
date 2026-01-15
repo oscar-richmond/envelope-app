@@ -168,7 +168,7 @@ export async function POST(
             verifyTopN: 5,
             includeWebsiteCrawl: true,
             includeCompaniesHouse: true,
-            companyNumber: prospect.companiesHouseNumber || undefined,
+            companyNumber: prospect.companyNumber || undefined,
             companyName: prospect.companyName || undefined
         });
 

@@ -1,47 +1,47 @@
 import prisma from '@/lib/prisma';
 
 /**
- * Resolves company identity from either companyId (internal) or companiesHouseNumber.
+ * Resolves company identity from either companyId (internal) or companyNumber (Companies House).
  * Returns both identifiers when resolved, or null if resolution fails.
  * 
  * @param opts.companyId - Internal CompanyProspect ID
- * @param opts.companiesHouseNumber - Companies House registration number
+ * @param opts.companyNumber - Companies House registration number
  * @param opts.createIfMissing - If true, creates a new CompanyProspect record if CH number provided but no record exists
- * @returns { companyId, companiesHouseNumber } or null
+ * @returns { companyId, companyNumber } or null
  */
 export async function resolveCompanyIdentity(opts: {
     companyId?: number | null;
-    companiesHouseNumber?: string | null;
+    companyNumber?: string | null;
     createIfMissing?: boolean;
-}): Promise<{ companyId: number; companiesHouseNumber: string | null } | null> {
-    const { companyId, companiesHouseNumber, createIfMissing = false } = opts;
+}): Promise<{ companyId: number; companyNumber: string | null } | null> {
+    const { companyId, companyNumber, createIfMissing = false } = opts;
 
     // 1. If companyId provided, look it up
     if (companyId && !isNaN(companyId)) {
         const company = await prisma.companyProspect.findUnique({
             where: { id: companyId },
-            select: { id: true, companiesHouseNumber: true }
+            select: { id: true, companyNumber: true }
         });
 
         if (company) {
             return {
                 companyId: company.id,
-                companiesHouseNumber: company.companiesHouseNumber
+                companyNumber: company.companyNumber
             };
         }
     }
 
-    // 2. If companiesHouseNumber provided, resolve to companyId
-    if (companiesHouseNumber) {
+    // 2. If companyNumber provided, resolve to companyId
+    if (companyNumber) {
         const company = await prisma.companyProspect.findFirst({
-            where: { companiesHouseNumber },
-            select: { id: true, companiesHouseNumber: true }
+            where: { companyNumber },
+            select: { id: true, companyNumber: true }
         });
 
         if (company) {
             return {
                 companyId: company.id,
-                companiesHouseNumber: company.companiesHouseNumber
+                companyNumber: company.companyNumber
             };
         }
 
@@ -49,22 +49,22 @@ export async function resolveCompanyIdentity(opts: {
         if (createIfMissing) {
             const newCompany = await prisma.companyProspect.create({
                 data: {
-                    companiesHouseNumber,
-                    companyName: `Company ${companiesHouseNumber}`, // Placeholder, should be enriched
+                    companyNumber,
+                    companyName: `Company ${companyNumber}`, // Placeholder, should be enriched
                     source: 'RESOLVER'
                 },
-                select: { id: true, companiesHouseNumber: true }
+                select: { id: true, companyNumber: true }
             });
 
             return {
                 companyId: newCompany.id,
-                companiesHouseNumber: newCompany.companiesHouseNumber
+                companyNumber: newCompany.companyNumber
             };
         }
     }
 
     // Resolution failed
-    console.warn('[resolveCompanyIdentity] Failed to resolve:', { companyId, companiesHouseNumber });
+    console.warn('[resolveCompanyIdentity] Failed to resolve:', { companyId, companyNumber });
     return null;
 }
 
@@ -74,9 +74,9 @@ export async function resolveCompanyIdentity(opts: {
  */
 export async function resolveCompanyIdentityOrError(opts: {
     companyId?: number | null;
-    companiesHouseNumber?: string | null;
+    companyNumber?: string | null;
 }): Promise<
-    | { success: true; companyId: number; companiesHouseNumber: string | null }
+    | { success: true; companyId: number; companyNumber: string | null }
     | { success: false; error: string; errorCode: string; hint: string }
 > {
     const result = await resolveCompanyIdentity(opts);
@@ -93,6 +93,6 @@ export async function resolveCompanyIdentityOrError(opts: {
     return {
         success: true,
         companyId: result.companyId,
-        companiesHouseNumber: result.companiesHouseNumber
+        companyNumber: result.companyNumber
     };
 }

@@ -18,7 +18,7 @@ export async function POST(
         // Use resolver for flexible company identification
         const resolved = await resolveCompanyIdentityOrError({
             companyId: !isNaN(parseInt(rawId)) ? parseInt(rawId) : undefined,
-            companiesHouseNumber: isNaN(parseInt(rawId)) ? rawId : undefined
+            companyNumber: isNaN(parseInt(rawId)) ? rawId : undefined
         });
 
         if (!resolved.success) {
@@ -46,7 +46,7 @@ export async function POST(
             }, { status: 404 });
         }
 
-        const companyNumber = prospect.companiesHouseNumber;
+        const companyNumber = prospect.companyNumber;
         const companyName = prospect.companyName;
 
         // If no company number, try to find one
