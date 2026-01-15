@@ -194,7 +194,7 @@ export default function ProspectResultRowCard({
 
                 {/* 2. Metrics Grid (Flex 1 - Breathable) */}
                 <div
-                    className="grid grid-cols-2 lg:grid-cols-4 gap-5 px-6 h-full items-center py-1"
+                    className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 h-full items-center py-1"
                     style={{ borderLeft: '1px solid var(--border-soft)' }}
                 >
 

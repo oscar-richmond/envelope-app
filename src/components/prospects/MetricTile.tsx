@@ -24,6 +24,7 @@ export default function MetricTile({
     href
 }: MetricTileProps) {
 
+    // Score chip colors - keep as-is per requirements
     const pillColors: Record<string, string> = {
         green: 'bg-[var(--success-light)] text-[var(--success-text)]',
         amber: 'bg-[var(--warning-light)] text-[var(--warning-text)]',
@@ -39,10 +40,10 @@ export default function MetricTile({
     if (action) {
         return (
             <div
-                className={`flex flex-col h-full justify-between p-4 rounded-[var(--radius-lg)] bg-[var(--bg-card-muted)] border border-[var(--border-soft)] ${className}`}
+                className={`flex flex-col h-full justify-between p-3 rounded-[var(--radius-lg)] bg-[var(--bg-card-muted)] border border-[var(--border-soft)] min-w-0 ${className}`}
             >
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{label}</span>
+                    <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider truncate">{label}</span>
                 </div>
                 <div className="mt-auto">{action}</div>
             </div>
@@ -66,53 +67,49 @@ export default function MetricTile({
         <Component
             {...interactionProps}
             className={`
-                flex flex-col h-full p-4 rounded-[var(--radius-lg)] bg-[var(--bg-card-muted)] border border-[var(--border-soft)] relative text-left w-full
+                flex flex-col h-full p-3 rounded-[var(--radius-lg)] bg-[var(--bg-card-muted)] border border-[var(--border-soft)] relative text-left w-full min-w-0
                 ${className}
-                ${isInteractive ? 'hover:bg-[var(--bg-card)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-card)] cursor-pointer transition-all group/tile' : ''}
+                ${isInteractive ? 'hover:bg-[var(--bg-card)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-card)] cursor-pointer transition-all group/tile focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:ring-offset-1' : ''}
             `}
         >
-            <div className="flex items-center justify-between mb-2 h-4 w-full">
-                <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{label}</span>
+            {/* Header row with label and View button */}
+            <div className="flex items-center justify-between gap-2 mb-1.5 w-full">
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider truncate flex-1">{label}</span>
                 {isInteractive && (
                     <span
-                        className={`
+                        className="
                             px-2 py-0.5 rounded-full text-[10px] font-semibold 
-                            transition-all duration-150
-                            border
-                            ${pillColors[scoreColor]}
-                            opacity-70 group-hover/tile:opacity-100
-                            group-hover/tile:shadow-sm
-                        `}
-                        style={{
-                            borderColor: 'currentColor',
-                            borderOpacity: 0.3
-                        }}
+                            transition-all duration-150 flex-shrink-0
+                            bg-[rgba(84,130,237,0.08)] text-[var(--brand)] border border-[rgba(84,130,237,0.25)]
+                            group-hover/tile:bg-[rgba(84,130,237,0.15)] group-hover/tile:border-[rgba(84,130,237,0.4)]
+                        "
                     >
                         View
                     </span>
                 )}
             </div>
 
-            <div className="flex items-center gap-2 mb-1">
+            {/* Value row with score chip */}
+            <div className="flex items-center gap-1.5 mb-1 min-w-0">
                 <span
-                    className="text-base font-bold text-[var(--text-primary)] truncate tracking-tight"
+                    className="text-sm font-bold text-[var(--text-primary)] truncate tracking-tight"
                     style={{ fontFamily: 'var(--font-display)' }}
                 >
                     {value}
                 </span>
                 {score !== undefined && score !== null && (
-                    <span className={`px-2 py-0.5 rounded-[var(--radius-badge)] text-[12px] font-bold ${pillColors[scoreColor]}`}>
+                    <span className={`px-1.5 py-0.5 rounded-[var(--radius-badge)] text-[11px] font-bold flex-shrink-0 ${pillColors[scoreColor]}`}>
                         {score}
                     </span>
                 )}
             </div>
 
+            {/* Subtext row */}
             {subtext && (
-                <div className="text-[11px] text-[var(--text-muted)] truncate w-full mt-auto" title={subtext}>
+                <div className="text-[10px] text-[var(--text-muted)] truncate w-full mt-auto" title={subtext}>
                     {subtext}
                 </div>
             )}
         </Component>
     );
 }
-
