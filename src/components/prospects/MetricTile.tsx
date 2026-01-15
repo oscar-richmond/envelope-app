@@ -1,4 +1,3 @@
-import { ChevronRight } from 'lucide-react';
 import { ReactNode } from 'react';
 
 interface MetricTileProps {
@@ -75,9 +74,22 @@ export default function MetricTile({
             <div className="flex items-center justify-between mb-2 h-4 w-full">
                 <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{label}</span>
                 {isInteractive && (
-                    <div className="text-[var(--text-muted)] group-hover/tile:text-[var(--accent-blue)] transition-colors">
-                        <ChevronRight size={14} strokeWidth={2.5} />
-                    </div>
+                    <span
+                        className={`
+                            px-2 py-0.5 rounded-full text-[10px] font-semibold 
+                            transition-all duration-150
+                            border
+                            ${pillColors[scoreColor]}
+                            opacity-70 group-hover/tile:opacity-100
+                            group-hover/tile:shadow-sm
+                        `}
+                        style={{
+                            borderColor: 'currentColor',
+                            borderOpacity: 0.3
+                        }}
+                    >
+                        View
+                    </span>
                 )}
             </div>
 
