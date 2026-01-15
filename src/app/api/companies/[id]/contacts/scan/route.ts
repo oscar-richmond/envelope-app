@@ -87,14 +87,19 @@ export async function POST(
         };
         jobs[jobId] = job;
 
-        // Run scan in background
-        runContactScan(jobId, companyId, domain, prospect.companyName || '', force);
+        // Run scan and AWAIT completion (critical for serverless - don't fire-and-forget)
+        console.log(`[ContactsScan] Running scan synchronously for company ${companyId}...`);
+        await runContactScan(jobId, companyId, domain, prospect.companyName || '', force);
+
+        // Get final result from job
+        const finalJob = jobs[jobId];
 
         return NextResponse.json({
-            success: true,
+            success: finalJob?.status === 'done',
             jobId,
-            status: 'queued',
-            domain
+            status: finalJob?.status || 'done',
+            domain,
+            contactsFound: finalJob?.contacts?.length || 0
         });
 
     } catch (error: any) {
