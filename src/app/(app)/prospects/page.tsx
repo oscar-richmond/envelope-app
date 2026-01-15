@@ -1014,6 +1014,7 @@ export default function ProspectSearch() {
                                 onMatchEvidence={() => setViewEvidence(JSON.parse(c.websiteMatchEvidence || '{}'))}
                                 onFinancialEvidence={() => setViewFinancials(c)}
                                 onPriorityEvidence={() => setViewPriority(c)}
+                                onWebsiteHealthEvidence={() => setViewWebsiteHealth(c)}
 
                                 // Logic Triggers
                                 onFindWebsite={() => handleMatch(c, i)}

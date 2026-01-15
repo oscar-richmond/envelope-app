@@ -19,6 +19,7 @@ interface ProspectResultRowCardProps {
     onMatchEvidence: () => void;
     onFinancialEvidence: () => void;
     onPriorityEvidence: () => void;
+    onWebsiteHealthEvidence: () => void;
 
     // Logic Triggers
     onFindWebsite: () => void;
@@ -42,6 +43,7 @@ export default function ProspectResultRowCard({
     onMatchEvidence,
     onFinancialEvidence,
     onPriorityEvidence,
+    onWebsiteHealthEvidence,
     onFindWebsite,
     onCheckFinancials,
     isFinancialLoading,
@@ -213,7 +215,7 @@ export default function ProspectResultRowCard({
                         score={staleScore ?? undefined}
                         scoreColor={staleColor}
                         subtext={staleScore !== undefined ? (staleScore >= 60 ? 'Needs Update' : 'Active') : null}
-                        onDetails={c.scoreReasons ? onPriorityEvidence : undefined}
+                        onDetails={c.scoreReasons ? onWebsiteHealthEvidence : undefined}
                     />
 
                     {/* D. Financials - 3rd */}
