@@ -528,33 +528,21 @@ export default function ContactsCard({
                             </div>
                         )}
 
-                        {/* More Contacts */}
+                        {/* Additional Contacts (no dropdown) */}
                         {moreContacts.length > 0 && (
-                            <div className="p-4">
-                                <button
-                                    onClick={() => setShowMore(!showMore)}
-                                    className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider mb-3"
-                                    style={{ color: 'var(--text-muted)' }}
-                                >
-                                    More Contacts ({moreContacts.length})
-                                    {showMore ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                </button>
-                                {showMore && (
-                                    <div className="space-y-2">
-                                        {moreContacts.map((contact, idx) => (
-                                            <ContactRow
-                                                key={contact.id || idx}
-                                                contact={contact}
-                                                isSelected={selectedEmail === contact.email}
-                                                isCopied={copiedEmail === contact.email}
-                                                onSelect={() => handleSelectEmail(contact.email)}
-                                                onCopy={() => handleCopyEmail(contact.email)}
-                                                onEdit={() => handleEditContact(contact)}
-                                                onDelete={() => { setDeletingContactId(contact.id || null); setShowDeleteConfirm(true); }}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
+                            <div className="p-4 space-y-2">
+                                {moreContacts.map((contact, idx) => (
+                                    <ContactRow
+                                        key={contact.id || idx}
+                                        contact={contact}
+                                        isSelected={selectedEmail === contact.email}
+                                        isCopied={copiedEmail === contact.email}
+                                        onSelect={() => handleSelectEmail(contact.email)}
+                                        onCopy={() => handleCopyEmail(contact.email)}
+                                        onEdit={() => handleEditContact(contact)}
+                                        onDelete={() => { setDeletingContactId(contact.id || null); setShowDeleteConfirm(true); }}
+                                    />
+                                ))}
                             </div>
                         )}
 
