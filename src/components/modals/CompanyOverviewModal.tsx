@@ -288,18 +288,24 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
 
         setIsFinScanning(true);
         try {
-            const res = await fetch('/api/scan/financials', {
+            // Use the correct endpoint with company resolver and real Companies House data
+            const res = await fetch(`/api/companies/${companyId}/financials/sync`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    companyProspectId: companyId,
-                    leadId: resolvedLeadId || leadId,
-                    force: true
-                })
+                headers: { 'Content-Type': 'application/json' }
             });
-            if (res.ok) {
-                // Refetch data to get updated scores
+
+            const result = await res.json();
+
+            if (res.ok && result.success) {
+                // Update financial evidence locally for immediate UI feedback
+                setFinancialEvidence({
+                    breakdown: result.breakdown || [],
+                    details: result.details || []
+                });
+                // Refetch all data to ensure consistency
                 await refetchData();
+            } else {
+                console.error('[FinancialScan] Error:', result.error);
             }
         } catch (e) {
             console.error('Financial scan failed:', e);
