@@ -204,18 +204,37 @@ export function ComposerAIToolbar({
     }, [emailId, thread, hasMessages, companyContext, getThreadContent, onDraftGenerated]);
 
     return (
-        <div className="flex items-center gap-2 py-2 px-3 border-b" style={{ borderColor: 'var(--border-soft)' }}>
+        <div
+            className="flex items-center gap-2 py-3 px-4 border-b"
+            style={{
+                background: 'linear-gradient(to right, rgba(139, 92, 246, 0.06), rgba(139, 92, 246, 0.02))',
+                borderColor: 'rgba(139, 92, 246, 0.15)'
+            }}
+        >
             {/* AI Toolbar Label */}
-            <span className="text-xs font-medium mr-1" style={{ color: 'var(--text-muted)' }}>
-                AI Assist
+            <span
+                className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded"
+                style={{
+                    background: 'rgba(139, 92, 246, 0.12)',
+                    color: 'rgb(139, 92, 246)'
+                }}
+            >
+                ✨ AI Assist
             </span>
 
             {/* Summarize */}
             <button
                 onClick={handleSummarize}
                 disabled={isLoading}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ color: 'var(--text-secondary)' }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                    background: 'white',
+                    color: 'rgb(99, 102, 241)',
+                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgb(238, 242, 255)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; }}
                 title={hasMessages ? 'Summarize thread' : 'Company snapshot'}
             >
                 {summarizing ? (
@@ -230,8 +249,15 @@ export function ComposerAIToolbar({
             <button
                 onClick={handleSuggestReply}
                 disabled={isLoading || !hasMessages}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ color: 'var(--text-secondary)' }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                    background: 'white',
+                    color: hasMessages ? 'rgb(99, 102, 241)' : 'rgb(156, 163, 175)',
+                    border: `1px solid ${hasMessages ? 'rgba(99, 102, 241, 0.25)' : 'rgba(156, 163, 175, 0.25)'}`,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+                onMouseEnter={(e) => { if (hasMessages) e.currentTarget.style.background = 'rgb(238, 242, 255)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; }}
                 title={hasMessages ? 'Suggest reply options' : 'Requires an email thread'}
             >
                 {suggesting ? (
@@ -246,8 +272,15 @@ export function ComposerAIToolbar({
             <button
                 onClick={handleAIDraft}
                 disabled={isLoading}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ color: 'var(--text-secondary)' }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                    background: 'rgb(99, 102, 241)',
+                    color: 'white',
+                    border: '1px solid rgb(99, 102, 241)',
+                    boxShadow: '0 1px 3px rgba(99, 102, 241, 0.3)'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgb(79, 70, 229)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgb(99, 102, 241)'; }}
                 title={hasMessages ? 'Generate reply draft' : 'Generate outreach draft'}
             >
                 {drafting ? (
@@ -260,7 +293,7 @@ export function ComposerAIToolbar({
 
             {/* Error indicator */}
             {error && (
-                <span className="text-xs ml-2" style={{ color: 'rgb(239, 68, 68)' }}>
+                <span className="text-xs ml-2 px-2 py-1 rounded" style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'rgb(239, 68, 68)' }}>
                     {error}
                 </span>
             )}
