@@ -185,7 +185,7 @@ async function processLeadsInBackground(
                 where: { id: prospect.id },
                 data: {
                     websiteDomain: domain,
-                    websiteDiscoveryDate: new Date(),
+                    lastAnalysedAt: new Date(),
                     stalenessScore: score,
                     stalenessLabel: label,
                     websiteSignals: JSON.stringify(signals)

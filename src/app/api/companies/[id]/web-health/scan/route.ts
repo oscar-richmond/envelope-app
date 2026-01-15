@@ -114,7 +114,7 @@ export async function POST(
             }
 
             // Calculate days since verification
-            const discoveryDate = prospect.websiteDiscoveryDate;
+            const discoveryDate = prospect.lastAnalysedAt;
             if (discoveryDate) {
                 scanInput.daysSinceVerified = Math.floor(
                     (Date.now() - new Date(discoveryDate).getTime()) / (1000 * 60 * 60 * 24)
@@ -144,7 +144,7 @@ export async function POST(
             where: { id: companyId },
             data: {
                 websiteDomain: domain,
-                websiteDiscoveryDate: new Date(),
+                lastAnalysedAt: new Date(),
                 websiteSignals: JSON.stringify(signalStrings),
                 stalenessScore: report.score ?? 0,
                 stalenessLabel: report.statusLabel,
@@ -195,7 +195,7 @@ export async function GET(
             select: {
                 websiteDomain: true,
                 websiteUrl: true,
-                websiteDiscoveryDate: true,
+                lastAnalysedAt: true,
                 webHealthData: true, // This contains the full report with factors
                 stalenessScore: true,
                 stalenessLabel: true
@@ -266,7 +266,7 @@ export async function GET(
             confidence: report?.confidence ?? (factors.length > 2 ? 'medium' : 'low'),
             baseScore: report?.baseScore ?? 50,
             computedAt: report?.computedAt ?? null,
-            lastScanned: prospect.websiteDiscoveryDate,
+            lastScanned: prospect.lastAnalysedAt,
             scanState
         });
 
