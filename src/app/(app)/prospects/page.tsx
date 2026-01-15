@@ -15,6 +15,7 @@ import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import ProspectResultRowCard from '@/components/prospects/ProspectResultRowCard';
 import MultiSelect from '@/components/ui/MultiSelect';
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { useCompanyOverviewModal } from '@/components/modals/CompanyOverviewModalProvider';
 import RescanDropdown, { type RescanScope, type RescanTypes } from '@/components/leads/RescanDropdown';
 
@@ -1172,7 +1173,13 @@ export default function ProspectSearch() {
                     </div>
 
                     <div>
-                        <label className="label">Min. Stability</label>
+                        <label className="label flex items-center gap-1.5">
+                            Min. Stability
+                            <InfoTooltip
+                                title="Min. Stability"
+                                body="Sets the minimum operational/financial stability score required. Increase this to prioritise more established businesses."
+                            />
+                        </label>
                         <select
                             className="input w-full bg-white"
                             value={(filters as any).minFinancialScore || ''}
@@ -1182,20 +1189,15 @@ export default function ProspectSearch() {
                             <option value="Strong">Strong+</option>
                             <option value="Medium">Medium+</option>
                         </select>
-                        <p className="helper-text mt-1">Operational/Financial Health</p>
                     </div>
 
                     <div>
-                        <label className="label flex items-center gap-1">
+                        <label className="label flex items-center gap-1.5">
                             Registered Recently
-                            <span
-                                className="text-gray-400 cursor-help"
-                                title="Filter by incorporation date from Companies House (UK companies)"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                                    <path fillRule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0Zm-6 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7.293 5.293a1 1 0 1 1 .99 1.667c-.169.117-.311.28-.311.453V8a.5.5 0 1 0 1 0v-.587a.5.5 0 0 1 .305-.461A2 2 0 0 0 7.293 3.708a2 2 0 0 0-1.707 2.292.5.5 0 1 0 .99-.143 1 1 0 0 1 .717-1.564Z" clipRule="evenodd" />
-                                </svg>
-                            </span>
+                            <InfoTooltip
+                                title="Registered Recently"
+                                body="Filter companies by how recently they were incorporated (e.g. last week, month, 3 months). Useful for targeting newly formed companies that may need a website."
+                            />
                         </label>
                         <select
                             className="input w-full bg-white"
