@@ -18,6 +18,7 @@ import ThreadPreview from '@/components/company-hq/ThreadPreview';
 import WebsiteReviewModal from '@/components/modals/WebsiteReviewModal';
 import FinancialReportModal from '@/components/modals/FinancialReportModal';
 import { MessageThreadComposerModal } from '@/components/messaging/MessageThreadComposerModal';
+import { getWebsiteHealthLabel } from '@/lib/scoring/websiteHealth';
 
 // --- Score Card Component (V2 Style) ---
 function ScoreCard({
@@ -593,14 +594,14 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                             <ScoreCard
                                 label="Website Health"
                                 score={kpis.websiteScore}
-                                band={kpis.websiteScore >= 60 ? 'Healthy' : 'Needs Work'}
+                                band={getWebsiteHealthLabel(kpis.websiteScore).label}
                                 accent={getScoreAccent(kpis.websiteScore)}
                                 icon={Monitor}
                                 onWhy={() => setIsWebsiteModalOpen(true)}
                                 onScan={handleWebsiteScan}
                                 isScanning={isWebScanning}
                                 ctaLabel="View"
-                                notScanned={!kpis.websiteScore || kpis.websiteScore === 0}
+                                notScanned={kpis.websiteScore === null || kpis.websiteScore === undefined}
                                 notScannedCtaLabel="Scan website"
                             />
                             <ScoreCard

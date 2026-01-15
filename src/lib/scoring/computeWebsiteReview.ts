@@ -100,14 +100,16 @@ export function computeWebsiteReview(input: WebsiteScanInput): ReportResult {
         }
     }
 
-    // Compute score from factors
+    // Compute score from factors  
+    // Note: This module uses BASE_SCORE=50 and adds/subtracts, so higher = healthier
+    // This is different from stalenessScore where higher = more stale
     const score = computeScoreFromFactors(BASE_SCORE, factors);
 
-    // Determine status label
-    let statusLabel = 'Fresh';
+    // Determine status label (for this module: higher score = healthier)
+    let statusLabel = 'At Risk';
     if (score >= 70) statusLabel = 'Healthy';
-    else if (score >= 40) statusLabel = 'Needs Work';
-    else statusLabel = 'At Risk';
+    else if (score >= 50) statusLabel = 'Fair';
+    else if (score >= 30) statusLabel = 'Needs Work';
 
     // Determine confidence based on how much data we have
     let confidence: 'high' | 'medium' | 'low' = 'high';
