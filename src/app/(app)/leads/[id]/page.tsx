@@ -38,25 +38,38 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
     }
 
     // Parse webHealthData JSON for score and signals
-    let websiteScore = 0;
+    let websiteScore: number | null = null;
     let websiteSignals: string[] = [];
+    let websiteFactors: { label: string; points: number }[] = [];
     if (lead.companyProspect?.webHealthData) {
         try {
             const parsed = JSON.parse(lead.companyProspect.webHealthData);
-            websiteScore = parsed.score ?? lead.companyProspect?.stalenessScore ?? 0;
-            // Check multiple possible signal sources in webHealthData
-            if (Array.isArray(parsed.signals) && parsed.signals.length > 0) {
+            websiteScore = parsed.score ?? null;
+            // New scoring engine format: factors array with points
+            if (Array.isArray(parsed.factors) && parsed.factors.length > 0) {
+                websiteFactors = parsed.factors.map((f: any) => ({
+                    label: f.label || f.text || String(f),
+                    points: f.points || 0
+                }));
+                websiteSignals = websiteFactors.map(f => f.label);
+            } else if (Array.isArray(parsed.signals) && parsed.signals.length > 0) {
                 websiteSignals = parsed.signals;
             } else if (Array.isArray(parsed.breakdown) && parsed.breakdown.length > 0) {
-                // Extract labels from breakdown objects if signals is empty
-                websiteSignals = parsed.breakdown.map((b: any) => b.label || b.text || String(b));
+                // Legacy breakdown format
+                websiteFactors = parsed.breakdown.map((b: any) => ({
+                    label: b.label || b.text || String(b),
+                    points: b.points || 0
+                }));
+                websiteSignals = websiteFactors.map(f => f.label);
             }
         } catch (e) { /* ignore */ }
     }
 
     // Fallbacks: try websiteSignals field, then scoreReasons
     if (websiteSignals.length === 0) {
-        websiteScore = websiteScore || (lead.companyProspect?.stalenessScore ?? 0);
+        if (websiteScore === null) {
+            websiteScore = lead.companyProspect?.stalenessScore ?? null;
+        }
         // Try websiteSignals field
         if (lead.companyProspect?.websiteSignals) {
             try {
