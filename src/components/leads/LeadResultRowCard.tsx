@@ -86,6 +86,9 @@ interface LeadResultRowCardProps {
     onViewThread: () => void;
     onDelete: () => void;
     onRescan?: (type: 'website' | 'financial' | 'both') => Promise<void>;
+    onViewLeadOpp?: () => void;
+    onViewWebHealth?: () => void;
+    onViewFinHealth?: () => void;
 }
 
 export default function LeadResultRowCard({
@@ -94,7 +97,10 @@ export default function LeadResultRowCard({
     onCompose,
     onViewThread,
     onDelete,
-    onRescan
+    onRescan,
+    onViewLeadOpp,
+    onViewWebHealth,
+    onViewFinHealth
 }: LeadResultRowCardProps) {
 
     const [scanningWeb, setScanningWeb] = useState(false);
@@ -239,6 +245,7 @@ export default function LeadResultRowCard({
                                 value={priorityBand}
                                 score={priority}
                                 scoreColor={priorityBand === 'High' ? 'lilac' : 'gray'}
+                                onDetails={onViewLeadOpp}
                             />
                         ) : (
                             <div className="flex flex-col gap-1 p-3 rounded-lg" style={{ background: 'var(--bg-card-muted)' }}>
@@ -264,6 +271,7 @@ export default function LeadResultRowCard({
                                 value={staleLabel}
                                 score={staleScore}
                                 scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
+                                onDetails={onViewWebHealth}
                             />
                         ) : (
                             <div className="flex flex-col gap-2 p-3 rounded-lg h-full justify-center" style={{ background: healthCtaStyles.web.cardBg, border: `1px solid ${healthCtaStyles.web.cardBorder}` }}>
@@ -288,6 +296,7 @@ export default function LeadResultRowCard({
                                 value={finBand}
                                 score={finScore}
                                 scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
+                                onDetails={onViewFinHealth}
                             />
                         ) : (
                             <div className="flex flex-col gap-2 p-3 rounded-lg h-full justify-center" style={{ background: healthCtaStyles.finance.cardBg, border: `1px solid ${healthCtaStyles.finance.cardBorder}` }}>

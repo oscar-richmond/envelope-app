@@ -13,6 +13,9 @@ import AddLeadModal from '@/components/AddLeadModal';
 import { MessageThreadComposerModal } from '@/components/messaging';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
 import RescanDropdown, { type RescanScope, type RescanTypes } from '@/components/leads/RescanDropdown';
+import WebsiteReviewModal from '@/components/modals/WebsiteReviewModal';
+import FinancialReportModal from '@/components/modals/FinancialReportModal';
+import PriorityBreakdownModal from '@/components/modals/PriorityBreakdownModal';
 
 // Toast helper (simple inline for now)
 function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -77,6 +80,12 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
 
     // Bulk Scan State
     const [bulkScanning, setBulkScanning] = useState(false);
+
+    // Report Modal State
+    const [viewingLead, setViewingLead] = useState<any>(null);
+    const [showLeadOppModal, setShowLeadOppModal] = useState(false);
+    const [showWebHealthModal, setShowWebHealthModal] = useState(false);
+    const [showFinHealthModal, setShowFinHealthModal] = useState(false);
 
     // Filtering & Sorting (moved up to avoid initialization error)
     const filteredLeads = useMemo(() => leads
@@ -482,6 +491,18 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                             onViewThread={() => handleViewThread(lead)}
                             onDelete={() => handleDeleteClick(lead)}
                             onRescan={(type) => handleRescan(lead, type)}
+                            onViewLeadOpp={() => {
+                                setViewingLead(lead);
+                                setShowLeadOppModal(true);
+                            }}
+                            onViewWebHealth={() => {
+                                setViewingLead(lead);
+                                setShowWebHealthModal(true);
+                            }}
+                            onViewFinHealth={() => {
+                                setViewingLead(lead);
+                                setShowFinHealthModal(true);
+                            }}
                         />
                     ))
                 ) : (
@@ -536,6 +557,44 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                 companyName={deletingLead?.companyName || 'this lead'}
                 isDeleting={isDeleting}
             />
+
+            {/* Report Modals */}
+            {viewingLead && (
+                <>
+                    <WebsiteReviewModal
+                        isOpen={showWebHealthModal}
+                        onClose={() => {
+                            setShowWebHealthModal(false);
+                            setViewingLead(null);
+                        }}
+                        companyId={viewingLead.companyProspectId}
+                        companyName={viewingLead.companyName}
+                        websiteUrl={viewingLead.websiteUrl}
+                    />
+
+                    <FinancialReportModal
+                        isOpen={showFinHealthModal}
+                        onClose={() => {
+                            setShowFinHealthModal(false);
+                            setViewingLead(null);
+                        }}
+                        companyId={viewingLead.companyProspectId}
+                        score={viewingLead.financialScore}
+                        band={viewingLead.financialBand}
+                        evidence={[]}
+                    />
+
+                    <PriorityBreakdownModal
+                        isOpen={showLeadOppModal}
+                        onClose={() => {
+                            setShowLeadOppModal(false);
+                            setViewingLead(null);
+                        }}
+                        companyId={viewingLead.companyProspectId}
+                        companyName={viewingLead.companyName}
+                    />
+                </>
+            )}
         </div>
     );
 }
