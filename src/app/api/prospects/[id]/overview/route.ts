@@ -58,6 +58,7 @@ export async function GET(
         // Return similar structure to lead overview
         return NextResponse.json({
             prospectId: prospect.id,
+            companyProspectId: prospect.id, // For report modals
             leadId: null, // Not a lead yet
             companyName: prospect.companyName,
             companyNumber: prospect.companyNumber,

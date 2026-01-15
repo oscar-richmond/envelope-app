@@ -59,6 +59,7 @@ export async function GET(
 
         return NextResponse.json({
             leadId: lead.id,
+            companyProspectId: lead.companyProspectId, // For report modals
             companyName: lead.companyName,
             websiteUrl: lead.websiteUrl,
             // Industry and location with fallbacks from prospect
