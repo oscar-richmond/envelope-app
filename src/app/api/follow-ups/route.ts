@@ -36,11 +36,20 @@ export async function GET(req: NextRequest) {
         // Get IDs of SentEmails that already have queue items
         const queuedSentEmailIds = queueItems.map(item => item.sentEmailId);
 
-        // Also get SentEmails with FOLLOW_UP_DUE status that don't have queue items yet
-        // (This handles the case where dashboard shows follow-ups but queue wasn't populated)
+        // Also get SentEmails where follow-up is DUE based on computeQueue logic:
+        // - nextFollowUpAt <= now (due date passed)
+        // - Not skipped
+        // - Not closed  
+        // - Not bounced
+        // This matches the inbox's computeQueue() calculation for FOLLOW_UP_DUE
+        const now = new Date();
         const additionalDueEmails = await prisma.sentEmail.findMany({
             where: {
-                status: 'FOLLOW_UP_DUE',
+                nextFollowUpAt: { lte: now },
+                followUpSkipped: false,
+                closedAt: null,
+                status: { notIn: ['BOUNCED', 'CLOSED'] },
+                deliveryError: null,
                 id: { notIn: queuedSentEmailIds.length > 0 ? queuedSentEmailIds : [-1] }
             },
             include: {
