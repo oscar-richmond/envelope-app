@@ -14,6 +14,7 @@ import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import ProspectResultRowCard from '@/components/prospects/ProspectResultRowCard';
+import MultiSelect from '@/components/ui/MultiSelect';
 import { useCompanyOverviewModal } from '@/components/modals/CompanyOverviewModalProvider';
 import RescanDropdown, { type RescanScope, type RescanTypes } from '@/components/leads/RescanDropdown';
 
@@ -22,19 +23,19 @@ export default function ProspectSearch() {
     const { openCompanyOverview } = useCompanyOverviewModal();
     const [filters, setFilters] = useState<{
         industry: string[];
-        size: string;
+        size: string[];
         location: string;
-        ageRange: string;
+        ageRange: string[];
         websiteRequired: boolean;
         onlyOutdated: boolean;
         minFinancialScore: string;
         query: string;
     }>({
         industry: [],
-        size: '11-50',
+        size: [],
         location: 'London',
-        ageRange: '', // Broad by default
-        websiteRequired: false, // Relaxed
+        ageRange: [],
+        websiteRequired: false,
         onlyOutdated: false,
         minFinancialScore: '',
         query: ''
@@ -967,17 +968,18 @@ export default function ProspectSearch() {
                     </div>
 
                     <div>
-                        <label className="label">Company Size</label>
-                        <select
-                            className="input w-full bg-white"
-                            value={filters.size}
-                            onChange={(e) => setFilters({ ...filters, size: e.target.value })}
-                        >
-                            <option value="1-10">1-10 employees</option>
-                            <option value="11-50">11-50 employees</option>
-                            <option value="51-200">51-200 employees</option>
-                            <option value="201-500">201-500 employees</option>
-                        </select>
+                        <MultiSelect
+                            label="Company Size"
+                            options={[
+                                { value: '1-10', label: '1-10 employees' },
+                                { value: '11-50', label: '11-50 employees' },
+                                { value: '51-200', label: '51-200 employees' },
+                                { value: '201-500', label: '201-500 employees' }
+                            ]}
+                            selected={filters.size}
+                            onChange={(vals) => setFilters({ ...filters, size: vals })}
+                            placeholder="Any size"
+                        />
                     </div>
 
                     <div>
@@ -994,17 +996,17 @@ export default function ProspectSearch() {
 
                     {/* Row 2: Age & Website Signals */}
                     <div>
-                        <label className="label">Company Age</label>
-                        <select
-                            className="input w-full bg-white"
-                            value={filters.ageRange}
-                            onChange={(e) => setFilters({ ...filters, ageRange: e.target.value })}
-                        >
-                            <option value="">Any Age</option>
-                            <option value="2-5">2-5 years</option>
-                            <option value="5-10">5-10 years (Legacy)</option>
-                            <option value="10+">10+ years</option>
-                        </select>
+                        <MultiSelect
+                            label="Company Age"
+                            options={[
+                                { value: '2-5', label: '2-5 years' },
+                                { value: '5-10', label: '5-10 years (Legacy)' },
+                                { value: '10+', label: '10+ years' }
+                            ]}
+                            selected={filters.ageRange}
+                            onChange={(vals) => setFilters({ ...filters, ageRange: vals })}
+                            placeholder="Any age"
+                        />
                     </div>
 
                     <div>

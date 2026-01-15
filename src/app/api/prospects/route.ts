@@ -26,16 +26,33 @@ export async function POST(request: Request) {
 
         const body = await request.json();
 
-        // Parse Age Range
-        let minAge, maxAge;
-        if (body.ageRange === '2-5') { minAge = 2; maxAge = 5; }
-        else if (body.ageRange === '5-10') { minAge = 5; maxAge = 10; }
-        else if (body.ageRange === '10+') { minAge = 10; }
+        // Parse Age Range - now supports arrays (OR logic)
+        let minAge: number | undefined, maxAge: number | undefined;
+        const ageRanges = Array.isArray(body.ageRange) ? body.ageRange : (body.ageRange ? [body.ageRange] : []);
+
+        // For array of age ranges, use the broadest range (min of mins, max of maxes)
+        if (ageRanges.length > 0) {
+            const parsedAges: { min?: number; max?: number }[] = [];
+            for (const range of ageRanges) {
+                if (range === '2-5') parsedAges.push({ min: 2, max: 5 });
+                else if (range === '5-10') parsedAges.push({ min: 5, max: 10 });
+                else if (range === '10+') parsedAges.push({ min: 10 });
+            }
+            if (parsedAges.length > 0) {
+                // Use broadest range for CH API (min of all mins, max of all maxes)
+                minAge = Math.min(...parsedAges.map(p => p.min ?? 0));
+                const maxAges = parsedAges.map(p => p.max).filter((m): m is number => m !== undefined);
+                maxAge = maxAges.length > 0 ? Math.max(...maxAges) : undefined;
+            }
+        }
+
+        // Size - now supports arrays (passed to provider as array)
+        const sizes = Array.isArray(body.size) ? body.size : (body.size ? [body.size] : []);
 
         const criteria: CompanySearchCriteria = {
             industry: body.industry === 'All' ? undefined : body.industry,
             location: body.location,
-            size: body.size,
+            size: sizes.length > 0 ? sizes : undefined,
             minAge,
             maxAge,
             query: body.query || undefined

@@ -33,7 +33,7 @@ export interface CompanySearchCriteria {
     sicCode?: string; // Comma separated codes
     status?: string;
     location?: string;
-    size?: string;
+    size?: string | string[];
     minAge?: number; // Years
     maxAge?: number; // Years
 }
