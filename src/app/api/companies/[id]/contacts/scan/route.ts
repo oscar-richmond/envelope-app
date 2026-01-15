@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { resolveCompanyIdentityOrError } from '@/lib/resolveCompanyIdentity';
+import { extractEmailsFromWebsite, getReasonMessage } from '@/lib/services/website-email-extractor';
 
 // Job tracking (use Redis in production)
 const jobs: Record<string, any> = (global as any).__contactScanJobs || {};
@@ -202,43 +203,42 @@ async function runContactScan(
 
         job.progress = 40;
 
-        // 2. Website scraping (simplified - look for mailto links)
+        // 2. Enhanced website extraction (footer-first + contact page sweep)
         try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000);
+            console.log(`[ContactsScan] Running enhanced website extraction for ${domain}`);
+            const websiteResult = await extractEmailsFromWebsite(domain);
 
-            const pageRes = await fetch(`https://${domain}`, {
-                signal: controller.signal,
-                headers: { 'User-Agent': 'EnvelopeBot/1.0' }
-            }).catch(() => null);
+            console.log(`[ContactsScan] Website extraction: ${websiteResult.emails.length} emails found, reason: ${websiteResult.reasonCode}`);
+            console.log(`[ContactsScan] Pages checked: ${websiteResult.pagesChecked.join(', ')}`);
 
-            clearTimeout(timeout);
+            for (const extracted of websiteResult.emails) {
+                // Skip if we already have this email from Hunter
+                if (allContacts.some(c => c.email.toLowerCase() === extracted.email)) continue;
 
-            if (pageRes?.ok) {
-                const html = await pageRes.text();
-
-                // Extract mailto links
-                const mailtoRegex = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
-                let match;
-                while ((match = mailtoRegex.exec(html)) !== null) {
-                    const email = match[1].toLowerCase();
-                    if (!allContacts.some(c => c.email.toLowerCase() === email)) {
-                        allContacts.push({
-                            email,
-                            name: '',
-                            role: '',
-                            confidence: 0.6,
-                            source: 'website',
-                            deliverability: 'unknown',
-                            type: isGenericEmail(email) ? 'generic' : 'personal'
-                        });
+                allContacts.push({
+                    email: extracted.email,
+                    name: extracted.name || '',
+                    role: '',
+                    confidence: extracted.confidence === 'high' ? 0.8 : 0.6,
+                    source: `website:${extracted.source}:${extracted.region}`,
+                    deliverability: 'unknown',
+                    type: isGenericEmail(extracted.email) ? 'generic' : 'personal',
+                    discoveryDetails: {
+                        method: extracted.source,
+                        region: extracted.region,
+                        pageUrl: extracted.pageUrl
                     }
-                }
-
-                console.log(`[ContactsScan] Found ${allContacts.filter(c => c.source === 'website').length} emails from website`);
+                });
             }
-        } catch (e) {
-            console.error('[ContactsScan] Website scrape error:', e);
+
+            // Store reason code for UI
+            (job as any).websiteExtractionReason = websiteResult.reasonCode;
+            (job as any).websiteExtractionMessage = getReasonMessage(websiteResult.reasonCode);
+
+        } catch (e: any) {
+            console.error('[ContactsScan] Website extraction error:', e);
+            (job as any).websiteExtractionReason = 'ERROR';
+            (job as any).websiteExtractionMessage = e.message;
         }
 
         job.progress = 60;
