@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { resolveCompanyIdentityOrError } from '@/lib/resolveCompanyIdentity';
+import { computeWebsiteReview, createFailedWebsiteReport, type WebsiteScanInput } from '@/lib/scoring';
 
 /**
  * POST /api/companies/[id]/web-health/scan
  * 
  * Triggers website health scan and staleness analysis
  * Returns updated score, status, and key findings
+ * 
+ * SCORING: Uses single source of truth - score = BASE_SCORE + Σ(factor.points)
  */
 export async function POST(
     request: Request,
@@ -58,20 +61,17 @@ export async function POST(
         }
 
         if (!domain) {
-            // Persist failed status
-            const failedData = {
-                score: 0,
-                label: 'No Website',
-                signals: [],
-                breakdown: [],
+            // Use scoring engine for failed state
+            const failedReport = createFailedWebsiteReport('No website URL found');
+            const webHealthData = {
+                ...failedReport,
                 status: 'failed',
-                failureReason: 'No website URL found',
-                lastScannedAt: new Date().toISOString()
+                domain: null
             };
 
             await prisma.companyProspect.update({
                 where: { id: companyId },
-                data: { webHealthData: JSON.stringify(failedData) }
+                data: { webHealthData: JSON.stringify(webHealthData) }
             });
 
             return NextResponse.json({
@@ -84,10 +84,11 @@ export async function POST(
 
         console.log(`[WebHealthScan] Scanning domain: ${domain}`)
 
-        // Perform website scan
-        let score = 50;
-        const signals: string[] = [];
-        const breakdown: { label: string; points: number; text?: string; status?: 'good' | 'ok' | 'risk' }[] = [];
+        // Collect scan input data
+        const scanInput: WebsiteScanInput = {
+            isReachable: false,
+            isHttps: false
+        };
 
         try {
             // Fetch website to check if it's reachable
@@ -104,99 +105,62 @@ export async function POST(
             clearTimeout(timeout);
 
             if (response) {
-                // Website is reachable
-                score += 20;
-                signals.push('Website is reachable');
-                breakdown.push({ label: 'Website Reachable', points: 20, text: 'Site responds to requests', status: 'good' });
-
-                // Check SSL
-                if (url.startsWith('https://')) {
-                    score += 10;
-                    signals.push('SSL certificate is active');
-                    breakdown.push({ label: 'SSL Certificate', points: 10, text: 'HTTPS enabled', status: 'good' });
-                }
-
-                // Check response time (via status)
-                if (response.ok) {
-                    score += 10;
-                    signals.push('Website returns 200 OK');
-                    breakdown.push({ label: 'HTTP Status', points: 10, text: 'Returns 200 OK', status: 'good' });
-                } else {
-                    breakdown.push({ label: 'HTTP Status', points: 0, text: `Returns ${response.status}`, status: 'ok' });
-                }
+                scanInput.isReachable = true;
+                scanInput.isHttps = url.startsWith('https://');
+                scanInput.httpStatus = response.status;
             } else {
-                score -= 20;
-                signals.push('Website may be unreachable');
-                breakdown.push({ label: 'Website Reachable', points: -20, text: 'Could not connect', status: 'risk' });
+                scanInput.isReachable = false;
+                scanInput.error = 'Could not connect to website';
             }
 
-            // Calculate staleness based on discovery date
+            // Calculate days since verification
             const discoveryDate = prospect.websiteDiscoveryDate;
             if (discoveryDate) {
-                const daysSinceDiscovery = (Date.now() - new Date(discoveryDate).getTime()) / (1000 * 60 * 60 * 24);
-                if (daysSinceDiscovery < 7) {
-                    score += 10;
-                    signals.push('Recently verified');
-                    breakdown.push({ label: 'Verification Recency', points: 10, text: 'Verified in last week', status: 'good' });
-                } else if (daysSinceDiscovery < 30) {
-                    signals.push('Verified within last month');
-                    breakdown.push({ label: 'Verification Recency', points: 0, text: 'Verified in last month', status: 'ok' });
-                } else {
-                    score -= 10;
-                    signals.push('May need re-verification');
-                    breakdown.push({ label: 'Verification Recency', points: -10, text: 'Over 30 days old', status: 'risk' });
-                }
+                scanInput.daysSinceVerified = Math.floor(
+                    (Date.now() - new Date(discoveryDate).getTime()) / (1000 * 60 * 60 * 24)
+                );
             }
 
         } catch (e: any) {
             console.error('[WebHealthScan] Scan error:', e);
-            score = 30;
-            signals.push('Could not verify website');
-            breakdown.push({ label: 'Scan Error', points: 0, text: 'Could not complete scan', status: 'risk' });
+            scanInput.error = e.message || 'Scan error';
         }
 
-        // Score capped at 0-100
-        score = Math.max(0, Math.min(100, score));
+        // Use scoring engine to compute score from factors
+        const report = computeWebsiteReview(scanInput);
 
-        // Determine status label
-        let label = 'Fresh';
-        if (score >= 70) label = 'Healthy';
-        else if (score >= 40) label = 'Needs Work';
-        else label = 'At Risk';
-
-        // Build complete webHealthData JSON
+        // Build complete webHealthData with report + metadata
         const webHealthData = {
-            score,
-            label,
-            signals,
-            breakdown,
+            ...report,
             status: 'success',
-            domain,
-            lastScannedAt: new Date().toISOString()
+            domain
         };
 
-        // Update database - persist to BOTH legacy fields AND webHealthData JSON
+        // Extract signals as string array for legacy compatibility
+        const signalStrings = report.factors.map(f => f.label);
+
+        // Update database - persist scoring engine result
         await prisma.companyProspect.update({
             where: { id: companyId },
             data: {
                 websiteDomain: domain,
                 websiteDiscoveryDate: new Date(),
-                websiteSignals: JSON.stringify(signals),
-                stalenessScore: score,
-                stalenessLabel: label,
+                websiteSignals: JSON.stringify(signalStrings),
+                stalenessScore: report.score ?? 0,
+                stalenessLabel: report.statusLabel,
                 webHealthData: JSON.stringify(webHealthData)
             }
         });
 
-        console.log(`[WebHealthScan] Completed for company ${companyId}: score=${score}`);
+        console.log(`[WebHealthScan] Completed for company ${companyId}: score=${report.score}`);
 
         return NextResponse.json({
             success: true,
             status: 'success',
-            score,
-            label,
-            signals,
-            breakdown,
+            score: report.score,
+            label: report.statusLabel,
+            factors: report.factors,
+            signals: signalStrings,
             domain,
             lastScanned: new Date().toISOString()
         });

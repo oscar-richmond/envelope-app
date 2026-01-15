@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { resolveCompanyIdentityOrError } from '@/lib/resolveCompanyIdentity';
+import { type Factor, type ReportResult, computeScoreFromFactors } from '@/lib/scoring';
+
+const FINANCIAL_BASE_SCORE = 0; // Financial starts at 0, adds points for each positive indicator
 
 /**
  * POST /api/companies/[id]/financials/sync
  * 
  * Triggers financial health sync from Companies House
  * Returns updated score, band, and breakdown
+ * 
+ * SCORING: Uses single source of truth - score = BASE_SCORE + Σ(factor.points)
  */
 export async function POST(
     request: Request,
@@ -47,10 +52,9 @@ export async function POST(
         }
 
         const companyNumber = prospect.companyNumber;
-        const companyName = prospect.companyName;
 
-        // If no company number, try to find one
-        let financialData: any = null;
+        // Collect factors from Companies House data
+        const factors: Factor[] = [];
 
         if (companyNumber) {
             // Fetch from Companies House API
@@ -77,8 +81,8 @@ export async function POST(
                         const filings = filingRes.ok ? await filingRes.json() : { items: [] };
                         const latestAccounts = (filings.items || [])[0];
 
-                        // Calculate financial health score
-                        financialData = calculateFinancialHealth(profile, latestAccounts);
+                        // Build factors from real Companies House data
+                        buildFactorsFromCompaniesHouse(factors, profile, latestAccounts);
                     }
                 }
             } catch (e) {
@@ -86,55 +90,70 @@ export async function POST(
             }
         }
 
-        // Fallback: generate basic score based on available data
-        if (!financialData) {
-            financialData = {
-                score: prospect.financialHealthScore ?? 50,
-                band: getScoreBand(prospect.financialHealthScore ?? 50),
-                breakdown: [
-                    {
-                        label: 'Company Status',
-                        text: 'Based on available data',
-                        points: 10,
-                        status: 'ok'
-                    }
-                ],
-                details: ['Financial data sync in progress']
-            };
+        // If no factors collected, add a "no data" factor
+        if (factors.length === 0) {
+            factors.push({
+                id: 'no_data',
+                label: 'Limited data available',
+                points: 0,
+                polarity: 'negative',
+                description: 'No Companies House data found'
+            });
         }
 
-        // Persist breakdown to finHealthData JSON for proper parsing
-        const finHealthData = {
-            score: financialData.score,
-            band: financialData.band,
-            breakdown: financialData.breakdown,
-            details: financialData.details,
-            lastScannedAt: new Date().toISOString()
+        // Compute score from factors (single source of truth)
+        const score = computeScoreFromFactors(FINANCIAL_BASE_SCORE, factors);
+
+        // Determine band label
+        let band = 'Medium';
+        if (score >= 70) band = 'Strong';
+        else if (score < 40) band = 'Weak';
+
+        // Build ReportResult
+        const report: ReportResult = {
+            score,
+            statusLabel: band,
+            factors,
+            computedAt: new Date().toISOString(),
+            confidence: factors.length >= 3 ? 'high' : factors.length >= 2 ? 'medium' : 'low',
+            baseScore: FINANCIAL_BASE_SCORE
         };
 
-        // Update database - save to BOTH legacy and new fields
+        // Convert factors to legacy breakdown format for compatibility
+        const breakdown = factors.map(f => ({
+            label: f.label,
+            points: f.points,
+            text: f.description || f.label,
+            status: f.polarity === 'positive' ? 'good' : (f.points < 0 ? 'risk' : 'ok')
+        }));
+
+        // Build finHealthData with report
+        const finHealthData = {
+            ...report,
+            breakdown, // Keep legacy format too
+            details: factors.map(f => f.label)
+        };
+
+        // Update database - persist scoring engine result
         await prisma.companyProspect.update({
             where: { id: companyId },
             data: {
-                financialActivityScore: financialData.score,
-                financialActivityBand: financialData.band,
-                financialSignals: JSON.stringify({
-                    breakdown: financialData.breakdown,
-                    details: financialData.details
-                }),
+                financialActivityScore: score,
+                financialActivityBand: band,
+                financialSignals: JSON.stringify({ breakdown, details: finHealthData.details }),
                 finHealthData: JSON.stringify(finHealthData),
                 financialLastCheckedAt: new Date()
             }
         });
 
-        console.log(`[FinancialsSync] Completed for company ${companyId}: score=${financialData.score}`);
+        console.log(`[FinancialsSync] Completed for company ${companyId}: score=${score}`);
 
         return NextResponse.json({
             success: true,
-            score: financialData.score,
-            band: financialData.band,
-            breakdown: financialData.breakdown,
-            details: financialData.details,
+            score,
+            band,
+            factors,
+            breakdown,
             status: 'COMPLETE',
             lastChecked: new Date().toISOString()
         });
@@ -144,6 +163,147 @@ export async function POST(
         return NextResponse.json({
             error: error.message || 'Failed to sync financials'
         }, { status: 500 });
+    }
+}
+
+/**
+ * Build factors from Companies House data - all factors are real, not fabricated
+ */
+function buildFactorsFromCompaniesHouse(factors: Factor[], profile: any, latestAccounts: any) {
+    // 1. Company status
+    if (profile.company_status === 'active') {
+        factors.push({
+            id: 'status_active',
+            label: 'Company is active',
+            points: 20,
+            polarity: 'positive',
+            description: 'Listed as active on Companies House'
+        });
+    } else if (profile.company_status) {
+        factors.push({
+            id: 'status_inactive',
+            label: `Status: ${profile.company_status}`,
+            points: -10,
+            polarity: 'negative',
+            description: 'Company may not be actively trading'
+        });
+    }
+
+    // 2. Company age
+    const incorporationDate = profile.date_of_creation ? new Date(profile.date_of_creation) : null;
+    if (incorporationDate) {
+        const ageYears = (Date.now() - incorporationDate.getTime()) / (1000 * 60 * 60 * 24 * 365);
+        if (ageYears >= 10) {
+            factors.push({
+                id: 'age_established',
+                label: 'Established company (10+ years)',
+                points: 20,
+                polarity: 'positive',
+                description: `Operating since ${incorporationDate.getFullYear()}`
+            });
+        } else if (ageYears >= 3) {
+            factors.push({
+                id: 'age_mature',
+                label: `Company age: ${Math.floor(ageYears)} years`,
+                points: 15,
+                polarity: 'positive',
+                description: 'Established business'
+            });
+        } else if (ageYears >= 1) {
+            factors.push({
+                id: 'age_young',
+                label: `Company age: ${Math.floor(ageYears)} years`,
+                points: 10,
+                polarity: 'positive',
+                description: 'Relatively new business'
+            });
+        } else {
+            factors.push({
+                id: 'age_new',
+                label: 'Company less than 1 year old',
+                points: 5,
+                polarity: 'negative',
+                description: 'Limited track record'
+            });
+        }
+    }
+
+    // 3. Accounts filed
+    if (latestAccounts) {
+        const filedDate = latestAccounts.date ? new Date(latestAccounts.date) : null;
+        const monthsAgo = filedDate
+            ? (Date.now() - filedDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+            : 999;
+
+        if (monthsAgo <= 15) {
+            factors.push({
+                id: 'accounts_current',
+                label: 'Accounts are up to date',
+                points: 20,
+                polarity: 'positive',
+                description: `Filed ${filedDate?.toLocaleDateString()}`
+            });
+        } else if (monthsAgo <= 24) {
+            factors.push({
+                id: 'accounts_aging',
+                label: 'Accounts may be slightly outdated',
+                points: 10,
+                polarity: 'positive',
+                description: `Filed ${filedDate?.toLocaleDateString()}`
+            });
+        }
+    }
+
+    // 4. Type of accounts
+    if (latestAccounts?.type) {
+        const accountsType = latestAccounts.type.toLowerCase();
+        if (accountsType.includes('full')) {
+            factors.push({
+                id: 'accounts_full',
+                label: 'Full accounts filed',
+                points: 20,
+                polarity: 'positive',
+                description: 'Full financial disclosure'
+            });
+        } else if (accountsType.includes('small') || accountsType.includes('abbreviated')) {
+            factors.push({
+                id: 'accounts_small',
+                label: 'Small/Abbreviated accounts',
+                points: 10,
+                polarity: 'positive',
+                description: 'Limited disclosure (typical for SMEs)'
+            });
+        } else if (accountsType.includes('micro')) {
+            factors.push({
+                id: 'accounts_micro',
+                label: 'Micro entity accounts',
+                points: 5,
+                polarity: 'positive',
+                description: 'Minimal disclosure'
+            });
+        }
+    }
+
+    // 5. Registered office
+    if (profile.registered_office_address) {
+        factors.push({
+            id: 'office_confirmed',
+            label: 'Registered office confirmed',
+            points: 10,
+            polarity: 'positive',
+            description: 'Has registered business address'
+        });
+    }
+
+    // 6. Insolvency flags
+    if (profile.has_been_liquidated || profile.has_insolvency_history) {
+        factors.push({
+            id: 'insolvency_risk',
+            label: 'Insolvency history found',
+            points: -30,
+            polarity: 'negative',
+            description: 'Company has insolvency history'
+        });
     }
 }
 
