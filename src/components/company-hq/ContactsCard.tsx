@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Users, RefreshCw, Check, Shield, AlertCircle, X,
-    Globe, Zap, Building2, ChevronDown, ChevronUp, Copy, Mail, Loader2, Plus, UserPlus, Sparkles, Lightbulb
+    Globe, Zap, Building2, ChevronDown, ChevronUp, Copy, Mail, Loader2, Plus, UserPlus, Sparkles, Lightbulb, MoreVertical, Pencil, Trash2
 } from 'lucide-react';
 import AddContactModal from '@/components/modals/AddContactModal';
 
@@ -74,6 +74,12 @@ export default function ContactsCard({
     const [emailPattern, setEmailPattern] = useState<any>(null);
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [generatingSuggestions, setGeneratingSuggestions] = useState(false);
+
+    // Edit/Delete state
+    const [editingContact, setEditingContact] = useState<Contact | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Fetch contacts on mount
     const fetchContacts = useCallback(async () => {
@@ -305,6 +311,63 @@ export default function ContactsCard({
     const handleSelectEmail = (email: string) => {
         setSelectedEmail(email);
         onSelectEmail?.(email);
+    };
+
+    // Edit contact handler
+    const handleEditContact = (contact: Contact) => {
+        setEditingContact(contact);
+        setShowEditModal(true);
+    };
+
+    // Save edited contact
+    const handleSaveEdit = async (updates: Partial<Contact>) => {
+        if (!editingContact?.id) return;
+
+        try {
+            const res = await fetch(`/api/contacts/${editingContact.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Update contacts list
+                setContacts(prev => prev.map(c =>
+                    c.id === editingContact.id ? { ...c, ...data.contact } : c
+                ));
+                setShowEditModal(false);
+                setEditingContact(null);
+            } else {
+                const err = await res.json();
+                setError(err.error || 'Failed to update contact');
+            }
+        } catch (e) {
+            console.error('[ContactsCard] Edit failed:', e);
+            setError('Failed to update contact');
+        }
+    };
+
+    // Delete contact handler
+    const handleDeleteContact = async (contactId: string) => {
+        try {
+            const res = await fetch(`/api/contacts/${contactId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                // Remove from contacts list
+                setContacts(prev => prev.filter(c => c.id !== contactId));
+                setShowDeleteConfirm(false);
+                setDeletingContactId(null);
+            } else {
+                const err = await res.json();
+                setError(err.error || 'Failed to delete contact');
+            }
+        } catch (e) {
+            console.error('[ContactsCard] Delete failed:', e);
+            setError('Failed to delete contact');
+        }
     };
 
     // Categorize contacts
@@ -810,20 +873,26 @@ export default function ContactsCard({
     );
 }
 
-// Contact Row Component - Improved Layout
+// Contact Row Component - With Edit/Delete Menu
 function ContactRow({
     contact,
     isSelected,
     isCopied,
     onSelect,
-    onCopy
+    onCopy,
+    onEdit,
+    onDelete
 }: {
     contact: Contact;
     isSelected: boolean;
     isCopied: boolean;
     onSelect: () => void;
     onCopy: () => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
 }) {
+    const [showMenu, setShowMenu] = useState(false);
+
     // Build display name: prefer firstName + lastName, fallback to fullName, then name, then email
     const buildDisplayName = () => {
         if (contact.firstName || contact.lastName) {
@@ -890,6 +959,52 @@ function ContactRow({
             >
                 {isCopied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
             </button>
+
+            {/* Kebab Menu */}
+            {(onEdit || onDelete) && (
+                <div className="relative">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+                        className="p-1.5 rounded-md transition-all hover:bg-gray-200 shrink-0"
+                        style={{ color: 'var(--text-muted)' }}
+                    >
+                        <MoreVertical size={14} />
+                    </button>
+
+                    {showMenu && (
+                        <>
+                            {/* Backdrop */}
+                            <div
+                                className="fixed inset-0 z-40"
+                                onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}
+                            />
+                            {/* Dropdown */}
+                            <div
+                                className="absolute right-0 top-8 z-50 bg-white rounded-lg shadow-lg border py-1 min-w-[120px]"
+                                style={{ borderColor: 'var(--border-soft)' }}
+                            >
+                                {onEdit && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowMenu(false); onEdit(); }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50 transition"
+                                        style={{ color: 'var(--text-primary)' }}
+                                    >
+                                        <Pencil size={14} /> Edit
+                                    </button>
+                                )}
+                                {onDelete && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowMenu(false); onDelete(); }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-red-50 transition text-red-600"
+                                    >
+                                        <Trash2 size={14} /> Delete
+                                    </button>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
