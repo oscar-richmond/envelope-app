@@ -961,26 +961,34 @@ export default function ProspectSearch() {
                         <p className="helper-text mt-1">Operational/Financial Health</p>
                     </div>
 
-                    <div className="flex items-center gap-6 pt-7">
-                        <label className="flex items-center gap-2 cursor-pointer group">
+                    <div className="flex items-center gap-6 pt-7 flex-wrap">
+                        {/* Must have website filter */}
+                        <label className="flex items-center gap-2.5 cursor-pointer group whitespace-nowrap">
                             <input
                                 type="checkbox"
-                                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 shrink-0"
                                 checked={filters.websiteRequired}
                                 onChange={(e) => setFilters({ ...filters, websiteRequired: e.target.checked })}
                             />
-                            <span className="text-sm text-gray-700 font-medium group-hover:text-gray-900 transition-colors">Must have website</span>
+                            <span className="text-sm text-gray-700 font-medium group-hover:text-gray-900 transition-colors">
+                                Must have website
+                            </span>
                         </label>
 
-                        <label className="flex items-center gap-2 cursor-pointer ml-4 group">
+                        {/* Likely Outdated filter */}
+                        <label className="flex items-center gap-2.5 cursor-pointer group whitespace-nowrap">
                             <input
                                 type="checkbox"
-                                className="w-4 h-4 text-rose-600 rounded border-gray-300 focus:ring-rose-500"
+                                className="w-4 h-4 text-rose-600 rounded border-gray-300 focus:ring-rose-500 shrink-0"
                                 checked={filters.onlyOutdated}
                                 onChange={(e) => setFilters({ ...filters, onlyOutdated: e.target.checked })}
                             />
-                            <span className="text-sm text-gray-700 font-medium group-hover:text-gray-900 transition-colors">Likely Outdated</span>
-                            <span className="text-xs text-gray-400 font-mono">(Score &ge; 60)</span>
+                            <span className="text-sm text-gray-700 font-medium group-hover:text-gray-900 transition-colors">
+                                Likely outdated
+                            </span>
+                            <span className="text-xs text-gray-400">
+                                Score ≥ 60
+                            </span>
                         </label>
                     </div>
 
