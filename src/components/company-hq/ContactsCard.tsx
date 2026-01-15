@@ -537,6 +537,8 @@ export default function ContactsCard({
                                             isCopied={copiedEmail === contact.email}
                                             onSelect={() => handleSelectEmail(contact.email)}
                                             onCopy={() => handleCopyEmail(contact.email)}
+                                            onEdit={() => handleEditContact(contact)}
+                                            onDelete={() => { setDeletingContactId(contact.id || null); setShowDeleteConfirm(true); }}
                                         />
                                     ))}
                                 </div>
@@ -564,6 +566,8 @@ export default function ContactsCard({
                                                 isCopied={copiedEmail === contact.email}
                                                 onSelect={() => handleSelectEmail(contact.email)}
                                                 onCopy={() => handleCopyEmail(contact.email)}
+                                                onEdit={() => handleEditContact(contact)}
+                                                onDelete={() => { setDeletingContactId(contact.id || null); setShowDeleteConfirm(true); }}
                                             />
                                         ))}
                                     </div>
@@ -592,6 +596,8 @@ export default function ContactsCard({
                                                 isCopied={copiedEmail === contact.email}
                                                 onSelect={() => handleSelectEmail(contact.email)}
                                                 onCopy={() => handleCopyEmail(contact.email)}
+                                                onEdit={() => handleEditContact(contact)}
+                                                onDelete={() => { setDeletingContactId(contact.id || null); setShowDeleteConfirm(true); }}
                                             />
                                         ))}
                                     </div>
@@ -743,6 +749,139 @@ export default function ContactsCard({
                     setShowAddModal(false);
                 }}
             />
+
+            {/* Edit Contact Modal */}
+            {showEditModal && editingContact && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }}
+                >
+                    <div className="absolute inset-0" onClick={() => { setShowEditModal(false); setEditingContact(null); }} />
+                    <div
+                        className="relative z-10 w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden"
+                        style={{ border: '1px solid var(--border-soft)' }}
+                    >
+                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-gray-900">Edit Contact</h3>
+                            <button
+                                onClick={() => { setShowEditModal(false); setEditingContact(null); }}
+                                className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+                            >
+                                <X size={18} className="text-gray-500" />
+                            </button>
+                        </div>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                const form = e.target as HTMLFormElement;
+                                const formData = new FormData(form);
+                                handleSaveEdit({
+                                    firstName: formData.get('firstName') as string,
+                                    lastName: formData.get('lastName') as string,
+                                    email: formData.get('email') as string,
+                                    role: formData.get('role') as string
+                                });
+                            }}
+                            className="p-5 space-y-4"
+                        >
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1.5">First Name</label>
+                                    <input
+                                        type="text"
+                                        name="firstName"
+                                        defaultValue={editingContact.firstName || ''}
+                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Last Name</label>
+                                    <input
+                                        type="text"
+                                        name="lastName"
+                                        defaultValue={editingContact.lastName || ''}
+                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1.5">Email</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    required
+                                    defaultValue={editingContact.email}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1.5">Role / Title</label>
+                                <input
+                                    type="text"
+                                    name="role"
+                                    defaultValue={editingContact.role || editingContact.roleTitle || ''}
+                                    placeholder="e.g. Marketing Director"
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowEditModal(false); setEditingContact(null); }}
+                                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 text-sm font-medium text-white rounded-lg transition"
+                                    style={{ background: 'var(--brand)' }}
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && deletingContactId && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }}
+                >
+                    <div className="absolute inset-0" onClick={() => { setShowDeleteConfirm(false); setDeletingContactId(null); }} />
+                    <div
+                        className="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-xl overflow-hidden"
+                        style={{ border: '1px solid var(--border-soft)' }}
+                    >
+                        <div className="p-5 text-center">
+                            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                                <Trash2 size={24} className="text-red-600" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Contact?</h3>
+                            <p className="text-sm text-gray-500 mb-6">
+                                This action cannot be undone. The contact will be permanently removed.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => { setShowDeleteConfirm(false); setDeletingContactId(null); }}
+                                    className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteContact(deletingContactId)}
+                                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* View All Contacts Modal */}
             {showAllContacts && (
