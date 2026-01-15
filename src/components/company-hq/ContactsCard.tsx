@@ -127,20 +127,33 @@ export default function ContactsCard({
 
     // Fetch on mount
     useEffect(() => {
-        // If props provided, use them initially
-        if (emailsProp?.length || contactsProp?.length) {
-            const propContacts = emailsProp || contactsProp || [];
-            setContacts(propContacts);
+        // If contacts prop provided, use it immediately
+        if (contactsProp && contactsProp.length > 0) {
+            console.log('[ContactsCard] Using prop contacts:', contactsProp.length);
+            setContacts(contactsProp);
             setLoadState('success');
+            return; // Don't fetch if we have prop data
         }
 
-        // Then fetch fresh data
+        // If emailsProp provided, use it
+        if (emailsProp && emailsProp.length > 0) {
+            console.log('[ContactsCard] Using prop emails:', emailsProp.length);
+            setContacts(emailsProp);
+            setLoadState('success');
+            return;
+        }
+
+        // Otherwise fetch from API if we have an ID
         if (id) {
+            console.log('[ContactsCard] Fetching from API for id:', id);
             fetchContacts();
             // Also fetch pattern
             fetchEmailPattern();
+        } else {
+            console.log('[ContactsCard] No ID and no props - showing empty state');
+            setLoadState('success');
         }
-    }, [id, fetchContacts]);
+    }, [id, contactsProp, emailsProp, fetchContacts, fetchEmailPattern]);
 
     // Fetch email pattern
     const fetchEmailPattern = useCallback(async () => {
@@ -417,11 +430,6 @@ export default function ContactsCard({
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    {lastScannedAt && (
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            {new Date(lastScannedAt).toLocaleDateString()}
-                        </span>
-                    )}
                     <button
                         onClick={() => handleScan(true)}
                         disabled={!canRescan}
