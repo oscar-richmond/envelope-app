@@ -20,17 +20,43 @@ export async function GET() {
         const enrichedLeads = leads.map(lead => {
             const prospect = lead.companyProspect;
 
-            // Financial score - return null if not available, NOT 0
-            const financialScore = prospect?.financialActivityScore ?? null;
-            const financialBand = financialScore !== null
-                ? (financialScore > 75 ? 'Strong' : financialScore > 50 ? 'Medium' : 'Low')
-                : null;
+            // Parse persisted webHealthData JSON if available
+            let webHealthPersisted: { score: number | null; label: string | null; lastScannedAt: string | null } | null = null;
+            if (prospect?.webHealthData) {
+                try {
+                    const parsed = JSON.parse(prospect.webHealthData);
+                    webHealthPersisted = {
+                        score: parsed.score ?? null,
+                        label: parsed.label ?? null,
+                        lastScannedAt: parsed.lastScannedAt ?? null
+                    };
+                } catch (e) { /* ignore parse errors */ }
+            }
 
-            // Website score (staleness) - return null if not available
-            const stalenessScore = lead.stalenessScore ?? prospect?.stalenessScore ?? null;
-            const stalenessLabel = stalenessScore !== null
+            // Parse persisted finHealthData JSON if available
+            let finHealthPersisted: { score: number | null; band: string | null; lastSyncedAt: string | null } | null = null;
+            if (prospect?.finHealthData) {
+                try {
+                    const parsed = JSON.parse(prospect.finHealthData);
+                    finHealthPersisted = {
+                        score: parsed.score ?? null,
+                        band: parsed.band ?? null,
+                        lastSyncedAt: parsed.lastSyncedAt ?? null
+                    };
+                } catch (e) { /* ignore parse errors */ }
+            }
+
+            // Financial score - prefer persisted JSON, fallback to individual field
+            const financialScore = finHealthPersisted?.score ?? prospect?.financialActivityScore ?? null;
+            const financialBand = finHealthPersisted?.band ?? (financialScore !== null
+                ? (financialScore > 75 ? 'Strong' : financialScore > 50 ? 'Medium' : 'Low')
+                : null);
+
+            // Website score (staleness) - prefer persisted JSON, fallback to individual fields
+            const stalenessScore = webHealthPersisted?.score ?? lead.stalenessScore ?? prospect?.stalenessScore ?? null;
+            const stalenessLabel = webHealthPersisted?.label ?? (stalenessScore !== null
                 ? (stalenessScore >= 60 ? 'Outdated' : stalenessScore >= 30 ? 'Aging' : 'Fresh')
-                : null;
+                : null);
 
             // Priority score calculation - only if we have data
             const priorityScore = (financialScore !== null || stalenessScore !== null)
@@ -40,9 +66,13 @@ export async function GET() {
                 ? (priorityScore > 70 ? 'High' : priorityScore > 40 ? 'Medium' : 'Low')
                 : null;
 
-            // Last scanned dates
-            const websiteLastScanned = lead.lastAnalyzedAt || prospect?.lastAnalysedAt || null;
-            const financialLastScanned = prospect?.financialLastCheckedAt || null;
+            // Last scanned dates - prefer persisted JSON timestamps
+            const websiteLastScanned = webHealthPersisted?.lastScannedAt
+                ? new Date(webHealthPersisted.lastScannedAt)
+                : lead.lastAnalyzedAt || prospect?.lastAnalysedAt || null;
+            const financialLastScanned = finHealthPersisted?.lastSyncedAt
+                ? new Date(finHealthPersisted.lastSyncedAt)
+                : prospect?.financialLastCheckedAt || null;
 
             // Stable signals contract
             const signals = {
