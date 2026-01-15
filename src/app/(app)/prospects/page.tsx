@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 export const dynamic = 'force-dynamic';
 import { Search, Filter, RefreshCw, ChevronDown, Check, X, AlertCircle, Building2, MapPin, Globe, ArrowRight, Lock, Target, Send, PenTool, Plus, Database, Mail, Info, HelpCircle, Users, Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,7 @@ import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import ProspectResultRowCard from '@/components/prospects/ProspectResultRowCard';
 import { useCompanyOverviewModal } from '@/components/modals/CompanyOverviewModalProvider';
+import RescanDropdown, { type RescanScope, type RescanTypes } from '@/components/leads/RescanDropdown';
 
 export default function ProspectSearch() {
     const router = useRouter();
@@ -52,6 +53,89 @@ export default function ProspectSearch() {
     const [viewDraft, setViewDraft] = useState<any | null>(null);
     const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
     const [isSending, setIsSending] = useState(false);
+
+    // --- Bulk Scan State ---
+    const [bulkScanning, setBulkScanning] = useState(false);
+    const [scanProgress, setScanProgress] = useState<{ current: number; total: number } | undefined>();
+
+    // Compute staleness counts for rescan dropdown
+    const stalenessCounts = useMemo(() => {
+        let missingCount = 0;
+        let staleCount = 0;
+
+        for (const c of results) {
+            // Consider missing if no staleness score or no financial score
+            const isWebMissing = c.stalenessScore === undefined || c.stalenessScore === null;
+            const isFinMissing = !c.financialActivityScore && c.financialActivityBand === 'Unknown';
+            if (isWebMissing || isFinMissing) missingCount++;
+
+            // Consider stale if scanned more than 7 days ago (or flag set)
+            const webLastScanned = c.lastAnalysedAt ? new Date(c.lastAnalysedAt) : null;
+            const finLastScanned = c.financialLastCheckedAt ? new Date(c.financialLastCheckedAt) : null;
+            const now = new Date();
+            const staleThresholdMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+            const isWebStale = webLastScanned && (now.getTime() - webLastScanned.getTime() > staleThresholdMs);
+            const isFinStale = finLastScanned && (now.getTime() - finLastScanned.getTime() > staleThresholdMs);
+            if (isWebStale || isFinStale) staleCount++;
+        }
+
+        return { missingCount, staleCount };
+    }, [results]);
+
+    // Unified Bulk Scan Handler (matches Lead Board exactly)
+    const handleUnifiedBulkScan = useCallback(async (scope: RescanScope, types: RescanTypes) => {
+        if (bulkScanning) return;
+
+        // Get company IDs that have been saved (have an id)
+        const validResults = results.filter(c => c.id);
+        if (validResults.length === 0) {
+            alert('No saved companies to scan. Add companies as leads first or run an initial scan.');
+            return;
+        }
+
+        setBulkScanning(true);
+        setScanProgress({ current: 0, total: validResults.length });
+
+        try {
+            const typeParam = types === 'web' ? 'website' : types === 'fin' ? 'financial' : 'both';
+
+            // Use prospects-specific bulk scan endpoint
+            const res = await fetch('/api/scan/prospects-bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyIds: validResults.map(c => c.id),
+                    type: typeParam,
+                    mode: scope === 'missing' ? 'missing' : scope === 'stale' ? 'stale' : 'force'
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                // Update results in-place with new scan data
+                if (data.results && Array.isArray(data.results)) {
+                    setResults(prev => prev.map(p => {
+                        const updated = data.results.find((r: any) => r.id === p.id);
+                        if (updated) {
+                            return { ...p, ...updated };
+                        }
+                        return p;
+                    }));
+                }
+                alert(`Scan complete: ${data.completed || 0} updated, ${data.skipped || 0} skipped`);
+            } else {
+                alert('Scan failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e: any) {
+            console.error('[BulkScan] Error:', e);
+            alert('Scan failed: ' + e.message);
+        } finally {
+            setBulkScanning(false);
+            setScanProgress(undefined);
+        }
+    }, [results, bulkScanning]);
 
     const handleGenerateDraft = async (c: any, emailOverride?: string) => {
         setIsGeneratingDraft(true);
@@ -842,6 +926,20 @@ export default function ProspectSearch() {
                     variant="warning"
                 />
             </StatsGrid>
+
+            {/* Rescan Controls - only show when there are results */}
+            {results.length > 0 && (
+                <div className="flex justify-end mb-4">
+                    <RescanDropdown
+                        totalCount={results.filter(c => c.id).length}
+                        missingCount={stalenessCounts.missingCount}
+                        staleCount={stalenessCounts.staleCount}
+                        onScan={handleUnifiedBulkScan}
+                        isScanning={bulkScanning}
+                        progress={scanProgress}
+                    />
+                </div>
+            )}
 
             {/* Search Filters */}
             <form onSubmit={handleSearch} className="card p-6 mb-8">
