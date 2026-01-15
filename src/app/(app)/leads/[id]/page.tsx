@@ -166,8 +166,8 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
         <div className="p-8 max-w-7xl mx-auto space-y-8">
             {/* 1. Header & Meta */}
             <div>
-                <Link href="/" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 mb-6 transition">
-                    <ArrowLeft size={16} className="mr-1" /> Back to Dashboard
+                <Link href="/leads" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 mb-6 transition">
+                    <ArrowLeft size={16} className="mr-1" /> Back to Lead Board
                 </Link>
 
                 <div className="flex justify-between items-start">
