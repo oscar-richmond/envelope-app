@@ -122,7 +122,7 @@ export default function SignInPage() {
                             icon={<Sparkles size={18} />}
                             title="AI Outreach"
                             subtitle="Generate personalised outreach drafts in seconds."
-                            color="teal"
+                            color="yellow"
                         />
 
                         {/* Stats Preview */}
@@ -147,13 +147,13 @@ function PreviewCard({
     icon: React.ReactNode;
     title: string;
     subtitle: string;
-    color: 'blue' | 'lilac' | 'mint' | 'teal';
+    color: 'blue' | 'lilac' | 'mint' | 'yellow';
 }) {
     const colors = {
         blue: { bg: 'var(--brand-soft)', border: 'var(--brand-border)', iconBg: 'rgba(84, 130, 237, 0.12)', text: 'var(--brand)' },
         lilac: { bg: 'var(--lilac-soft)', border: 'rgba(184, 166, 255, 0.15)', iconBg: 'var(--lilac-weak)', text: 'var(--lilac-strong)' },
         mint: { bg: 'rgba(34, 197, 94, 0.08)', border: 'rgba(34, 197, 94, 0.25)', iconBg: 'rgba(34, 197, 94, 0.18)', text: 'rgb(22, 163, 74)' },
-        teal: { bg: 'rgba(45, 212, 191, 0.08)', border: 'rgba(45, 212, 191, 0.20)', iconBg: 'rgba(45, 212, 191, 0.15)', text: 'rgb(20, 184, 166)' }
+        yellow: { bg: 'rgba(250, 204, 21, 0.15)', border: 'rgba(234, 179, 8, 0.3)', iconBg: 'rgba(30, 30, 30, 0.9)', text: 'rgba(255, 255, 255, 0.95)' }
     };
     const c = colors[color];
 
