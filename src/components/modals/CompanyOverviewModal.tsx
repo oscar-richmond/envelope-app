@@ -402,12 +402,19 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
     if (data.companyProspect?.webHealthData) {
         try {
             const parsed = JSON.parse(data.companyProspect.webHealthData);
+            // webHealthData stores factors[], not signals
+            const factors = parsed.factors || [];
             websiteEvidence = {
-                signals: parsed.signals || [],
-                breakdown: parsed.breakdown || [],
+                signals: factors.map((f: any) => f.label || f.title || ''),
+                breakdown: factors.map((f: any) => ({
+                    label: f.label || f.title || '',
+                    points: f.points || 0,
+                    text: f.description || f.text || '',
+                    status: f.points > 10 ? 'good' : f.points > 0 ? 'ok' : 'risk'
+                })),
                 score: parsed.score,
-                label: parsed.label,
-                status: parsed.status || 'success'
+                label: parsed.statusLabel || parsed.label,
+                status: parsed.score !== undefined ? 'success' : 'never_scanned'
             };
         } catch { /* ignore */ }
     } else if (data.companyProspect?.websiteSignals) {
