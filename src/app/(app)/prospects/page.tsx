@@ -43,6 +43,12 @@ export default function ProspectSearch() {
         query: ''
     });
     const [results, setResults] = useState<any[]>([]);
+    const [stats, setStats] = useState<{
+        highOpportunity: number;
+        likelyOutdated: number;
+        strongFinancials: number;
+        withContacts: number;
+    } | null>(null);
     const [loading, setLoading] = useState(false);
     const [statusMap, setStatusMap] = useState<Record<string, string>>({});
     const [viewEvidence, setViewEvidence] = useState<any>(null);
@@ -210,6 +216,7 @@ export default function ProspectSearch() {
         e.preventDefault();
         setLoading(true);
         setResults([]);
+        setStats(null); // Clear stats while loading
         setHasSearched(false);
         try {
             const res = await fetch('/api/prospects', {
@@ -219,10 +226,14 @@ export default function ProspectSearch() {
             });
             if (res.ok) {
                 const data = await res.json();
-                setResults(data);
+                // Handle new response structure { results, total, stats }
+                const resultsArray = data.results || data; // Backwards compat
+                const statsData = data.stats || null;
+                setResults(resultsArray);
+                setStats(statsData);
                 setHasSearched(true);
-                autoAnalyzeWebsites(data);
-                autoAnalyzeFinancials(data);
+                autoAnalyzeWebsites(resultsArray);
+                autoAnalyzeFinancials(resultsArray);
             } else {
                 const txt = await res.text();
                 alert(`Search Failed: ${res.status} ${res.statusText}\n${txt}`);
@@ -906,25 +917,25 @@ export default function ProspectSearch() {
             <StatsGrid>
                 <StatsCard
                     label="Prospects Found"
-                    value={results.length}
+                    value={loading ? '—' : results.length}
                     icon={<Building2 size={20} />}
                     variant="lilac"
                 />
                 <StatsCard
-                    label="High Stability"
-                    value={results.filter(r => (r.financialActivityScore >= 75) || r.financialActivityBand === 'Strong' || r.financialActivityBand === 'Very Strong').length}
+                    label="Strong Financials"
+                    value={loading ? '—' : (stats?.strongFinancials ?? results.filter(r => (r.financialActivityScore >= 75) || r.financialActivityBand === 'Strong' || r.financialActivityBand === 'Very Strong').length)}
                     icon={<Target size={20} />}
                     variant="mint"
                 />
                 <StatsCard
-                    label="With Website"
-                    value={results.filter(r => r.websiteUrl && r.websiteUrl !== 'Unknown' && r.websiteUrl !== 'N/A').length}
+                    label="High Opportunity"
+                    value={loading ? '—' : (stats?.highOpportunity ?? results.filter(r => r.contactPriorityBand === 'High' || (r.contactPriorityScore && r.contactPriorityScore >= 70)).length)}
                     icon={<Globe size={20} />}
                     variant="neutral"
                 />
                 <StatsCard
                     label="Likely Outdated"
-                    value={results.filter(r => r.stalenessScore >= 60).length}
+                    value={loading ? '—' : (stats?.likelyOutdated ?? results.filter(r => r.stalenessScore >= 60).length)}
                     icon={<AlertCircle size={20} />}
                     variant="warning"
                 />

@@ -5,6 +5,43 @@ import prisma from '@/lib/prisma'; // Prisma is usually robust on lazy connect
 // Lazy types
 import { CompanySearchCriteria, CompanySearchResult } from '@/lib/providers';
 
+// Helper to compute stats from a result set
+function computeStats(results: any[]) {
+    let highOpportunity = 0;
+    let likelyOutdated = 0;
+    let strongFinancials = 0;
+    let withContacts = 0;
+
+    for (const r of results) {
+        // High Opportunity: contactPriorityBand == "High" OR score >= 70
+        if (r.contactPriorityBand === 'High' || (r.contactPriorityScore && r.contactPriorityScore >= 70)) {
+            highOpportunity++;
+        }
+
+        // Likely Outdated: stalenessScore >= 60 OR label contains "Outdated"
+        if ((r.stalenessScore && r.stalenessScore >= 60) || r.stalenessLabel === 'Outdated') {
+            likelyOutdated++;
+        }
+
+        // Strong Financials: band is "Strong" or "Very Strong"
+        if (r.financialActivityBand === 'Strong' || r.financialActivityBand === 'Very Strong') {
+            strongFinancials++;
+        }
+
+        // With Contacts: has discovered emails or contacts
+        if (r.contactCount > 0 || r.emailsFound > 0 || (r.discoveredEmails && r.discoveredEmails.length > 0)) {
+            withContacts++;
+        }
+    }
+
+    return {
+        highOpportunity,
+        likelyOutdated,
+        strongFinancials,
+        withContacts
+    };
+}
+
 // --- GET Handler (Pure Debug) ---
 export async function GET() {
     return NextResponse.json({
@@ -182,14 +219,31 @@ export async function POST(request: Request) {
                     }
                 }
 
-                return NextResponse.json(filtered);
+                // Compute stats from filtered results
+                const stats = computeStats(filtered);
+
+                return NextResponse.json({
+                    results: filtered,
+                    total: filtered.length,
+                    stats
+                });
             } catch (dbError) {
                 console.error('[API] DB Merge failed:', dbError);
-                return NextResponse.json(results);
+                const stats = computeStats(results);
+                return NextResponse.json({
+                    results,
+                    total: results.length,
+                    stats
+                });
             }
         }
 
-        return NextResponse.json(results);
+        const stats = computeStats(results);
+        return NextResponse.json({
+            results,
+            total: results.length,
+            stats
+        });
     } catch (error: any) {
         console.error("Prospect search FATAL:", error);
         return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
