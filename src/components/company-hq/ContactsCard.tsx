@@ -147,13 +147,11 @@ export default function ContactsCard({
         if (id) {
             console.log('[ContactsCard] Fetching from API for id:', id);
             fetchContacts();
-            // Also fetch pattern
-            fetchEmailPattern();
         } else {
             console.log('[ContactsCard] No ID and no props - showing empty state');
             setLoadState('success');
         }
-    }, [id, contactsProp, emailsProp, fetchContacts, fetchEmailPattern]);
+    }, [id, contactsProp, emailsProp, fetchContacts]);
 
     // Fetch email pattern
     const fetchEmailPattern = useCallback(async () => {
