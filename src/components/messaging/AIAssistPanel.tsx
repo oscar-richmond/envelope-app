@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Sparkles, MessageSquareText, Wand2, RefreshCw, X, ArrowRight } from 'lucide-react';
+import { Loader2, Sparkles, MessageSquareText, Wand2, RefreshCw, X, ArrowRight, Type, Zap, MessageCircle, Mail, PenTool } from 'lucide-react';
 import type { ThreadData, ThreadMessage } from './MessageThreadComposerModal';
 
 interface AIAssistPanelProps {
@@ -12,7 +12,36 @@ interface AIAssistPanelProps {
     suggestedReplies: string[];
     onSuggestedRepliesChange: (replies: string[]) => void;
     onInsert: (text: string) => void;
+    // New props for enhanced AI
+    currentDraft?: string;
+    onDraftChange?: (draft: string) => void;
+    onSubjectChange?: (subject: string) => void;
 }
+
+// Rewrite styles
+const REWRITE_STYLES = [
+    { id: 'shorter', label: 'Shorter', icon: '✂️' },
+    { id: 'clearer', label: 'Clearer', icon: '💡' },
+    { id: 'confident', label: 'More Confident', icon: '💪' },
+    { id: 'friendly', label: 'More Friendly', icon: '😊' },
+    { id: 'direct', label: 'More Direct', icon: '🎯' }
+];
+
+// Tone presets
+const TONE_PRESETS = [
+    { id: 'polite', label: 'Polite' },
+    { id: 'assertive', label: 'Assertive' },
+    { id: 'ultra-soft', label: 'Ultra-soft' }
+];
+
+// Quick snippets
+const QUICK_SNIPPETS = [
+    { id: 'chat', label: '15-min chat?', text: 'Would you be open to a quick 15-minute chat this week?' },
+    { id: 'ideas', label: 'Send ideas', text: 'Happy to send over a few ideas that might help.' },
+    { id: 'intro', label: 'Quick intro', text: 'I came across your company and thought I would reach out.' },
+    { id: 'follow-up', label: 'Following up', text: 'Just wanted to follow up on my previous message.' },
+    { id: 'thanks', label: 'Thanks', text: 'Thanks for taking the time to consider this.' }
+];
 
 export function AIAssistPanel({
     emailId,
@@ -21,13 +50,21 @@ export function AIAssistPanel({
     onSummaryChange,
     suggestedReplies,
     onSuggestedRepliesChange,
-    onInsert
+    onInsert,
+    currentDraft,
+    onDraftChange,
+    onSubjectChange
 }: AIAssistPanelProps) {
     const [summarizing, setSummarizing] = useState(false);
     const [generating, setGenerating] = useState(false);
+    const [rewriting, setRewriting] = useState(false);
+    const [generatingSubjects, setGeneratingSubjects] = useState(false);
+    const [selectedTone, setSelectedTone] = useState<string>('polite');
+    const [subjectSuggestions, setSubjectSuggestions] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     const hasMessages = (thread?.messages?.length ?? 0) > 0;
+    const hasDraft = !!currentDraft && currentDraft.trim().length > 0;
 
     function getThreadContent(): string {
         if (!thread?.messages) return '';
@@ -79,13 +116,13 @@ export function AIAssistPanel({
                     action: 'suggest_reply',
                     threadContent: getThreadContent(),
                     companyName: thread.company.name,
-                    contactName: thread.contact.name
+                    contactName: thread.contact.name,
+                    tone: selectedTone
                 })
             });
 
             const data = await res.json();
             if (data.success) {
-                // For now, single reply - could expand to multiple variants
                 onSuggestedRepliesChange([data.result]);
             } else {
                 setError(data.error || 'Failed to generate reply');
@@ -97,20 +134,244 @@ export function AIAssistPanel({
         }
     }
 
+    async function handleRewrite(style: string) {
+        if (!currentDraft || !onDraftChange) return;
+        setRewriting(true);
+        setError(null);
+
+        try {
+            const res = await fetch('/api/ai/rewrite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: currentDraft,
+                    style,
+                    companyName: thread?.company?.name,
+                    contactName: thread?.contact?.name
+                })
+            });
+
+            const data = await res.json();
+            if (data.success && data.result) {
+                onDraftChange(data.result);
+            } else {
+                setError(data.error || 'Failed to rewrite');
+            }
+        } catch (e) {
+            setError('AI service unavailable');
+        } finally {
+            setRewriting(false);
+        }
+    }
+
+    async function handleGenerateSubjects() {
+        if (!thread) return;
+        setGeneratingSubjects(true);
+        setError(null);
+
+        try {
+            const res = await fetch('/api/ai/subject', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyName: thread.company.name,
+                    contactName: thread.contact.name,
+                    content: currentDraft || '',
+                    count: 5
+                })
+            });
+
+            const data = await res.json();
+            if (data.success && data.subjects) {
+                setSubjectSuggestions(data.subjects);
+            } else {
+                setError(data.error || 'Failed to generate subjects');
+            }
+        } catch (e) {
+            setError('AI service unavailable');
+        } finally {
+            setGeneratingSubjects(false);
+        }
+    }
+
+    function handleInsertSnippet(text: string) {
+        onInsert(text);
+    }
+
+    function handleSelectSubject(subject: string) {
+        if (onSubjectChange) {
+            onSubjectChange(subject);
+        }
+        setSubjectSuggestions([]);
+    }
+
     return (
-        <div className="h-full overflow-y-auto p-6 space-y-6" style={{ background: 'var(--bg-page)' }}>
-            {/* Summary Section */}
+        <div className="h-full overflow-y-auto p-6 space-y-5" style={{ background: 'var(--bg-page)' }}>
+            {/* Rewrite Tools */}
+            {hasDraft && onDraftChange && (
+                <div
+                    className="p-4 rounded-xl"
+                    style={{
+                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.05))',
+                        border: '1px solid rgba(59, 130, 246, 0.2)'
+                    }}
+                >
+                    <div className="flex items-center gap-2 mb-3">
+                        <PenTool size={16} style={{ color: 'rgb(59, 130, 246)' }} />
+                        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            Rewrite Draft
+                        </h3>
+                        {rewriting && <Loader2 size={14} className="animate-spin text-blue-500" />}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {REWRITE_STYLES.map(style => (
+                            <button
+                                key={style.id}
+                                onClick={() => handleRewrite(style.id)}
+                                disabled={rewriting}
+                                className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:bg-blue-100"
+                                style={{
+                                    background: 'white',
+                                    color: 'rgb(59, 130, 246)',
+                                    border: '1px solid rgba(59, 130, 246, 0.3)'
+                                }}
+                            >
+                                {style.icon} {style.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Tone Toggle */}
             <div
-                className="p-5 rounded-xl"
+                className="p-4 rounded-xl"
                 style={{
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-soft)'
                 }}
             >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                    <MessageCircle size={16} style={{ color: 'var(--text-muted)' }} />
+                    <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        Tone
+                    </h3>
+                </div>
+                <div className="flex gap-2">
+                    {TONE_PRESETS.map(tone => (
+                        <button
+                            key={tone.id}
+                            onClick={() => setSelectedTone(tone.id)}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
+                            style={{
+                                background: selectedTone === tone.id ? 'var(--brand-soft)' : 'var(--bg-card-muted)',
+                                color: selectedTone === tone.id ? 'var(--brand)' : 'var(--text-secondary)',
+                                border: selectedTone === tone.id ? '1px solid var(--brand)' : '1px solid transparent'
+                            }}
+                        >
+                            {tone.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Subject Line Generator */}
+            {onSubjectChange && (
+                <div
+                    className="p-4 rounded-xl"
+                    style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-soft)'
+                    }}
+                >
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <Mail size={16} style={{ color: 'rgb(234, 179, 8)' }} />
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                Subject Lines
+                            </h3>
+                        </div>
+                        <button
+                            onClick={handleGenerateSubjects}
+                            disabled={generatingSubjects}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
+                            style={{
+                                background: 'rgba(234, 179, 8, 0.1)',
+                                color: 'rgb(202, 138, 4)'
+                            }}
+                        >
+                            {generatingSubjects ? (
+                                <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                                <Sparkles size={12} />
+                            )}
+                            Generate
+                        </button>
+                    </div>
+                    {subjectSuggestions.length > 0 ? (
+                        <div className="space-y-2">
+                            {subjectSuggestions.map((subject, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleSelectSubject(subject)}
+                                    className="w-full text-left text-sm p-2 rounded-lg hover:bg-gray-50 transition"
+                                    style={{ color: 'var(--text-primary)' }}
+                                >
+                                    {subject}
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            Click Generate for AI subject line suggestions
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {/* Quick Snippets */}
+            <div
+                className="p-4 rounded-xl"
+                style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-soft)'
+                }}
+            >
+                <div className="flex items-center gap-2 mb-3">
+                    <Zap size={16} style={{ color: 'rgb(16, 185, 129)' }} />
+                    <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        Quick Snippets
+                    </h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {QUICK_SNIPPETS.map(snippet => (
+                        <button
+                            key={snippet.id}
+                            onClick={() => handleInsertSnippet(snippet.text)}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:bg-green-100"
+                            style={{
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                color: 'rgb(16, 185, 129)'
+                            }}
+                        >
+                            {snippet.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Thread Summary */}
+            <div
+                className="p-4 rounded-xl"
+                style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-soft)'
+                }}
+            >
+                <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <MessageSquareText size={18} style={{ color: 'rgb(139, 92, 246)' }} />
-                        <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        <MessageSquareText size={16} style={{ color: 'rgb(139, 92, 246)' }} />
+                        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                             Thread Summary
                         </h3>
                     </div>
@@ -135,32 +396,32 @@ export function AIAssistPanel({
                 </div>
 
                 {!hasMessages ? (
-                    <p className="text-sm italic" style={{ color: 'var(--text-muted)' }}>
-                        No thread yet — summary unavailable
+                    <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
+                        No thread yet
                     </p>
                 ) : summary ? (
                     <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
                         {summary}
                     </p>
                 ) : (
-                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        Click "Generate" to create an AI summary of this conversation
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        Click "Generate" for an AI summary
                     </p>
                 )}
             </div>
 
-            {/* Suggested Replies */}
+            {/* Suggested Reply */}
             <div
-                className="p-5 rounded-xl"
+                className="p-4 rounded-xl"
                 style={{
                     background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.04), rgba(59, 130, 246, 0.04))',
                     border: '1px solid rgba(139, 92, 246, 0.2)'
                 }}
             >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <Wand2 size={18} style={{ color: 'rgb(139, 92, 246)' }} />
-                        <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        <Wand2 size={16} style={{ color: 'rgb(139, 92, 246)' }} />
+                        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                             Suggested Reply
                         </h3>
                     </div>
@@ -185,24 +446,21 @@ export function AIAssistPanel({
                 </div>
 
                 {!hasMessages ? (
-                    <p className="text-sm italic" style={{ color: 'var(--text-muted)' }}>
-                        Start a thread first to get AI reply suggestions
+                    <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
+                        Start a thread for reply suggestions
                     </p>
                 ) : suggestedReplies.length > 0 ? (
                     <div className="space-y-3">
                         {suggestedReplies.map((reply, idx) => (
                             <div
                                 key={idx}
-                                className="p-4 rounded-lg"
+                                className="p-3 rounded-lg"
                                 style={{
                                     background: 'var(--bg-card)',
                                     border: '1px solid var(--border-soft)'
                                 }}
                             >
-                                <p
-                                    className="text-sm leading-relaxed mb-3 whitespace-pre-wrap"
-                                    style={{ color: 'var(--text-primary)' }}
-                                >
+                                <p className="text-sm leading-relaxed mb-2 whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
                                     {reply}
                                 </p>
                                 <button
@@ -213,15 +471,14 @@ export function AIAssistPanel({
                                         color: 'var(--brand)'
                                     }}
                                 >
-                                    Insert into Composer
-                                    <ArrowRight size={12} />
+                                    Insert <ArrowRight size={12} />
                                 </button>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        Click "Generate" to get AI-powered reply suggestions
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        Click "Generate" for AI reply suggestions
                     </p>
                 )}
             </div>
@@ -229,13 +486,13 @@ export function AIAssistPanel({
             {/* Error display */}
             {error && (
                 <div
-                    className="p-4 rounded-lg flex items-center gap-3"
+                    className="p-3 rounded-lg flex items-center gap-3"
                     style={{
                         background: 'rgba(239, 68, 68, 0.1)',
                         border: '1px solid rgba(239, 68, 68, 0.3)'
                     }}
                 >
-                    <p className="text-sm flex-1" style={{ color: 'rgb(239, 68, 68)' }}>{error}</p>
+                    <p className="text-xs flex-1" style={{ color: 'rgb(239, 68, 68)' }}>{error}</p>
                     <button onClick={() => setError(null)} style={{ color: 'rgb(239, 68, 68)' }}>
                         <X size={14} />
                     </button>
