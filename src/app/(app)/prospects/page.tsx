@@ -29,6 +29,7 @@ export default function ProspectSearch() {
         websiteRequired: boolean;
         onlyOutdated: boolean;
         minFinancialScore: string;
+        registeredRecently: string;
         query: string;
     }>({
         industry: [],
@@ -38,6 +39,7 @@ export default function ProspectSearch() {
         websiteRequired: false,
         onlyOutdated: false,
         minFinancialScore: '',
+        registeredRecently: '',
         query: ''
     });
     const [results, setResults] = useState<any[]>([]);
@@ -1021,6 +1023,35 @@ export default function ProspectSearch() {
                             <option value="Medium">Medium+</option>
                         </select>
                         <p className="helper-text mt-1">Operational/Financial Health</p>
+                    </div>
+
+                    <div>
+                        <label className="label flex items-center gap-1">
+                            Registered Recently
+                            <span
+                                className="text-gray-400 cursor-help"
+                                title="Filter by incorporation date from Companies House (UK companies)"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                                    <path fillRule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0Zm-6 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7.293 5.293a1 1 0 1 1 .99 1.667c-.169.117-.311.28-.311.453V8a.5.5 0 1 0 1 0v-.587a.5.5 0 0 1 .305-.461A2 2 0 0 0 7.293 3.708a2 2 0 0 0-1.707 2.292.5.5 0 1 0 .99-.143 1 1 0 0 1 .717-1.564Z" clipRule="evenodd" />
+                                </svg>
+                            </span>
+                        </label>
+                        <select
+                            className="input w-full bg-white"
+                            value={filters.registeredRecently}
+                            onChange={(e) => setFilters({ ...filters, registeredRecently: e.target.value })}
+                        >
+                            <option value="">Any</option>
+                            <option value="7d">Last week</option>
+                            <option value="14d">Last fortnight</option>
+                            <option value="30d">Last month</option>
+                            <option value="2m">Last 2 months</option>
+                            <option value="3m">Last 3 months</option>
+                            <option value="4m">Last 4 months</option>
+                            <option value="5m">Last 5 months</option>
+                            <option value="6m">Last 6 months</option>
+                        </select>
                     </div>
 
                     <div className="flex items-center gap-6 pt-7 flex-wrap">

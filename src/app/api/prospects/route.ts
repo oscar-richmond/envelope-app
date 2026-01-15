@@ -140,20 +140,49 @@ export async function POST(request: Request) {
                     return r;
                 });
 
-                // Apply Financial Filter
+                // Apply filters to merged results
+                let filtered = merged;
+
+                // 1. Financial Filter
                 if (body.minFinancialScore) {
                     const minBand = body.minFinancialScore;
                     const scoreMap: Record<string, number> = { 'Low': 0, 'Medium': 1, 'Strong': 2, 'Very Strong': 3 };
                     const minVal = scoreMap[minBand] || 0;
 
-                    return NextResponse.json(merged.filter((r: any) => {
+                    filtered = filtered.filter((r: any) => {
                         const rBand = r.financialActivityBand || 'Unknown';
                         if (rBand === 'Unknown') return true;
                         return (scoreMap[rBand] || 0) >= minVal;
-                    }));
+                    });
                 }
 
-                return NextResponse.json(merged);
+                // 2. Registered Recently Filter
+                if (body.registeredRecently) {
+                    const now = new Date();
+                    let cutoffDate: Date | null = null;
+
+                    switch (body.registeredRecently) {
+                        case '7d': cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+                        case '14d': cutoffDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000); break;
+                        case '30d': cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+                        case '2m': cutoffDate = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000); break;
+                        case '3m': cutoffDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break;
+                        case '4m': cutoffDate = new Date(now.getTime() - 120 * 24 * 60 * 60 * 1000); break;
+                        case '5m': cutoffDate = new Date(now.getTime() - 150 * 24 * 60 * 60 * 1000); break;
+                        case '6m': cutoffDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000); break;
+                    }
+
+                    if (cutoffDate) {
+                        filtered = filtered.filter((r: any) => {
+                            // Must have incorporatedOn to be included when filter is active
+                            if (!r.incorporatedOn) return false;
+                            const incDate = new Date(r.incorporatedOn);
+                            return incDate >= cutoffDate!;
+                        });
+                    }
+                }
+
+                return NextResponse.json(filtered);
             } catch (dbError) {
                 console.error('[API] DB Merge failed:', dbError);
                 return NextResponse.json(results);
