@@ -120,15 +120,15 @@ export default function ProspectResultRowCard({
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr_auto] gap-4 items-center h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr_auto] gap-4 items-center h-full">
 
-                {/* 1. Company Identity (Fixed 360px) */}
-                <div className="flex flex-col gap-2 pr-6 min-w-0 max-w-[380px] py-1">
+                {/* 1. Company Identity (Fixed 270px - reduced from 360px for more card space) */}
+                <div className="flex flex-col gap-1.5 pr-4 min-w-0 max-w-[280px] py-1">
                     <CompanyName
                         company={c}
                         prospectId={c.id}
                         variant="row"
-                        className="font-bold text-lg truncate leading-snug block w-full"
+                        className="font-bold text-base truncate leading-snug block w-full"
                         style={{
                             fontFamily: 'var(--font-display)',
                             color: 'var(--text-primary)',
@@ -138,15 +138,15 @@ export default function ProspectResultRowCard({
 
                     {/* Compact One-Line Meta */}
                     <div
-                        className="flex items-center gap-2 text-sm whitespace-nowrap overflow-hidden text-ellipsis leading-relaxed"
+                        className="flex items-center gap-1.5 text-xs whitespace-nowrap overflow-hidden text-ellipsis leading-relaxed"
                         style={{ color: 'var(--text-secondary)' }}
                     >
-                        <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{c.companyNumber}</span>
+                        <span className="font-mono text-[11px] flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{c.companyNumber}</span>
                         <span style={{ color: 'var(--border-default)' }}>•</span>
                         {c.location ? (
                             <button
                                 onClick={onViewLocation}
-                                className="hover:underline truncate max-w-[120px] transition-colors"
+                                className="hover:underline truncate max-w-[90px] transition-colors"
                                 style={{ color: 'var(--text-secondary)' }}
                                 title={c.location}
                             >
@@ -155,7 +155,7 @@ export default function ProspectResultRowCard({
                         ) : 'Unknown'}
                         <span style={{ color: 'var(--border-default)' }}>•</span>
                         <span
-                            className="capitalize"
+                            className="capitalize flex-shrink-0"
                             style={{ color: c.companyStatus === 'active' ? 'var(--success)' : 'var(--text-muted)' }}
                         >
                             {c.companyStatus || 'Active'}
