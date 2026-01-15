@@ -511,7 +511,7 @@ export async function GET(
                 financialActivityScore: true,
                 financialActivityBand: true,
                 financialLastCheckedAt: true,
-                companiesHouseNumber: true
+                companyNumber: true
             }
         });
 
@@ -579,7 +579,7 @@ export async function GET(
             baseScore: report?.baseScore ?? 0,
             computedAt: report?.computedAt ?? null,
             lastScanned: prospect.financialLastCheckedAt,
-            companiesHouseNumber: prospect.companiesHouseNumber,
+            companyNumber: prospect.companyNumber,
             scanState
         });
 
