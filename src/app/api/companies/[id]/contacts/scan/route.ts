@@ -13,10 +13,10 @@ const jobs: Record<string, any> = (global as any).__contactScanJobs || {};
  */
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const rawId = params.id;
+        const { id: rawId } = await context.params;
 
         // Use resolver for flexible company identification
         const resolved = await resolveCompanyIdentityOrError({
@@ -117,7 +117,7 @@ export async function POST(
  */
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const { searchParams } = new URL(request.url);

@@ -261,44 +261,21 @@ export default function ContactsCard({
                 return;
             }
 
-            const { jobId } = data;
-            console.log(`[ContactsCard] Scan job started: ${jobId}`);
+            // Scan now runs synchronously - just check result and refetch
+            console.log(`[ContactsCard] Scan complete:`, data);
 
-            // Poll for completion
-            setScanState('polling');
-            let attempts = 0;
-            const maxAttempts = 30; // 45 seconds max
+            if (data.success) {
+                setScanState('done');
+                console.log(`[ContactsCard] Scan successful, found ${data.contactsFound} contacts. Refetching...`);
 
-            const pollInterval = setInterval(async () => {
-                attempts++;
+                // Refetch contacts from database
+                await fetchContacts();
 
-                try {
-                    const statusRes = await fetch(`/api/companies/${id}/contacts/scan?jobId=${jobId}`);
-                    const status = await statusRes.json();
-
-                    console.log(`[ContactsCard] Job status:`, status);
-
-                    if (status.status === 'done') {
-                        clearInterval(pollInterval);
-                        setScanState('done');
-
-                        // Refetch contacts
-                        await fetchContacts();
-
-                        setTimeout(() => setScanState('idle'), 2000);
-                    } else if (status.status === 'failed') {
-                        clearInterval(pollInterval);
-                        setError(status.error || 'Scan failed');
-                        setScanState('error');
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(pollInterval);
-                        setError('Scan timed out - try again');
-                        setScanState('error');
-                    }
-                } catch (e) {
-                    console.error('[ContactsCard] Poll error:', e);
-                }
-            }, 1500);
+                setTimeout(() => setScanState('idle'), 2000);
+            } else {
+                setError(data.error || 'Scan failed');
+                setScanState('error');
+            }
 
         } catch (e: any) {
             console.error('[ContactsCard] Scan error:', e);
