@@ -79,9 +79,9 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                                 {new URL(lead.websiteUrl).hostname} <ExternalLink size={14} />
                             </a>
                             <span>•</span>
-                            <span>{lead.industry || 'Unknown Industry'}</span>
+                            <span>{lead.industry || lead.companyProspect?.industry || 'Industry not set'}</span>
                             <span>•</span>
-                            <span>{lead.location || 'Unknown Location'}</span>
+                            <span>{lead.location || lead.companyProspect?.registeredLocation || 'Location not set'}</span>
                         </div>
                     </div>
                     {/* Primary Actions */}

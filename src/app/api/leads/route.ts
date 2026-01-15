@@ -113,6 +113,9 @@ export async function GET() {
                 // Fallback for website
                 websiteUrl: lead.websiteUrl || prospect?.websiteUrl,
                 domain: prospect?.websiteDomain,
+                // Industry and Location with fallbacks from prospect
+                industry: lead.industry || prospect?.industry || null,
+                location: lead.location || prospect?.registeredLocation || null,
             };
         });
 

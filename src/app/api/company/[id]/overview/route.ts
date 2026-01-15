@@ -61,7 +61,9 @@ export async function GET(
             leadId: lead.id,
             companyName: lead.companyName,
             websiteUrl: lead.websiteUrl,
-            industry: lead.industry,
+            // Industry and location with fallbacks from prospect
+            industry: lead.industry || lead.companyProspect?.industry || null,
+            location: lead.location || lead.companyProspect?.registeredLocation || null,
             companyProspect: lead.companyProspect,
             sentEmails: lead.sentEmails,
             contacts: lead.contacts,

@@ -64,7 +64,13 @@ export default function CompanyInspector() {
                             <span className="italic">No website</span>
                         )}
                         <span>•</span>
-                        <span>{data?.industry || 'Unknown'}</span>
+                        <span>{data?.industry || 'Industry not set'}</span>
+                        {data?.location && (
+                            <>
+                                <span>•</span>
+                                <span>{data.location}</span>
+                            </>
+                        )}
                     </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
