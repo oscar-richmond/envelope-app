@@ -70,6 +70,7 @@ export async function POST(request: Request) {
         // Build factors array
         const factors: { id: string; label: string; points: number; polarity: string; description: string }[] = [];
         let score = 0;
+        let incorporationDate: Date | null = null; // Capture from CH response
 
         // Try to fetch from Companies House
         if (COMPANIES_HOUSE_API_KEY) {
@@ -109,6 +110,7 @@ export async function POST(request: Request) {
                     // Company age
                     if (profile.date_of_creation) {
                         const created = new Date(profile.date_of_creation);
+                        incorporationDate = created; // Capture for persistence
                         const yearsOld = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24 * 365));
                         if (yearsOld >= 5) {
                             factors.push({ id: 'established', label: 'Established company', points: 20, polarity: 'positive', description: `${yearsOld} years in business` });
@@ -167,6 +169,12 @@ export async function POST(request: Request) {
                     factors,
                     computedAt: now.toISOString(),
                     lastSyncedAt: now.toISOString()
+                }),
+                // Persist incorporation date if we got it from CH
+                ...(incorporationDate && {
+                    incorporatedOn: incorporationDate,
+                    incorporatedOnSource: 'companies_house',
+                    incorporatedOnLastSyncedAt: now
                 })
             }
         });

@@ -93,6 +93,11 @@ model CompanyProspect {
   financialSignals        String?   // JSON
   financialLastCheckedAt  DateTime?
 
+  // Company Incorporation (Companies House)
+  incorporatedOn              DateTime?  @db.Date  // Date of incorporation
+  incorporatedOnSource        String?              // "companies_house"
+  incorporatedOnLastSyncedAt  DateTime?            // When we last fetched from CH
+
   // Contact Priority (Derived)
   contactPriorityScore    Int?      @default(0)
   contactPriorityBand     String?   // "High", "Medium", "Low"
@@ -154,6 +159,8 @@ model CompanyProspect {
 
   discoveredEmails        ProspectEmail[]
   listMemberships         ListCompany[]
+
+  @@index([incorporatedOn])
 }
 
 model ProspectEmail {

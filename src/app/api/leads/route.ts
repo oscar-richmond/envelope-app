@@ -131,6 +131,8 @@ export async function GET() {
                 // Industry and Location with fallbacks from prospect
                 industry: lead.industry || prospect?.industry || null,
                 location: lead.location || prospect?.registeredLocation || null,
+                // Incorporation date
+                incorporatedOn: prospect?.incorporatedOn || null,
             };
         });
 

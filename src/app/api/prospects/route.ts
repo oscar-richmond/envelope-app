@@ -127,7 +127,10 @@ export async function POST(request: Request) {
                                 // Contact Priority
                                 contactPriorityScore: calcResults.score,
                                 contactPriorityBand: calcResults.band,
-                                contactPriorityLastCalculatedAt: db.contactPriorityLastCalculatedAt
+                                contactPriorityLastCalculatedAt: db.contactPriorityLastCalculatedAt,
+
+                                // Incorporation Date
+                                incorporatedOn: db.incorporatedOn || r.incorporationDate
                             };
                         } catch (mapError) {
                             console.error(`[API] Error mapping company ${r.companyNumber}:`, mapError);
@@ -175,6 +178,9 @@ export async function PUT(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        // Parse incorporation date if present
+        const incorporatedOn = body.incorporationDate ? new Date(body.incorporationDate) : undefined;
+
         const prospect = await prisma.companyProspect.upsert({
             where: { companyNumber: body.companyNumber },
             update: {
@@ -184,15 +190,24 @@ export async function PUT(request: Request) {
                 websiteUrl: body.websiteUrl,
                 industry: body.industry,
                 registeredLocation: body.location,
-                // Do not overwrite analysis data blindly
+                // Only update incorporatedOn if we have a new value
+                ...(incorporatedOn && {
+                    incorporatedOn,
+                    incorporatedOnSource: 'companies_house',
+                    incorporatedOnLastSyncedAt: new Date()
+                })
             },
             create: {
                 companyNumber: body.companyNumber,
                 companyName: body.companyName,
-
                 industry: body.industry,
                 registeredLocation: body.location,
                 websiteUrl: body.websiteUrl,
+                ...(incorporatedOn && {
+                    incorporatedOn,
+                    incorporatedOnSource: 'companies_house',
+                    incorporatedOnLastSyncedAt: new Date()
+                }),
                 // Init scores
                 stalenessScore: 0,
                 financialActivityScore: 0,
