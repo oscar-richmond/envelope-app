@@ -841,7 +841,7 @@ function ContactRow({
 
     return (
         <div
-            className={`flex items-start gap-3 p-3 rounded-lg transition-all cursor-pointer ${isSelected ? 'ring-2 ring-purple-400' : ''}`}
+            className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer ${isSelected ? 'ring-2 ring-purple-400' : ''}`}
             style={{ background: isSelected ? 'rgba(139, 92, 246, 0.08)' : 'var(--bg-card-muted)' }}
             onClick={onSelect}
         >
@@ -856,7 +856,7 @@ function ContactRow({
                 {displayName[0]?.toUpperCase() || '?'}
             </div>
 
-            {/* Info - Improved layout */}
+            {/* Info */}
             <div className="flex-1 min-w-0">
                 {/* Line 1: Name + verified badge */}
                 <div className="flex items-center gap-2">
@@ -866,24 +866,19 @@ function ContactRow({
                     {contact.verified && <Shield size={12} className="text-green-500 shrink-0" />}
                 </div>
 
-                {/* Line 2: Role · Email */}
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                    {roleDisplay && (
-                        <>
-                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                {roleDisplay}
-                            </span>
-                            <span className="text-xs" style={{ color: 'var(--border-default)' }}>·</span>
-                        </>
-                    )}
+                {/* Line 2: Email + Source badge inline */}
+                <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
                         {contact.email}
                     </span>
+                    <SourceBadge source={source} />
                 </div>
 
-                {/* Line 3: Source badge */}
-                <div className="mt-1">
-                    <SourceBadge source={source} />
+                {/* Line 3: Role (always shown) */}
+                <div className="mt-0.5">
+                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        {roleDisplay || 'Unknown role'}
+                    </span>
                 </div>
             </div>
 
