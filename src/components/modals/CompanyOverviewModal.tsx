@@ -15,7 +15,7 @@ import WebsitePreview from '@/components/company-hq/WebsitePreview';
 import ContactsCard from '@/components/company-hq/ContactsCard';
 import ThreadPreview from '@/components/company-hq/ThreadPreview';
 
-import WebsiteEvidenceModal from '@/components/modals/WebsiteEvidenceModal';
+import WebsiteReviewModal from '@/components/modals/WebsiteReviewModal';
 import FinancialReportModal from '@/components/modals/FinancialReportModal';
 import { MessageThreadComposerModal } from '@/components/messaging/MessageThreadComposerModal';
 
@@ -856,14 +856,13 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
             </div>
 
             {/* Sub-Modals */}
-            <WebsiteEvidenceModal
+            <WebsiteReviewModal
                 isOpen={isWebsiteModalOpen}
                 onClose={() => setIsWebsiteModalOpen(false)}
-                evidence={websiteEvidence}
-                url={data.websiteUrl}
-                lastChecked={data.companyProspect?.websiteDiscoveryDate}
                 companyId={data.companyProspectId || prospectId}
-                onRefresh={refetchData}
+                companyName={data.companyName}
+                websiteUrl={data.websiteUrl}
+                onDataUpdated={refetchData}
             />
 
             <FinancialReportModal

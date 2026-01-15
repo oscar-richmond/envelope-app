@@ -12,7 +12,7 @@ import FinancialHealth from '@/components/company-hq/FinancialHealth';
 import ContactsCard from '@/components/company-hq/ContactsCard';
 import ThreadPreview from '@/components/company-hq/ThreadPreview';
 
-import WebsiteEvidenceModal from '@/components/modals/WebsiteEvidenceModal';
+import WebsiteReviewModal from '@/components/modals/WebsiteReviewModal';
 import FinancialReportModal from '@/components/modals/FinancialReportModal';
 
 export default function CompanyInspector() {
@@ -134,12 +134,12 @@ export default function CompanyInspector() {
                                     onFullReport={() => setIsFinancialModalOpen(true)}
                                 />
 
-                                <WebsiteEvidenceModal
+                                <WebsiteReviewModal
                                     isOpen={isWebsiteModalOpen}
                                     onClose={() => setIsWebsiteModalOpen(false)}
-                                    evidence={Array.isArray(data.websiteSignals) ? data.websiteSignals : []}
-                                    url={data.websiteUrl}
-                                    lastChecked={data.companyProspect?.websiteDiscoveryDate}
+                                    companyId={data.companyProspectId}
+                                    companyName={data.companyName}
+                                    websiteUrl={data.websiteUrl}
                                 />
 
                                 <FinancialReportModal
