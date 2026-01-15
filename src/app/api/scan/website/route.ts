@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { SCAN_TTL_DAYS } from '@/lib/config/staleness-config';
 
 /**
  * Website Scan API
@@ -67,12 +68,21 @@ export async function POST(request: Request) {
         // Simulate scan (in real implementation, this would enqueue a job)
         // For now, we'll do a simple "scan" that sets some scores
         const stalenessScore = Math.floor(Math.random() * 100);
+        const label = stalenessScore >= 60 ? 'Outdated' : stalenessScore >= 30 ? 'Aging' : 'Fresh';
+        const signals = [];
 
+        // Persist to both individual fields AND structured webHealthData JSON
         await prisma.companyProspect.update({
             where: { id: prospect.id },
             data: {
                 stalenessScore,
                 lastAnalysedAt: now,
+                webHealthData: JSON.stringify({
+                    score: stalenessScore,
+                    label,
+                    signals,
+                    lastScannedAt: now.toISOString()
+                })
             }
         });
 

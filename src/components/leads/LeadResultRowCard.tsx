@@ -86,9 +86,6 @@ interface LeadResultRowCardProps {
     onViewThread: () => void;
     onDelete: () => void;
     onRescan?: (type: 'website' | 'financial' | 'both') => Promise<void>;
-    // Bulk Web Health rescan
-    bulkWebHealthScanning?: boolean;
-    onBulkWebHealthRescan?: () => void;
 }
 
 export default function LeadResultRowCard({
@@ -97,26 +94,36 @@ export default function LeadResultRowCard({
     onCompose,
     onViewThread,
     onDelete,
-    onRescan,
-    bulkWebHealthScanning = false,
-    onBulkWebHealthRescan
+    onRescan
 }: LeadResultRowCardProps) {
 
-    const [scanning, setScanning] = useState(false);
     const [scanningWeb, setScanningWeb] = useState(false);
     const [scanningFin, setScanningFin] = useState(false);
 
-    // Handle rescan
-    const handleRescan = async (e: React.MouseEvent) => {
+    // Handle per-company website scan
+    const handleWebScan = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (scanning || !onRescan) return;
-        setScanning(true);
+        if (scanningWeb || !onRescan) return;
+        setScanningWeb(true);
         try {
-            await onRescan('both');
+            await onRescan('website');
         } finally {
-            setScanning(false);
+            setScanningWeb(false);
         }
     };
+
+    // Handle per-company financial scan
+    const handleFinScan = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (scanningFin || !onRescan) return;
+        setScanningFin(true);
+        try {
+            await onRescan('financial');
+        } finally {
+            setScanningFin(false);
+        }
+    };
+
 
     // Status Logic
     const status = lead.emailStatus || 'NEW';
@@ -250,7 +257,7 @@ export default function LeadResultRowCard({
                     </div>
 
                     {/* Web Health */}
-                    <div className="flex flex-col gap-1 relative group/web">
+                    <div className="flex flex-col gap-1">
                         {hasWebData ? (
                             <>
                                 <MetricTile
@@ -259,7 +266,7 @@ export default function LeadResultRowCard({
                                     score={staleScore}
                                     scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
                                 />
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between mt-1">
                                     {lead.websiteLastScanned && (
                                         <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                                             {formatRelativeTime(lead.websiteLastScanned)}
@@ -269,21 +276,21 @@ export default function LeadResultRowCard({
                                         variant="web"
                                         label="Rescan"
                                         loadingLabel="..."
-                                        isLoading={bulkWebHealthScanning}
-                                        onClick={() => onBulkWebHealthRescan?.()}
+                                        isLoading={scanningWeb}
+                                        onClick={handleWebScan}
                                         size="small"
                                     />
                                 </div>
                             </>
                         ) : (
-                            <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: healthCtaStyles.web.cardBg, border: `1px solid ${healthCtaStyles.web.cardBorder}` }}>
+                            <div className="flex flex-col gap-2 p-3 rounded-lg h-full justify-center" style={{ background: healthCtaStyles.web.cardBg, border: `1px solid ${healthCtaStyles.web.cardBorder}` }}>
                                 <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Web Health</span>
                                 <HealthCardCTA
                                     variant="web"
                                     label="Scan Website"
                                     loadingLabel="Scanning..."
-                                    isLoading={bulkWebHealthScanning}
-                                    onClick={() => onBulkWebHealthRescan?.()}
+                                    isLoading={scanningWeb}
+                                    onClick={handleWebScan}
                                     size="full"
                                 />
                             </div>
@@ -300,7 +307,7 @@ export default function LeadResultRowCard({
                                     score={finScore}
                                     scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
                                 />
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between mt-1">
                                     {lead.financialLastScanned && (
                                         <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                                             {formatRelativeTime(lead.financialLastScanned)}
@@ -308,26 +315,23 @@ export default function LeadResultRowCard({
                                     )}
                                     <HealthCardCTA
                                         variant="finance"
-                                        label="Sync"
+                                        label="Rescan"
                                         loadingLabel="..."
                                         isLoading={scanningFin}
-                                        onClick={() => {
-                                            setScanningFin(true);
-                                            onRescan?.('financial').finally(() => setScanningFin(false));
-                                        }}
+                                        onClick={handleFinScan}
                                         size="small"
                                     />
                                 </div>
                             </>
                         ) : (
-                            <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: healthCtaStyles.finance.cardBg, border: `1px solid ${healthCtaStyles.finance.cardBorder}` }}>
+                            <div className="flex flex-col gap-2 p-3 rounded-lg h-full justify-center" style={{ background: healthCtaStyles.finance.cardBg, border: `1px solid ${healthCtaStyles.finance.cardBorder}` }}>
                                 <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Fin Health</span>
                                 <HealthCardCTA
                                     variant="finance"
                                     label="Scan Financials"
                                     loadingLabel="Scanning..."
-                                    isLoading={scanning}
-                                    onClick={() => onRescan?.('financial')}
+                                    isLoading={scanningFin}
+                                    onClick={handleFinScan}
                                     size="full"
                                 />
                             </div>

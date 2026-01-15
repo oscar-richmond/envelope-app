@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { SCAN_TTL_DAYS } from '@/lib/config/staleness-config';
 
 /**
  * Financial Scan API
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
         // Check if already scanned recently
         const now = new Date();
         const lastScanned = prospect.financialLastCheckedAt;
-        const isStale = !lastScanned || (now.getTime() - lastScanned.getTime()) > 14 * 24 * 60 * 60 * 1000;
+        const isStale = !lastScanned || (now.getTime() - lastScanned.getTime()) > SCAN_TTL_DAYS.FIN_HEALTH * 24 * 60 * 60 * 1000;
 
         if (!force && !isStale && prospect.financialActivityScore !== null) {
             return NextResponse.json({
@@ -54,13 +55,22 @@ export async function POST(request: Request) {
         // Simulate financial scan
         // In real implementation, this would query Companies House API
         const financialScore = Math.floor(Math.random() * 100);
-        const label = financialScore > 75 ? 'Strong' : financialScore > 50 ? 'Medium' : 'Low';
+        const band = financialScore > 75 ? 'Strong' : financialScore > 50 ? 'Medium' : 'Low';
+        const breakdown = [];
 
+        // Persist to both individual fields AND structured finHealthData JSON
         await prisma.companyProspect.update({
             where: { id: prospect.id },
             data: {
                 financialActivityScore: financialScore,
+                financialActivityBand: band,
                 financialLastCheckedAt: now,
+                finHealthData: JSON.stringify({
+                    score: financialScore,
+                    band,
+                    breakdown,
+                    lastSyncedAt: now.toISOString()
+                })
             }
         });
 
@@ -69,7 +79,7 @@ export async function POST(request: Request) {
             message: 'Financial scan completed',
             data: {
                 score: financialScore,
-                label,
+                band,
                 lastScannedAt: now
             }
         });

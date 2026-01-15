@@ -6,12 +6,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { Building2, CheckCircle, AlertCircle, PenTool, RefreshCw } from 'lucide-react';
+import { Building2, CheckCircle, AlertCircle, PenTool } from 'lucide-react';
 import { ResultsListContainer, ResultsListHeader, ResultsListEmptyState } from '@/components/ui/ResultsList';
 import LeadResultRowCard from '@/components/leads/LeadResultRowCard';
 import AddLeadModal from '@/components/AddLeadModal';
 import { MessageThreadComposerModal } from '@/components/messaging';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
+import RescanDropdown, { type RescanScope, type RescanTypes } from '@/components/leads/RescanDropdown';
 
 // Toast helper (simple inline for now)
 function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -87,26 +88,32 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
             return 0;
         }), [leads, filter, sort]);
 
-    // Bulk scan handler
-    const handleBulkScan = async (mode: 'missing' | 'stale' | 'force') => {
+    // Unified Bulk Scan Handler
+    const [scanProgress, setScanProgress] = useState<{ current: number; total: number } | undefined>();
+
+    const handleUnifiedBulkScan = useCallback(async (scope: RescanScope, types: RescanTypes) => {
         if (bulkScanning) return;
         setBulkScanning(true);
+        setScanProgress({ current: 0, total: filteredLeads.length });
 
         try {
+            // Map types to API format
+            const typeParam = types === 'web' ? 'website' : types === 'fin' ? 'financial' : 'both';
+
             const res = await fetch('/api/scan/bulk', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     leadIds: filteredLeads.map(l => l.id),
-                    type: 'both',
-                    mode
+                    type: typeParam,
+                    mode: scope === 'missing' ? 'missing' : scope === 'stale' ? 'stale' : 'force'
                 })
             });
 
             const data = await res.json();
 
             if (res.ok) {
-                showToast(`Bulk scan complete: ${data.completed} updated, ${data.skipped} skipped`);
+                showToast(`Scan complete: ${data.completed} updated, ${data.skipped} skipped`);
 
                 // Refresh leads list
                 const refreshRes = await fetch('/api/leads');
@@ -115,110 +122,16 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                     setLeads(updatedLeads);
                 }
             } else {
-                showToast('Bulk scan failed', 'error');
+                showToast('Scan failed', 'error');
             }
         } catch (e) {
-            showToast('Bulk scan failed', 'error');
+            showToast('Scan failed', 'error');
         } finally {
             setBulkScanning(false);
+            setScanProgress(undefined);
         }
-    };
+    }, [filteredLeads, bulkScanning]);
 
-    // Bulk Web Health Rescan State
-    const [bulkWebHealthScanning, setBulkWebHealthScanning] = useState(false);
-    const [webHealthResults, setWebHealthResults] = useState<Record<number, any>>({});
-
-    // Bulk Web Health Rescan Handler - triggers rescan for ALL leads
-    const handleBulkWebHealthRescan = useCallback(async () => {
-        if (bulkWebHealthScanning) return;
-        setBulkWebHealthScanning(true);
-        setWebHealthResults({});
-
-        const leadIds = filteredLeads.map(l => l.id);
-        console.log(`[DashboardClient] Starting bulk Web Health rescan for ${leadIds.length} leads`);
-        showToast(`Rescanning Web Health for ${leadIds.length} leads...`);
-
-        try {
-            // Start bulk scan
-            const res = await fetch('/api/leadboard/web-health/rescan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ leadIds })
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                showToast('Bulk rescan failed — try again', 'error');
-                setBulkWebHealthScanning(false);
-                return;
-            }
-
-            const { jobId, countQueued } = data;
-            console.log(`[DashboardClient] Bulk job started: ${jobId}, ${countQueued} queued`);
-
-            // Poll for status
-            const pollInterval = setInterval(async () => {
-                try {
-                    const statusRes = await fetch(`/api/leadboard/web-health/rescan?jobId=${jobId}`);
-                    const status = await statusRes.json();
-
-                    console.log(`[DashboardClient] Job ${jobId} status:`, status);
-
-                    // Update results as they come in
-                    if (status.results) {
-                        setWebHealthResults(status.results);
-
-                        // Update leads with new scores
-                        setLeads(prevLeads => prevLeads.map(lead => {
-                            const result = status.results[lead.id];
-                            if (result?.success) {
-                                return {
-                                    ...lead,
-                                    stalenessScore: result.score,
-                                    stalenessLabel: result.label,
-                                    websiteLastScanned: result.lastScanned,
-                                    signals: {
-                                        ...lead.signals,
-                                        webHealth: { score: result.score, label: result.label }
-                                    }
-                                };
-                            }
-                            return lead;
-                        }));
-                    }
-
-                    // Check if complete
-                    if (status.status === 'complete') {
-                        clearInterval(pollInterval);
-                        setBulkWebHealthScanning(false);
-
-                        if (status.failed > 0) {
-                            showToast(`Rescan completed with ${status.failed} failures`, 'error');
-                        } else {
-                            showToast(`Web Health rescan complete.`);
-                        }
-                    }
-                } catch (e) {
-                    console.error('[DashboardClient] Poll error:', e);
-                }
-            }, 1500);
-
-            // Safety timeout (2 min max)
-            setTimeout(() => {
-                clearInterval(pollInterval);
-                if (bulkWebHealthScanning) {
-                    setBulkWebHealthScanning(false);
-                    showToast('Rescan timed out', 'error');
-                }
-            }, 120000);
-
-        } catch (e) {
-            console.error('[DashboardClient] Bulk Web Health rescan error:', e);
-            showToast('Bulk rescan failed — try again', 'error');
-            setBulkWebHealthScanning(false);
-        }
-    }, [filteredLeads, bulkWebHealthScanning]);
 
     // Auto-open composer from URL params (extension flow)
     useEffect(() => {
@@ -477,58 +390,13 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                             placeholder="Filter companies..."
                         />
 
-                        {/* Bulk Scan Controls */}
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: 'var(--bg-card-muted)' }}>
-                            <button
-                                onClick={() => handleBulkScan('missing')}
-                                disabled={bulkScanning || filteredLeads.length === 0}
-                                className="text-xs font-medium px-3 py-1.5 rounded-md transition-all hover:scale-[1.02]"
-                                style={{
-                                    background: 'rgba(84, 130, 237, 0.12)',
-                                    color: 'rgb(84, 130, 237)',
-                                    cursor: bulkScanning ? 'wait' : 'pointer',
-                                    opacity: bulkScanning ? 0.6 : 1
-                                }}
-                            >
-                                {bulkScanning ? 'Scanning...' : 'Scan Missing'}
-                            </button>
-                            <button
-                                onClick={() => handleBulkScan('stale')}
-                                disabled={bulkScanning || filteredLeads.length === 0}
-                                className="text-xs font-medium px-3 py-1.5 rounded-md transition-all hover:scale-[1.02]"
-                                style={{
-                                    background: 'rgba(245, 158, 11, 0.12)',
-                                    color: 'rgb(217, 119, 6)',
-                                    cursor: bulkScanning ? 'wait' : 'pointer',
-                                    opacity: bulkScanning ? 0.6 : 1
-                                }}
-                            >
-                                Rescan Stale
-                            </button>
-                            <button
-                                onClick={handleBulkWebHealthRescan}
-                                disabled={bulkWebHealthScanning || filteredLeads.length === 0}
-                                className="text-xs font-medium px-3 py-1.5 rounded-md transition-all hover:scale-[1.02] flex items-center gap-1"
-                                style={{
-                                    background: bulkWebHealthScanning ? 'var(--brand)' : 'rgba(84, 130, 237, 0.12)',
-                                    color: bulkWebHealthScanning ? 'white' : 'rgb(84, 130, 237)',
-                                    cursor: bulkWebHealthScanning ? 'wait' : 'pointer'
-                                }}
-                                title={`Rescan all ${filteredLeads.length} visible leads`}
-                            >
-                                {bulkWebHealthScanning ? (
-                                    <>
-                                        <RefreshCw size={12} className="animate-spin" />
-                                        Rescanning {filteredLeads.length}...
-                                    </>
-                                ) : (
-                                    <>
-                                        <RefreshCw size={12} />
-                                        Rescan All ({filteredLeads.length})
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                        {/* Unified Rescan Dropdown */}
+                        <RescanDropdown
+                            totalCount={filteredLeads.length}
+                            onScan={handleUnifiedBulkScan}
+                            isScanning={bulkScanning}
+                            progress={scanProgress}
+                        />
 
                         <button
                             onClick={() => setIsAddModalOpen(true)}
@@ -592,8 +460,6 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                             onViewThread={() => handleViewThread(lead)}
                             onDelete={() => handleDeleteClick(lead)}
                             onRescan={(type) => handleRescan(lead, type)}
-                            bulkWebHealthScanning={bulkWebHealthScanning}
-                            onBulkWebHealthRescan={handleBulkWebHealthRescan}
                         />
                     ))
                 ) : (
