@@ -87,14 +87,25 @@ export default function WebsiteReviewModal({
                 category: f.category
             }));
 
+            // Determine scan status from API response
+            // - If API says 'not_scanned', respect that
+            // - If there are factors OR a valid score, treat as complete
+            // - Otherwise, not_scanned
+            let scanStatus: 'not_scanned' | 'scanning' | 'complete' | 'failed' = 'not_scanned';
+            if (json.scanState === 'failed') {
+                scanStatus = 'failed';
+            } else if (json.scanState === 'scanned' || factors.length > 0 || (json.score !== null && json.score !== undefined)) {
+                scanStatus = 'complete';
+            }
+
             setData({
                 score: json.score ?? null,
                 statusLabel: json.statusLabel || getStatusLabel(json.score),
                 factors,
                 domain: json.domain,
-                canonicalUrl: json.canonicalUrl || json.websiteUrl,
-                lastScannedAt: json.lastScannedAt || json.scannedAt,
-                scanStatus: factors.length > 0 || json.score != null ? 'complete' : 'not_scanned'
+                canonicalUrl: json.url || json.canonicalUrl || json.websiteUrl,
+                lastScannedAt: json.lastScanned || json.lastScannedAt || json.scannedAt,
+                scanStatus
             });
         } catch (e: any) {
             console.error('[WebsiteReviewModal] Fetch error:', e);
