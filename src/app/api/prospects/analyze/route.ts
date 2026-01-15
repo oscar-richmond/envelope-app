@@ -40,14 +40,14 @@ export async function POST(request: Request) {
             const analysis = await websiteAnalysisService.analyze(prospect.websiteUrl);
 
             // Calculate Priority based on new staleness score
-            const financialScore = prospect.financialActivityScore || 0;
-            const websiteConfidence = prospect.websiteConfidence || 'LOW';
-
-            const { score: pScore, band: pBand } = priorityCalculator.calculate(
-                analysis.stalenessScore,
-                financialScore,
-                websiteConfidence
-            );
+            const result = priorityCalculator.calculate({
+                stalenessScore: analysis.stalenessScore,
+                financialScore: prospect.financialActivityScore || 0,
+                financialActivityBand: prospect.financialActivityBand,
+                websiteConfidence: prospect.websiteConfidence || 'LOW',
+                websiteUrl: prospect.websiteUrl,
+                incorporatedOn: prospect.incorporatedOn
+            });
 
             // Update DB
             await prisma.companyProspect.update({
@@ -58,8 +58,8 @@ export async function POST(request: Request) {
                     scoreReasons: JSON.stringify(analysis.reasons),
                     signals: JSON.stringify(analysis.signals),
                     lastAnalysedAt: new Date(),
-                    contactPriorityScore: pScore,
-                    contactPriorityBand: pBand,
+                    contactPriorityScore: result.score,
+                    contactPriorityBand: result.band,
                     contactPriorityLastCalculatedAt: new Date()
                 }
             });

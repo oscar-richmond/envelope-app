@@ -64,14 +64,17 @@ export async function POST(
 
             // Recalculate Priority immediately
             // Note: design score/financial might be 0/null still, but confidence changes effective score logic
-            const designScore = prospect.stalenessScore || 0;
-            const financialScore = prospect.financialActivityScore || 0;
-            const websiteConfidence = matchResult.confidence || 'LOW';
+            const result = priorityCalculator.calculate({
+                stalenessScore: prospect.stalenessScore || 0,
+                financialScore: prospect.financialActivityScore || 0,
+                financialActivityBand: prospect.financialActivityBand,
+                websiteConfidence: matchResult.confidence || 'LOW',
+                websiteUrl: matchResult.url,
+                incorporatedOn: prospect.incorporatedOn
+            });
 
-            const { score: pScore, band: pBand } = priorityCalculator.calculate(designScore, financialScore, websiteConfidence);
-
-            updateData.contactPriorityScore = pScore;
-            updateData.contactPriorityBand = pBand;
+            updateData.contactPriorityScore = result.score;
+            updateData.contactPriorityBand = result.band;
             updateData.contactPriorityLastCalculatedAt = new Date();
         } else {
             // Only set status to FAILED/NOT_FOUND if we didn't have one before? 

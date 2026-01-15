@@ -35,9 +35,14 @@ export async function POST(request: Request) {
             const analysis = await financialAnalysisService.analyze(prospect.companyNumber);
 
             // Calculate Priority
-            const designScore = prospect.stalenessScore || 0;
-            const websiteConfidence = prospect.websiteConfidence || 'LOW';
-            const { score: pScore, band: pBand } = priorityCalculator.calculate(designScore, analysis.score, websiteConfidence);
+            const result = priorityCalculator.calculate({
+                stalenessScore: prospect.stalenessScore || 0,
+                financialScore: analysis.score,
+                financialActivityBand: analysis.band,
+                websiteConfidence: prospect.websiteConfidence || 'LOW',
+                websiteUrl: prospect.websiteUrl,
+                incorporatedOn: prospect.incorporatedOn
+            });
 
             // Update DB (Use raw query to avoid stale Prisma Client issues during dev)
             const signalsJson = JSON.stringify(analysis.signals);
@@ -52,8 +57,8 @@ export async function POST(request: Request) {
                         financialActivityBand: analysis.band,
                         financialSignals: signalsJson,
                         financialLastCheckedAt: now,
-                        contactPriorityScore: pScore,
-                        contactPriorityBand: pBand,
+                        contactPriorityScore: result.score,
+                        contactPriorityBand: result.band,
                         contactPriorityLastCalculatedAt: now
                     }
                 });
@@ -66,8 +71,8 @@ export async function POST(request: Request) {
                         "financialActivityBand" = ${analysis.band}, 
                         "financialSignals" = ${signalsJson}, 
                         "financialLastCheckedAt" = ${now},
-                        "contactPriorityScore" = ${pScore},
-                        "contactPriorityBand" = ${pBand},
+                        "contactPriorityScore" = ${result.score},
+                        "contactPriorityBand" = ${result.band},
                         "contactPriorityLastCalculatedAt" = ${now}
                     WHERE "id" = ${id}
                 `;
@@ -80,8 +85,8 @@ export async function POST(request: Request) {
                 band: analysis.band,
                 signals: analysis.signals, // Required for UI immediate update
                 // Return priority in result for UI update
-                contactPriorityScore: pScore,
-                contactPriorityBand: pBand
+                contactPriorityScore: result.score,
+                contactPriorityBand: result.band
             });
         }
 

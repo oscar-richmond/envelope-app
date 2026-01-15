@@ -129,12 +129,15 @@ export async function POST(request: Request) {
                     if (db) {
                         try {
                             const calcResults = db.contactPriorityBand
-                                ? { score: db.contactPriorityScore, band: db.contactPriorityBand }
-                                : priorityCalculator.calculate(
-                                    db.stalenessScore || 0,
-                                    db.financialActivityScore || 0,
-                                    db.websiteConfidence || 'LOW'
-                                );
+                                ? { score: db.contactPriorityScore, band: db.contactPriorityBand, evidence: [] }
+                                : priorityCalculator.calculate({
+                                    stalenessScore: db.stalenessScore || 0,
+                                    financialScore: db.financialActivityScore || 0,
+                                    financialActivityBand: db.financialActivityBand,
+                                    websiteConfidence: db.websiteConfidence || 'LOW',
+                                    websiteUrl: db.websiteUrl || r.websiteUrl,
+                                    incorporatedOn: db.incorporatedOn || r.incorporationDate
+                                });
 
                             return {
                                 ...r,
@@ -164,6 +167,7 @@ export async function POST(request: Request) {
                                 // Contact Priority
                                 contactPriorityScore: calcResults.score,
                                 contactPriorityBand: calcResults.band,
+                                contactPriorityEvidence: calcResults.evidence || [],
                                 contactPriorityLastCalculatedAt: db.contactPriorityLastCalculatedAt,
 
                                 // Incorporation Date
