@@ -259,19 +259,12 @@ export default function LeadResultRowCard({
                     {/* Web Health */}
                     <div className="flex flex-col gap-1">
                         {hasWebData ? (
-                            <div className="flex flex-col gap-1">
-                                <MetricTile
-                                    label="Web Health"
-                                    value={staleLabel}
-                                    score={staleScore}
-                                    scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
-                                />
-                                {lead.websiteLastScanned && (
-                                    <span className="text-[10px] px-1" style={{ color: 'var(--text-muted)' }}>
-                                        {formatRelativeTime(lead.websiteLastScanned)}
-                                    </span>
-                                )}
-                            </div>
+                            <MetricTile
+                                label="Web Health"
+                                value={staleLabel}
+                                score={staleScore}
+                                scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
+                            />
                         ) : (
                             <div className="flex flex-col gap-2 p-3 rounded-lg h-full justify-center" style={{ background: healthCtaStyles.web.cardBg, border: `1px solid ${healthCtaStyles.web.cardBorder}` }}>
                                 <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Web Health</span>
@@ -290,19 +283,12 @@ export default function LeadResultRowCard({
                     {/* Fin Health */}
                     <div className="flex flex-col gap-1">
                         {hasFinData ? (
-                            <div className="flex flex-col gap-1">
-                                <MetricTile
-                                    label="Fin Health"
-                                    value={finBand}
-                                    score={finScore}
-                                    scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
-                                />
-                                {lead.financialLastScanned && (
-                                    <span className="text-[10px] px-1" style={{ color: 'var(--text-muted)' }}>
-                                        {formatRelativeTime(lead.financialLastScanned)}
-                                    </span>
-                                )}
-                            </div>
+                            <MetricTile
+                                label="Fin Health"
+                                value={finBand}
+                                score={finScore}
+                                scoreColor={finBand === 'Strong' ? 'mint' : 'amber'}
+                            />
                         ) : (
                             <div className="flex flex-col gap-2 p-3 rounded-lg h-full justify-center" style={{ background: healthCtaStyles.finance.cardBg, border: `1px solid ${healthCtaStyles.finance.cardBorder}` }}>
                                 <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Fin Health</span>
