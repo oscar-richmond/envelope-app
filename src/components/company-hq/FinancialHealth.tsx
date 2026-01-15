@@ -23,7 +23,7 @@ export default function FinancialHealth({ score, band, signals, onFullReport }: 
                         onClick={onFullReport}
                         className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                     >
-                        Report
+                        View report
                     </button>
                 )}
             </div>

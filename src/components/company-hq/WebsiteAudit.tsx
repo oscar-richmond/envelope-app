@@ -28,7 +28,7 @@ export default function WebsiteAudit({ signals, websiteUrl, onViewEvidence }: We
                         onClick={onViewEvidence}
                         className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                     >
-                        Evidence
+                        View report
                     </button>
                 )}
             </div>

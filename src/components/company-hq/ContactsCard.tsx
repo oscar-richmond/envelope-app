@@ -352,15 +352,6 @@ export default function ContactsCard({
                             {totalCount}
                         </span>
                     )}
-                    {totalCount > 5 && (
-                        <button
-                            onClick={() => setShowAllContacts(true)}
-                            className="text-xs font-medium underline decoration-dotted"
-                            style={{ color: 'var(--accent-lilac-text)' }}
-                        >
-                            View all
-                        </button>
-                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     {lastScannedAt && (
@@ -471,13 +462,9 @@ export default function ContactsCard({
                 {/* Contacts List */}
                 {loadState === 'success' && !isScanning && totalCount > 0 && (
                     <>
-                        {/* Best Contacts */}
+                        {/* Contacts List */}
                         {bestContacts.length > 0 && (
                             <div className="p-4">
-                                <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                                    style={{ color: 'var(--text-muted)' }}>
-                                    Best Contacts
-                                </h4>
                                 <div className="space-y-2">
                                     {bestContacts.map((contact, idx) => (
                                         <ContactRow
@@ -660,6 +647,23 @@ export default function ContactsCard({
                                 )}
                             </div>
                         )}
+
+                        {/* Floating View All Button */}
+                        {totalCount > 5 && (
+                            <div className="sticky bottom-0 p-3 pt-6" style={{ background: 'linear-gradient(to top, white 70%, transparent)' }}>
+                                <button
+                                    onClick={() => setShowAllContacts(true)}
+                                    className="w-full text-sm font-medium py-2.5 rounded-lg transition-all hover:scale-[1.01]"
+                                    style={{
+                                        background: 'var(--accent-lilac-bg)',
+                                        color: 'var(--accent-lilac-text)',
+                                        border: '1px solid rgba(139, 92, 246, 0.2)'
+                                    }}
+                                >
+                                    View all contacts ({totalCount})
+                                </button>
+                            </div>
+                        )}
                     </>
                 )}
             </div>
@@ -806,7 +810,7 @@ export default function ContactsCard({
     );
 }
 
-// Contact Row Component
+// Contact Row Component - Improved Layout
 function ContactRow({
     contact,
     isSelected,
@@ -837,14 +841,13 @@ function ContactRow({
 
     return (
         <div
-            className={`flex items-center gap-3 p-2 rounded-lg transition-all cursor-pointer ${isSelected ? 'ring-2 ring-purple-400' : ''
-                }`}
+            className={`flex items-start gap-3 p-3 rounded-lg transition-all cursor-pointer ${isSelected ? 'ring-2 ring-purple-400' : ''}`}
             style={{ background: isSelected ? 'rgba(139, 92, 246, 0.08)' : 'var(--bg-card-muted)' }}
             onClick={onSelect}
         >
             {/* Avatar */}
             <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
                 style={{
                     background: 'linear-gradient(135deg, rgb(139, 92, 246), rgb(59, 130, 246))',
                     color: 'white'
@@ -853,31 +856,41 @@ function ContactRow({
                 {displayName[0]?.toUpperCase() || '?'}
             </div>
 
-            {/* Info */}
+            {/* Info - Improved layout */}
             <div className="flex-1 min-w-0">
+                {/* Line 1: Name + verified badge */}
                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
                         {displayName}
                     </span>
-                    {contact.verified && <Shield size={12} className="text-green-500" />}
+                    {contact.verified && <Shield size={12} className="text-green-500 shrink-0" />}
                 </div>
-                <div className="flex items-center gap-2">
+
+                {/* Line 2: Role · Email */}
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {roleDisplay && (
+                        <>
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                {roleDisplay}
+                            </span>
+                            <span className="text-xs" style={{ color: 'var(--border-default)' }}>·</span>
+                        </>
+                    )}
                     <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
                         {contact.email}
                     </span>
+                </div>
+
+                {/* Line 3: Source badge */}
+                <div className="mt-1">
                     <SourceBadge source={source} />
                 </div>
-                {roleDisplay && (
-                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                        {roleDisplay}
-                    </span>
-                )}
             </div>
 
             {/* Copy Button */}
             <button
                 onClick={(e) => { e.stopPropagation(); onCopy(); }}
-                className="p-1.5 rounded-md transition-all hover:bg-gray-200"
+                className="p-1.5 rounded-md transition-all hover:bg-gray-200 shrink-0"
                 style={{ color: 'var(--text-muted)' }}
             >
                 {isCopied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
