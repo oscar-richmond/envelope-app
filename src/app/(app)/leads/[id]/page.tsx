@@ -8,9 +8,9 @@ import WebsitePreview from '@/components/company-hq/WebsitePreview';
 import ContactsCard from '@/components/company-hq/ContactsCard';
 import ThreadPreview from '@/components/company-hq/ThreadPreview';
 import { RefreshDataButton, WebsiteReviewCard, FinancialHealthCard } from '@/components/company-hq/LeadDetailActions';
+import EmbeddedComposer from '@/components/company-hq/EmbeddedComposer';
 
 // Legacy / Shared Components
-import DraftEditor from '@/components/DraftEditor';
 import StatusBadge from '@/components/StatusBadge';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import DebugPanel from '@/components/DebugPanel';
@@ -136,19 +136,20 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                     </div>
 
                     {/* Composer Area */}
-                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-4">Outreach Composer</h3>
-                        <ErrorBoundary sectionName="Draft Composer">
-                            <DraftEditor
-                                leadId={lead.id}
-                                initialDraft={lead.emailDraft}
-                                draftHistory={(lead.drafts || []).map(d => ({
-                                    ...d,
-                                    createdAt: d.createdAt.toISOString()
-                                }))}
-                            />
-                        </ErrorBoundary>
-                    </div>
+                    <ErrorBoundary sectionName="Outreach Composer">
+                        <EmbeddedComposer
+                            leadId={lead.id}
+                            companyName={lead.companyName}
+                            contacts={(lead.contacts || []).map(c => ({
+                                id: c.id,
+                                firstName: c.firstName,
+                                lastName: c.lastName,
+                                email: c.email,
+                                title: c.title
+                            }))}
+                            existingEmailId={lead.sentEmails?.[0]?.id || null}
+                        />
+                    </ErrorBoundary>
                 </div>
             </div>
 
