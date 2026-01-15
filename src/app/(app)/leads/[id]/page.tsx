@@ -105,13 +105,14 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
     if (financialSignals.length === 0) {
         financialScore = financialScore || (lead.companyProspect?.financialActivityScore ?? 0);
         financialBand = financialBand || (lead.companyProspect?.financialActivityBand ?? 'Unknown');
-        // Try financialSignals field
+        // Try financialSignals field - may be object { breakdown: [...] } or array
         if (lead.companyProspect?.financialSignals) {
             try {
                 const parsed = JSON.parse(lead.companyProspect.financialSignals);
-                if (Array.isArray(parsed)) {
-                    // Handle both string arrays and object arrays
-                    financialSignals = parsed.map((item: any) => {
+                // Handle object format: { breakdown: [...], details: [...] }
+                const breakdownSource = parsed.breakdown || parsed.details || (Array.isArray(parsed) ? parsed : []);
+                if (Array.isArray(breakdownSource) && breakdownSource.length > 0) {
+                    financialSignals = breakdownSource.map((item: any) => {
                         if (typeof item === 'string') return item;
                         return item.label || item.text || item.title || JSON.stringify(item);
                     });
