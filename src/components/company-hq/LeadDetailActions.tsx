@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { RefreshCw, ExternalLink, FileText, Globe, TrendingUp, Loader2, AlertCircle, Play } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { ScoreDisplay, FactorsList, getStatusFromScore, type Factor } from '@/components/reports/shared';
 
 // Scan states
 type ScanStatus = 'UNSCANNED' | 'SCANNING' | 'SCANNED' | 'FAILED';
@@ -92,9 +93,11 @@ interface ReportModalProps {
     onClose: () => void;
     title: string;
     children: React.ReactNode;
+    onRescan?: () => void;
+    isScanning?: boolean;
 }
 
-function ReportModal({ isOpen, onClose, title, children }: ReportModalProps) {
+function ReportModal({ isOpen, onClose, title, children, onRescan, isScanning }: ReportModalProps) {
     if (!isOpen) return null;
 
     return (
@@ -106,12 +109,24 @@ function ReportModal({ isOpen, onClose, title, children }: ReportModalProps) {
             >
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                     <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
-                    >
-                        ×
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {onRescan && (
+                            <button
+                                onClick={onRescan}
+                                disabled={isScanning}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors disabled:opacity-50"
+                            >
+                                <RefreshCw size={12} className={isScanning ? 'animate-spin' : ''} />
+                                Rescan
+                            </button>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
+                        >
+                            ×
+                        </button>
+                    </div>
                 </div>
                 <div className="overflow-y-auto max-h-[calc(85vh-80px)] p-6">
                     {children}
@@ -123,38 +138,41 @@ function ReportModal({ isOpen, onClose, title, children }: ReportModalProps) {
 
 // Website Review Card with proper state management
 interface WebsiteReviewCardProps {
-    signals: string[];
+    factors?: Factor[];
+    signals?: string[]; // Legacy support
     websiteUrl: string;
-    score?: number;
+    score?: number | null;
     leadId?: number;
     companyProspectId?: number | null;
 }
 
-export function WebsiteReviewCard({ signals, websiteUrl, score, leadId, companyProspectId }: WebsiteReviewCardProps) {
+export function WebsiteReviewCard({ factors = [], signals = [], websiteUrl, score, leadId, companyProspectId }: WebsiteReviewCardProps) {
     const [showReport, setShowReport] = useState(false);
     const [scanStatus, setScanStatus] = useState<ScanStatus>(
-        (score !== undefined && score > 0) || signals.length > 0 ? 'SCANNED' : 'UNSCANNED'
+        (score !== undefined && score !== null) || factors.length > 0 || signals.length > 0 ? 'SCANNED' : 'UNSCANNED'
     );
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
-    // Determine if we have valid scan data
-    const hasValidData = scanStatus === 'SCANNED' && (score !== undefined && score > 0);
+    // Convert signals to factors if no factors provided (legacy support)
+    const displayFactors: Factor[] = factors.length > 0 ? factors : signals.map((s, i) => ({
+        id: `signal-${i}`,
+        label: s,
+        points: 0, // Unknown points for legacy signals
+        polarity: 'positive' as const
+    }));
 
-    // Categorize signals for display
-    const designSignals = signals.filter(s => s.toLowerCase().includes('design') || s.toLowerCase().includes('mobile') || s.toLowerCase().includes('viewport') || s.toLowerCase().includes('responsive'));
-    const trustSignals = signals.filter(s => s.toLowerCase().includes('trust') || s.toLowerCase().includes('ssl') || s.toLowerCase().includes('social') || s.toLowerCase().includes('testimonial'));
-    const techSignals = signals.filter(s => s.toLowerCase().includes('tech') || s.toLowerCase().includes('generator') || s.toLowerCase().includes('sitemap') || s.toLowerCase().includes('https'));
+    // Determine if we have valid scan data
+    const hasValidData = scanStatus === 'SCANNED' && (score !== undefined && score !== null);
+    const status = getStatusFromScore(score ?? null);
 
     const handleScan = async () => {
-        // Prefer companyProspectId for the canonical endpoint
         if (!companyProspectId && !leadId) return;
 
         setScanStatus('SCANNING');
         setError(null);
 
         try {
-            // Use the correct company endpoint that provides real breakdown data
             const endpoint = companyProspectId
                 ? `/api/companies/${companyProspectId}/web-health/scan`
                 : `/api/scan/website`;
@@ -174,7 +192,6 @@ export function WebsiteReviewCard({ signals, websiteUrl, score, leadId, companyP
                 throw new Error(data.error || 'Scan failed');
             }
 
-            // Refresh page to get new data
             router.refresh();
             setScanStatus('SCANNED');
         } catch (e: any) {
@@ -198,14 +215,21 @@ export function WebsiteReviewCard({ signals, websiteUrl, score, leadId, companyP
                         </div>
                         <h3 className="text-sm font-semibold text-gray-900">Website Review</h3>
                     </div>
-                    {hasValidData && (
+                    {hasValidData ? (
                         <button
                             onClick={() => setShowReport(true)}
                             className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                         >
                             View report
                         </button>
-                    )}
+                    ) : scanStatus === 'UNSCANNED' ? (
+                        <button
+                            onClick={handleScan}
+                            className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
+                        >
+                            Run scan
+                        </button>
+                    ) : null}
                 </div>
 
                 {/* Content */}
@@ -216,16 +240,8 @@ export function WebsiteReviewCard({ signals, websiteUrl, score, leadId, companyP
                             <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
                                 <Globe size={20} className="text-gray-400" />
                             </div>
-                            <p className="text-sm text-gray-500 mb-3">No website scan yet</p>
-                            <button
-                                onClick={handleScan}
-                                disabled={!leadId}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition"
-                                style={{ background: 'var(--brand)' }}
-                            >
-                                <Play size={14} />
-                                Scan Website
-                            </button>
+                            <p className="text-sm text-gray-500">Not scanned yet</p>
+                            <p className="text-xs text-gray-400 mt-1">Run scan to generate score & breakdown.</p>
                         </div>
                     )}
 
@@ -260,67 +276,30 @@ export function WebsiteReviewCard({ signals, websiteUrl, score, leadId, companyP
                     {scanStatus === 'SCANNED' && hasValidData && (
                         <div className="space-y-3">
                             {/* Score */}
-                            <div className="flex items-center gap-2">
-                                <span className="text-2xl font-bold text-gray-900">{score}</span>
-                                <span className="text-xs text-gray-500">/ 100</span>
-                            </div>
+                            <ScoreDisplay score={score ?? null} showTooltip={true} size="small" />
 
-                            {/* Breakdown */}
-                            {signals.length > 0 ? (
-                                <div className="space-y-2">
-                                    {designSignals.length > 0 && (
-                                        <div>
-                                            <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Design & UX</div>
-                                            {designSignals.slice(0, 2).map((s, i) => (
-                                                <div key={i} className="flex items-center justify-between text-xs py-0.5">
-                                                    <span className="text-gray-600">{s}</span>
-                                                    <span className="text-green-600 font-medium">+{10 + i * 5}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {trustSignals.length > 0 && (
-                                        <div>
-                                            <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Trust Signals</div>
-                                            {trustSignals.slice(0, 2).map((s, i) => (
-                                                <div key={i} className="flex items-center justify-between text-xs py-0.5">
-                                                    <span className="text-gray-600">{s}</span>
-                                                    <span className="text-green-600 font-medium">+{5 + i * 5}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {techSignals.length > 0 && (
-                                        <div>
-                                            <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Technical</div>
-                                            {techSignals.slice(0, 2).map((s, i) => (
-                                                <div key={i} className="flex items-center justify-between text-xs py-0.5">
-                                                    <span className="text-gray-600">{s}</span>
-                                                    <span className="text-green-600 font-medium">+{10 + i * 5}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {designSignals.length === 0 && trustSignals.length === 0 && techSignals.length === 0 && signals.slice(0, 3).map((s, i) => (
-                                        <div key={i} className="flex items-center justify-between text-xs py-0.5">
-                                            <span className="text-gray-600">{s}</span>
-                                            <span className="text-green-600 font-medium">+5</span>
-                                        </div>
-                                    ))}
+                            {/* Quick preview of factors */}
+                            {displayFactors.filter(f => f.points !== 0).slice(0, 3).map((factor, idx) => (
+                                <div key={factor.id || idx} className="flex items-center justify-between text-xs py-0.5">
+                                    <span className="text-gray-600 truncate flex-1 mr-2">{factor.label}</span>
+                                    <span
+                                        className="font-medium flex-shrink-0"
+                                        style={{ color: factor.points > 0 ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)' }}
+                                    >
+                                        {factor.points > 0 ? '+' : ''}{factor.points}
+                                    </span>
                                 </div>
-                            ) : (
-                                <p className="text-xs text-gray-400 italic">Score calculated from website analysis</p>
-                            )}
+                            ))}
                         </div>
                     )}
 
                     {/* Edge case: SCANNED but no valid data */}
                     {scanStatus === 'SCANNED' && !hasValidData && (
                         <div className="text-center py-4">
-                            <p className="text-sm text-gray-500 mb-3">Scan completed but no score available</p>
+                            <p className="text-sm text-gray-500">Insufficient data to produce a score.</p>
+                            <p className="text-xs text-gray-400 mt-1 mb-3">Try rescanning to gather more signals.</p>
                             <button
                                 onClick={handleScan}
-                                disabled={!leadId}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
                             >
                                 <RefreshCw size={14} />
@@ -336,29 +315,23 @@ export function WebsiteReviewCard({ signals, websiteUrl, score, leadId, companyP
                 isOpen={showReport}
                 onClose={() => setShowReport(false)}
                 title="Website Review Report"
+                onRescan={handleScan}
+                isScanning={scanStatus === 'SCANNING'}
             >
                 <div className="space-y-6">
                     <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-indigo-600 hover:underline">
                         {websiteUrl} <ExternalLink size={12} />
                     </a>
-                    <div className="flex items-center gap-4">
-                        <div className="text-4xl font-bold text-gray-900">{score || '--'}</div>
-                        <div className="text-xs text-gray-500 uppercase">/ 100</div>
-                    </div>
-                    {signals.length > 0 ? (
-                        <div className="space-y-4">
-                            <div>
-                                <h4 className="text-xs font-semibold text-gray-900 mb-2">All Signals Detected</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {signals.map((s, i) => (
-                                        <span key={i} className="px-2 py-1 bg-gray-50 text-gray-700 text-xs rounded border border-gray-100">{s}</span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <p className="text-sm text-gray-400 italic">No specific signals recorded</p>
-                    )}
+
+                    {/* Score with status pill */}
+                    <ScoreDisplay score={score ?? null} showTooltip={true} />
+
+                    {/* Factors list */}
+                    <FactorsList
+                        factors={displayFactors}
+                        score={score ?? null}
+                        isPartial={displayFactors.length < 3}
+                    />
                 </div>
             </ReportModal>
         </>
@@ -367,36 +340,41 @@ export function WebsiteReviewCard({ signals, websiteUrl, score, leadId, companyP
 
 // Financial Health Card with proper state management
 interface FinancialHealthCardProps {
-    score: number;
-    band: string;
-    signals: string[];
+    factors?: Factor[];
+    signals?: string[]; // Legacy support
+    score?: number | null;
+    band?: string;
     leadId?: number;
     companyProspectId?: number | null;
 }
 
-export function FinancialHealthCard({ score, band, signals, leadId, companyProspectId }: FinancialHealthCardProps) {
+export function FinancialHealthCard({ factors = [], signals = [], score, band, leadId, companyProspectId }: FinancialHealthCardProps) {
     const [showReport, setShowReport] = useState(false);
     const [scanStatus, setScanStatus] = useState<ScanStatus>(
-        (score !== undefined && score > 0) || signals.length > 0 ? 'SCANNED' : 'UNSCANNED'
+        (score !== undefined && score !== null) || factors.length > 0 || signals.length > 0 ? 'SCANNED' : 'UNSCANNED'
     );
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
-    // Determine if we have valid scan data
-    const hasValidData = scanStatus === 'SCANNED' && score > 0;
+    // Convert signals to factors if no factors provided (legacy support)
+    const displayFactors: Factor[] = factors.length > 0 ? factors : signals.map((s, i) => ({
+        id: `signal-${i}`,
+        label: s,
+        points: 0, // Unknown points for legacy signals
+        polarity: 'positive' as const
+    }));
 
-    const bandColor = band === 'Strong' ? 'bg-green-100 text-green-800' :
-        band === 'Medium' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800';
+    // Determine if we have valid scan data
+    const hasValidData = scanStatus === 'SCANNED' && (score !== undefined && score !== null);
+    const status = getStatusFromScore(score ?? null);
 
     const handleScan = async () => {
-        // Prefer companyProspectId for the canonical endpoint
         if (!companyProspectId && !leadId) return;
 
         setScanStatus('SCANNING');
         setError(null);
 
         try {
-            // Use the correct company endpoint that provides real breakdown data
             const endpoint = companyProspectId
                 ? `/api/companies/${companyProspectId}/financials/sync`
                 : `/api/scan/financials`;
@@ -416,7 +394,6 @@ export function FinancialHealthCard({ score, band, signals, leadId, companyProsp
                 throw new Error(data.error || 'Scan failed');
             }
 
-            // Refresh page to get new data
             router.refresh();
             setScanStatus('SCANNED');
         } catch (e: any) {
@@ -440,14 +417,21 @@ export function FinancialHealthCard({ score, band, signals, leadId, companyProsp
                         </div>
                         <h3 className="text-sm font-semibold text-gray-900">Financial Health</h3>
                     </div>
-                    {hasValidData && (
+                    {hasValidData ? (
                         <button
                             onClick={() => setShowReport(true)}
                             className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                         >
                             View report
                         </button>
-                    )}
+                    ) : scanStatus === 'UNSCANNED' ? (
+                        <button
+                            onClick={handleScan}
+                            className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
+                        >
+                            Run scan
+                        </button>
+                    ) : null}
                 </div>
 
                 {/* Content */}
@@ -458,16 +442,8 @@ export function FinancialHealthCard({ score, band, signals, leadId, companyProsp
                             <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
                                 <TrendingUp size={20} className="text-gray-400" />
                             </div>
-                            <p className="text-sm text-gray-500 mb-3">No financial scan yet</p>
-                            <button
-                                onClick={handleScan}
-                                disabled={!leadId}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition"
-                                style={{ background: 'var(--brand)' }}
-                            >
-                                <Play size={14} />
-                                Scan Financials
-                            </button>
+                            <p className="text-sm text-gray-500">Not scanned yet</p>
+                            <p className="text-xs text-gray-400 mt-1">Run scan to generate score & breakdown.</p>
                         </div>
                     )}
 
@@ -501,45 +477,31 @@ export function FinancialHealthCard({ score, band, signals, leadId, companyProsp
                     {/* SCANNED state */}
                     {scanStatus === 'SCANNED' && hasValidData && (
                         <div className="space-y-3">
-                            {/* Score + Band */}
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl font-bold text-gray-900">{score}</span>
-                                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${bandColor}`}>
-                                    {band}
-                                </span>
-                            </div>
+                            {/* Score */}
+                            <ScoreDisplay score={score ?? null} showTooltip={true} size="small" />
 
-                            {/* Breakdown */}
-                            {signals.length > 0 ? (
-                                <div className="space-y-1">
-                                    <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Score factors</div>
-                                    {signals.slice(0, 4).map((s, i) => {
-                                        const isPositive = !s.toLowerCase().includes('missing') &&
-                                            !s.toLowerCase().includes('no ') &&
-                                            !s.toLowerCase().includes('late') &&
-                                            !s.toLowerCase().includes('decline');
-                                        const points = isPositive ? `+${10 + (i * 5 % 15)}` : '-5';
-                                        return (
-                                            <div key={i} className="flex items-center justify-between text-xs py-0.5">
-                                                <span className="text-gray-600">{s}</span>
-                                                <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-500'}`}>{points}</span>
-                                            </div>
-                                        );
-                                    })}
+                            {/* Quick preview of factors */}
+                            {displayFactors.filter(f => f.points !== 0).slice(0, 3).map((factor, idx) => (
+                                <div key={factor.id || idx} className="flex items-center justify-between text-xs py-0.5">
+                                    <span className="text-gray-600 truncate flex-1 mr-2">{factor.label}</span>
+                                    <span
+                                        className="font-medium flex-shrink-0"
+                                        style={{ color: factor.points > 0 ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)' }}
+                                    >
+                                        {factor.points > 0 ? '+' : ''}{factor.points}
+                                    </span>
                                 </div>
-                            ) : (
-                                <p className="text-xs text-gray-400 italic">Score calculated from company filings</p>
-                            )}
+                            ))}
                         </div>
                     )}
 
                     {/* Edge case: SCANNED but no valid data */}
                     {scanStatus === 'SCANNED' && !hasValidData && (
                         <div className="text-center py-4">
-                            <p className="text-sm text-gray-500 mb-3">Scan completed but no score available</p>
+                            <p className="text-sm text-gray-500">Insufficient data to produce a score.</p>
+                            <p className="text-xs text-gray-400 mt-1 mb-3">Try rescanning to gather more signals.</p>
                             <button
                                 onClick={handleScan}
-                                disabled={!leadId}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
                             >
                                 <RefreshCw size={14} />
@@ -555,32 +517,19 @@ export function FinancialHealthCard({ score, band, signals, leadId, companyProsp
                 isOpen={showReport}
                 onClose={() => setShowReport(false)}
                 title="Financial Health Report"
+                onRescan={handleScan}
+                isScanning={scanStatus === 'SCANNING'}
             >
                 <div className="space-y-6">
-                    <div className="flex items-center gap-4">
-                        <div>
-                            <div className="text-4xl font-bold text-gray-900">{score || '--'}</div>
-                            <div className="text-xs text-gray-500 uppercase tracking-wide">Financial Score</div>
-                        </div>
-                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${bandColor}`}>
-                            {band || 'Unknown'}
-                        </span>
-                    </div>
-                    <div>
-                        <h4 className="text-xs font-semibold text-gray-900 mb-3">Key Indicators</h4>
-                        {signals.length > 0 ? (
-                            <ul className="space-y-2">
-                                {signals.map((s, i) => (
-                                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                                        <span className="text-emerald-500 mt-0.5">✓</span>
-                                        <span>{s}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-sm text-gray-400 italic">No specific indicators available</p>
-                        )}
-                    </div>
+                    {/* Score with status pill */}
+                    <ScoreDisplay score={score ?? null} showTooltip={true} />
+
+                    {/* Factors list */}
+                    <FactorsList
+                        factors={displayFactors}
+                        score={score ?? null}
+                        isPartial={displayFactors.length < 3}
+                    />
                 </div>
             </ReportModal>
         </>

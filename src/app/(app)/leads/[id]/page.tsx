@@ -93,23 +93,36 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
         }
     }
 
-    // Parse finHealthData JSON for score, band and signals
-    let financialScore = 0;
+    // Parse finHealthData JSON for score, band and factors
+    let financialScore: number | null = null;
     let financialBand = 'Unknown';
     let financialSignals: string[] = [];
+    let financialFactors: { id: string; label: string; points: number; polarity: 'positive' | 'negative'; description?: string }[] = [];
     if (lead.companyProspect?.finHealthData) {
         try {
             const parsed = JSON.parse(lead.companyProspect.finHealthData);
-            financialScore = parsed.score ?? lead.companyProspect?.financialActivityScore ?? 0;
-            financialBand = parsed.band ?? lead.companyProspect?.financialActivityBand ?? 'Unknown';
-            // breakdown is array of objects, extract labels as strings
-            if (Array.isArray(parsed.breakdown) && parsed.breakdown.length > 0) {
-                financialSignals = parsed.breakdown.map((b: any) => {
-                    if (typeof b === 'string') return b;
-                    return b.label || b.text || b.title || JSON.stringify(b);
-                });
-            } else if (Array.isArray(parsed.signals) && parsed.signals.length > 0) {
-                financialSignals = parsed.signals;
+            financialScore = parsed.score ?? null;
+            financialBand = parsed.statusLabel ?? parsed.band ?? 'Unknown';
+            // New scoring engine format: factors array with points
+            if (Array.isArray(parsed.factors) && parsed.factors.length > 0) {
+                financialFactors = parsed.factors.map((f: any) => ({
+                    id: f.id || `factor-${Math.random()}`,
+                    label: f.label || f.text || String(f),
+                    points: f.points || 0,
+                    polarity: f.polarity || (f.points >= 0 ? 'positive' : 'negative'),
+                    description: f.description
+                }));
+                financialSignals = financialFactors.map(f => f.label);
+            } else if (Array.isArray(parsed.breakdown) && parsed.breakdown.length > 0) {
+                // Legacy breakdown format
+                financialFactors = parsed.breakdown.map((b: any, i: number) => ({
+                    id: `breakdown-${i}`,
+                    label: typeof b === 'string' ? b : (b.label || b.text || JSON.stringify(b)),
+                    points: b.points || 0,
+                    polarity: (b.points || 0) >= 0 ? 'positive' as const : 'negative' as const,
+                    description: b.description || b.value
+                }));
+                financialSignals = financialFactors.map(f => f.label);
             }
         } catch (e) { /* ignore */ }
     }
@@ -204,6 +217,7 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                 <div className="space-y-6 xl:col-span-1">
                     <WebsitePreview url={lead.websiteUrl} />
                     <WebsiteReviewCard
+                        factors={websiteFactors.map(f => ({ ...f, id: f.label, polarity: f.points >= 0 ? 'positive' as const : 'negative' as const }))}
                         signals={websiteSignals}
                         websiteUrl={lead.websiteUrl}
                         score={websiteScore}
@@ -211,9 +225,10 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                         companyProspectId={lead.companyProspectId}
                     />
                     <FinancialHealthCard
+                        factors={financialFactors}
+                        signals={financialSignals}
                         score={financialScore}
                         band={financialBand}
-                        signals={financialSignals}
                         leadId={lead.id}
                         companyProspectId={lead.companyProspectId}
                     />
