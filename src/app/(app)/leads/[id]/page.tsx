@@ -153,8 +153,20 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                 {/* Left Column: Analysis (1 col) */}
                 <div className="space-y-6 xl:col-span-1">
                     <WebsitePreview url={lead.websiteUrl} />
-                    <WebsiteReviewCard signals={websiteSignals} websiteUrl={lead.websiteUrl} score={websiteScore} />
-                    <FinancialHealthCard score={financialScore} band={financialBand} signals={financialSignals} />
+                    <WebsiteReviewCard
+                        signals={websiteSignals}
+                        websiteUrl={lead.websiteUrl}
+                        score={websiteScore}
+                        leadId={lead.id}
+                        companyProspectId={lead.companyProspectId}
+                    />
+                    <FinancialHealthCard
+                        score={financialScore}
+                        band={financialBand}
+                        signals={financialSignals}
+                        leadId={lead.id}
+                        companyProspectId={lead.companyProspectId}
+                    />
                 </div>
 
                 {/* Right Column: Execution (2 cols) */}
