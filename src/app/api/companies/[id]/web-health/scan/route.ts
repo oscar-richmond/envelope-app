@@ -221,6 +221,37 @@ export async function GET(
             scanState = 'failed';
         } else if (report?.score !== null && report?.score !== undefined) {
             scanState = 'scanned';
+        } else if (prospect.stalenessScore !== null) {
+            // Legacy: has score but may not have webHealthData
+            scanState = 'scanned';
+        }
+
+        // Get factors - synthesize from legacy data if needed
+        let factors = report?.factors ?? [];
+
+        // If we have a score but no factors (legacy data), synthesize factors
+        if (factors.length === 0 && (report?.score !== null || prospect.stalenessScore !== null)) {
+            const score = report?.score ?? prospect.stalenessScore ?? 0;
+
+            // Check if we have signals to convert to factors
+            if (report?.signals && Array.isArray(report.signals) && report.signals.length > 0) {
+                factors = report.signals.map((s: string, i: number) => ({
+                    id: `legacy-${i}`,
+                    label: s,
+                    points: 0, // Unknown points from legacy
+                    polarity: 'neutral' as const,
+                    description: 'Legacy signal (rescan for accurate scoring)'
+                }));
+            } else {
+                // Create a summary factor based on the score
+                factors = [{
+                    id: 'legacy-score',
+                    label: score >= 70 ? 'Website appears healthy' : score >= 40 ? 'Website may need attention' : 'Website needs work',
+                    points: score - 50, // Approximate points from score
+                    polarity: (score >= 50 ? 'positive' : 'negative') as 'positive' | 'negative',
+                    description: 'Rescan this company to see detailed breakdown'
+                }];
+            }
         }
 
         // Return full report data
@@ -229,9 +260,9 @@ export async function GET(
             url: prospect.websiteUrl,
             score: report?.score ?? prospect.stalenessScore ?? null,
             statusLabel: report?.statusLabel ?? prospect.stalenessLabel ?? 'Not scanned',
-            factors: report?.factors ?? [], // This is the key fix - return factors with points
-            signals: report?.factors?.map((f: any) => f.label) ?? [],
-            confidence: report?.confidence ?? 'low',
+            factors,
+            signals: factors.map((f: any) => f.label),
+            confidence: report?.confidence ?? (factors.length > 2 ? 'medium' : 'low'),
             baseScore: report?.baseScore ?? 50,
             computedAt: report?.computedAt ?? null,
             lastScanned: prospect.websiteDiscoveryDate,

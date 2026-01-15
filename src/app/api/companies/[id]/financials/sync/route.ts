@@ -538,13 +538,43 @@ export async function GET(
             scanState = 'scanned';
         }
 
+        // Get factors - synthesize from legacy data if needed
+        let factors = report?.factors ?? [];
+
+        // If we have a score but no factors (legacy data), synthesize factors
+        if (factors.length === 0 && (report?.score !== null || prospect.financialActivityScore !== null)) {
+            const score = report?.score ?? prospect.financialActivityScore ?? 0;
+
+            // Check if we have breakdown to convert to factors
+            if (report?.breakdown && Array.isArray(report.breakdown) && report.breakdown.length > 0) {
+                factors = report.breakdown.map((b: any, i: number) => ({
+                    id: `breakdown-${i}`,
+                    label: b.label || b.text || `Factor ${i + 1}`,
+                    points: b.points || (b.value === 'Positive' ? 10 : b.value === 'Negative' ? -10 : 0),
+                    polarity: (b.value === 'Positive' || b.points > 0 ? 'positive' : 'negative') as 'positive' | 'negative',
+                    description: b.text || b.description || ''
+                }));
+            } else {
+                // Create a summary factor based on the score
+                const band = prospect.financialActivityBand || 'Unknown';
+                factors = [{
+                    id: 'legacy-score',
+                    label: band === 'Strong' || band === 'Very Strong' ? 'Financial health is strong' :
+                        band === 'Medium' ? 'Financial health is moderate' : 'Financial health needs attention',
+                    points: score - 50, // Approximate points from score
+                    polarity: (score >= 50 ? 'positive' : 'negative') as 'positive' | 'negative',
+                    description: 'Rescan this company to see detailed breakdown'
+                }];
+            }
+        }
+
         // Return full report data
         return NextResponse.json({
             score: report?.score ?? prospect.financialActivityScore ?? null,
             statusLabel: report?.statusLabel ?? prospect.financialActivityBand ?? 'Not scanned',
-            factors: report?.factors ?? [], // This is the key fix - return factors with points
+            factors,
             breakdown: report?.breakdown ?? [],
-            confidence: report?.confidence ?? 'low',
+            confidence: report?.confidence ?? (factors.length > 2 ? 'medium' : 'low'),
             baseScore: report?.baseScore ?? 0,
             computedAt: report?.computedAt ?? null,
             lastScanned: prospect.financialLastCheckedAt,
