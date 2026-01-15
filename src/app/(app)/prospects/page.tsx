@@ -46,6 +46,7 @@ export default function ProspectSearch() {
     const [viewLowPriorityConfirm, setViewLowPriorityConfirm] = useState<any>(null); // Reused for all soft-gating warnings
     const [viewFinancials, setViewFinancials] = useState<any>(null);
     const [viewPriority, setViewPriority] = useState<any>(null);
+    const [viewWebsiteHealth, setViewWebsiteHealth] = useState<any>(null);
 
     // --- Draft Action ---
     const [viewDraft, setViewDraft] = useState<any | null>(null);
@@ -477,8 +478,8 @@ export default function ProspectSearch() {
                     </button>
                     {c.scoreReasons && (
                         <ExplainButton
-                            onClick={() => setViewEvidence(JSON.parse(c.scoreReasons))}
-                            title="See priority score breakdown"
+                            onClick={() => setViewWebsiteHealth(c)}
+                            title="See website health breakdown"
                         />
                     )}
                 </div>
@@ -1216,6 +1217,115 @@ export default function ProspectSearch() {
                                 })()}
                                 Priority determines if this prospect is worth contacting.
                                 <br />High (70+), Medium (40-69), Low (&lt;40).
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+            {/* Website Health Modal */}
+            {
+                viewWebsiteHealth && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewWebsiteHealth(null)}>
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-blue-50">
+                                <div>
+                                    <h3 className="font-semibold text-gray-900">Website Review</h3>
+                                    <div className="text-xs text-gray-500">{viewWebsiteHealth.companyName}</div>
+                                </div>
+                                <button onClick={() => setViewWebsiteHealth(null)} className="text-gray-400 hover:text-gray-600">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                {/* Score Section */}
+                                <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                                    <span className="text-lg font-bold text-gray-700">Staleness Score</span>
+                                    <div className="text-right">
+                                        <div className="text-3xl font-black text-blue-600">{viewWebsiteHealth.stalenessScore || 0}</div>
+                                        <div className="text-xs text-blue-400 font-bold">
+                                            {(viewWebsiteHealth.stalenessScore || 0) >= 60 ? 'Outdated' :
+                                                (viewWebsiteHealth.stalenessScore || 0) >= 30 ? 'Aging' : 'Fresh'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Breakdown Section */}
+                                <div className="space-y-3">
+                                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Signals Detected</div>
+                                    {(() => {
+                                        let signals: string[] = [];
+                                        try {
+                                            if (viewWebsiteHealth.scoreReasons) {
+                                                signals = JSON.parse(viewWebsiteHealth.scoreReasons);
+                                            }
+                                        } catch (e) { }
+
+                                        if (!Array.isArray(signals) || signals.length === 0) {
+                                            return <p className="text-sm text-gray-400 italic">No detailed signals recorded</p>;
+                                        }
+
+                                        // Categorize signals
+                                        const contentSignals = signals.filter(s => s.match(/blog|content|copyright|update/i));
+                                        const techSignals = signals.filter(s => s.match(/sitemap|generator|https|ssl|viewport/i));
+                                        const designSignals = signals.filter(s => s.match(/mobile|responsive|design|ui/i));
+                                        const otherSignals = signals.filter(s => !s.match(/blog|content|copyright|update|sitemap|generator|https|ssl|viewport|mobile|responsive|design|ui/i));
+
+                                        return (
+                                            <div className="space-y-3">
+                                                {contentSignals.length > 0 && (
+                                                    <div>
+                                                        <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Content Freshness</div>
+                                                        {contentSignals.map((s, i) => (
+                                                            <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-green-400 pl-2 mb-1">
+                                                                <span className="text-gray-600">{s}</span>
+                                                                <span className="text-green-600 font-medium">+{10 + i * 5}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {techSignals.length > 0 && (
+                                                    <div>
+                                                        <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Technical</div>
+                                                        {techSignals.map((s, i) => (
+                                                            <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-blue-400 pl-2 mb-1">
+                                                                <span className="text-gray-600">{s}</span>
+                                                                <span className="text-blue-600 font-medium">+{5 + i * 5}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {designSignals.length > 0 && (
+                                                    <div>
+                                                        <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Design</div>
+                                                        {designSignals.map((s, i) => (
+                                                            <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-purple-400 pl-2 mb-1">
+                                                                <span className="text-gray-600">{s}</span>
+                                                                <span className="text-purple-600 font-medium">+{10 + i * 5}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {otherSignals.length > 0 && (
+                                                    <div>
+                                                        <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Other</div>
+                                                        {otherSignals.map((s, i) => (
+                                                            <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-gray-300 pl-2 mb-1">
+                                                                <span className="text-gray-600">{s}</span>
+                                                                <span className="text-gray-500 font-medium">+5</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Explanation */}
+                                <div className="text-xs text-gray-400 pt-3 border-t border-gray-100">
+                                    Website Health measures how outdated a company's website appears.
+                                    <br />Higher scores indicate more opportunity for redesign services.
+                                </div>
                             </div>
                         </div>
                     </div>
