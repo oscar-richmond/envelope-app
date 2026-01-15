@@ -1,14 +1,13 @@
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
 import prisma from '@/lib/prisma';
 
 // New HQ Components
 import KPIGrid from '@/components/company-hq/KPIGrid';
 import WebsitePreview from '@/components/company-hq/WebsitePreview';
-import WebsiteAudit from '@/components/company-hq/WebsiteAudit';
-import FinancialHealth from '@/components/company-hq/FinancialHealth';
 import ContactsCard from '@/components/company-hq/ContactsCard';
 import ThreadPreview from '@/components/company-hq/ThreadPreview';
+import { RefreshDataButton, WebsiteReviewCard, FinancialHealthCard } from '@/components/company-hq/LeadDetailActions';
 
 // Legacy / Shared Components
 import DraftEditor from '@/components/DraftEditor';
@@ -41,7 +40,7 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
     // Data Parsing
     const financialScore = lead.companyProspect?.financialActivityScore || 0;
     const financialBand = lead.companyProspect?.financialActivityBand || 'Unknown';
-    const websiteScore = lead.companyProspect?.stalenessScore || 0; // Fallback
+    const websiteScore = lead.companyProspect?.stalenessScore || 0;
     const outreachStatus = lead.emailStatus;
 
     let websiteSignals: string[] = [];
@@ -86,9 +85,10 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                     </div>
                     {/* Primary Actions */}
                     <div className="flex gap-3">
-                        <button className="btn btn-secondary">
-                            <RefreshCw size={16} className="mr-2" /> Refresh Data
-                        </button>
+                        <RefreshDataButton
+                            leadId={lead.id}
+                            companyProspectId={lead.companyProspectId}
+                        />
                     </div>
                 </div>
             </div>
@@ -106,10 +106,10 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
                 {/* Left Column: Analysis (1 col) */}
-                <div className="space-y-8 xl:col-span-1">
+                <div className="space-y-6 xl:col-span-1">
                     <WebsitePreview url={lead.websiteUrl} />
-                    <WebsiteAudit signals={websiteSignals} websiteUrl={lead.websiteUrl} />
-                    <FinancialHealth score={financialScore} band={financialBand} signals={financialSignals} />
+                    <WebsiteReviewCard signals={websiteSignals} websiteUrl={lead.websiteUrl} score={websiteScore} />
+                    <FinancialHealthCard score={financialScore} band={financialBand} signals={financialSignals} />
                 </div>
 
                 {/* Right Column: Execution (2 cols) */}
@@ -126,7 +126,7 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                             }))} />
                         </ErrorBoundary>
                         <ErrorBoundary sectionName="Thread Widget">
-                            <ThreadPreview sentEmails={lead.sentEmails.map(e => ({
+                            <ThreadPreview sentEmails={(lead.sentEmails || []).map(e => ({
                                 ...e,
                                 sentAt: e.sentAt.toISOString(),
                                 createdAt: e.createdAt.toISOString(),
@@ -142,7 +142,7 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                             <DraftEditor
                                 leadId={lead.id}
                                 initialDraft={lead.emailDraft}
-                                draftHistory={lead.drafts.map(d => ({
+                                draftHistory={(lead.drafts || []).map(d => ({
                                     ...d,
                                     createdAt: d.createdAt.toISOString()
                                 }))}
