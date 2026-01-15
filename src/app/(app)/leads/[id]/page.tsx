@@ -120,9 +120,12 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                             <span>·</span>
                             <span>{lead.location || lead.companyProspect?.registeredLocation || 'Unknown location'}</span>
                             <span>·</span>
-                            <span className="text-green-600 font-medium">Active</span>
-                            <span>·</span>
                             <span>{industry}</span>
+                            <span>·</span>
+                            <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+                                Active
+                            </span>
                         </div>
                     </div>
                     {/* Primary Actions */}
