@@ -8,7 +8,7 @@ import WebsitePreview from '@/components/company-hq/WebsitePreview';
 import ContactsCard from '@/components/company-hq/ContactsCard';
 import ThreadPreview from '@/components/company-hq/ThreadPreview';
 import { RefreshDataButton, WebsiteReviewCard, FinancialHealthCard } from '@/components/company-hq/LeadDetailActions';
-import EmbeddedComposer from '@/components/company-hq/EmbeddedComposer';
+import FloatingComposerButton from '@/components/company-hq/FloatingComposerButton';
 
 // Legacy / Shared Components
 import StatusBadge from '@/components/StatusBadge';
@@ -29,7 +29,7 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
             companyProspect: true,
             drafts: { orderBy: { version: 'desc' } },
             contacts: { orderBy: { confidence: 'desc' } },
-            sentEmails: { orderBy: { sentAt: 'desc' }, take: 1 } // Latest thread
+            sentEmails: { orderBy: { sentAt: 'desc' }, take: 1 }
         }
     });
 
@@ -37,27 +37,67 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
         return <div className="p-8">Lead not found</div>;
     }
 
-    // Data Parsing
-    const financialScore = lead.companyProspect?.financialActivityScore || 0;
-    const financialBand = lead.companyProspect?.financialActivityBand || 'Unknown';
-    const websiteScore = lead.companyProspect?.stalenessScore || 0;
+    // Parse webHealthData JSON for score and signals
+    let websiteScore = 0;
+    let websiteSignals: string[] = [];
+    if (lead.companyProspect?.webHealthData) {
+        try {
+            const parsed = JSON.parse(lead.companyProspect.webHealthData);
+            websiteScore = parsed.score ?? lead.companyProspect?.stalenessScore ?? 0;
+            if (Array.isArray(parsed.signals)) {
+                websiteSignals = parsed.signals;
+            }
+        } catch (e) { /* ignore */ }
+    } else {
+        websiteScore = lead.companyProspect?.stalenessScore ?? 0;
+        // Try legacy signals field
+        if (lead.companyProspect?.signals) {
+            try {
+                const parsed = JSON.parse(lead.companyProspect.signals);
+                if (Array.isArray(parsed)) websiteSignals = parsed;
+            } catch (e) { /* ignore */ }
+        }
+    }
+
+    // Parse finHealthData JSON for score, band and signals
+    let financialScore = 0;
+    let financialBand = 'Unknown';
+    let financialSignals: string[] = [];
+    if (lead.companyProspect?.finHealthData) {
+        try {
+            const parsed = JSON.parse(lead.companyProspect.finHealthData);
+            financialScore = parsed.score ?? lead.companyProspect?.financialActivityScore ?? 0;
+            financialBand = parsed.band ?? lead.companyProspect?.financialActivityBand ?? 'Unknown';
+            if (Array.isArray(parsed.breakdown)) {
+                financialSignals = parsed.breakdown;
+            }
+        } catch (e) { /* ignore */ }
+    } else {
+        financialScore = lead.companyProspect?.financialActivityScore ?? 0;
+        financialBand = lead.companyProspect?.financialActivityBand ?? 'Unknown';
+        // Try legacy financialSignals field
+        if (lead.companyProspect?.financialSignals) {
+            try {
+                const parsed = JSON.parse(lead.companyProspect.financialSignals);
+                if (Array.isArray(parsed)) financialSignals = parsed;
+            } catch (e) { /* ignore */ }
+        }
+    }
+
     const outreachStatus = lead.emailStatus;
 
-    let websiteSignals: string[] = [];
-    if (lead.companyProspect?.signals) {
-        try {
-            const parsed = JSON.parse(lead.companyProspect.signals);
-            if (Array.isArray(parsed)) websiteSignals = parsed;
-        } catch (e) { }
-    }
+    // Industry with proper fallback (NOT status)
+    const industry = lead.industry || lead.companyProspect?.industry || lead.companyProspect?.sicDescription || 'Industry not set';
 
-    let financialSignals: string[] = [];
-    if (lead.companyProspect?.financialSignals) {
-        try {
-            const parsed = JSON.parse(lead.companyProspect.financialSignals);
-            if (Array.isArray(parsed)) financialSignals = parsed;
-        } catch (e) { }
-    }
+    // Prepare contacts for components
+    const contactsData = (lead.contacts || []).map(c => ({
+        id: c.id,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        title: c.title,
+        email: c.email,
+        confidence: c.confidence
+    }));
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -78,7 +118,7 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                                 {new URL(lead.websiteUrl).hostname} <ExternalLink size={14} />
                             </a>
                             <span>•</span>
-                            <span>{lead.industry || lead.companyProspect?.industry || 'Industry not set'}</span>
+                            <span>{industry}</span>
                             <span>•</span>
                             <span>{lead.location || lead.companyProspect?.registeredLocation || 'Location not set'}</span>
                         </div>
@@ -116,14 +156,11 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                 <div className="space-y-8 xl:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <ErrorBoundary sectionName="Contacts Widget">
-                            <ContactsCard leadId={lead.id} contacts={(lead.contacts || []).map(c => ({
-                                id: c.id,
-                                firstName: c.firstName,
-                                lastName: c.lastName,
-                                title: c.title,
-                                email: c.email,
-                                confidence: c.confidence
-                            }))} />
+                            <ContactsCard
+                                leadId={lead.id}
+                                prospectId={lead.companyProspectId || undefined}
+                                contacts={contactsData}
+                            />
                         </ErrorBoundary>
                         <ErrorBoundary sectionName="Thread Widget">
                             <ThreadPreview sentEmails={(lead.sentEmails || []).map(e => ({
@@ -134,31 +171,25 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                             }))} />
                         </ErrorBoundary>
                     </div>
-
-                    {/* Composer Area */}
-                    <ErrorBoundary sectionName="Outreach Composer">
-                        <EmbeddedComposer
-                            leadId={lead.id}
-                            companyName={lead.companyName}
-                            contacts={(lead.contacts || []).map(c => ({
-                                id: c.id,
-                                firstName: c.firstName,
-                                lastName: c.lastName,
-                                email: c.email,
-                                title: c.title
-                            }))}
-                            existingEmailId={lead.sentEmails?.[0]?.id || null}
-                        />
-                    </ErrorBoundary>
                 </div>
             </div>
+
+            {/* Floating Composer Button */}
+            <FloatingComposerButton
+                leadId={lead.id}
+                companyName={lead.companyName}
+                contacts={contactsData}
+                existingEmailId={lead.sentEmails?.[0]?.id || null}
+            />
 
             <DebugPanel data={{
                 leadId: lead.id,
                 companyName: lead.companyName,
                 contactsCount: lead.contacts?.length,
                 emailStatus: lead.emailStatus,
-                financialScore
+                financialScore,
+                websiteScore,
+                industry
             }} />
         </div>
     );
