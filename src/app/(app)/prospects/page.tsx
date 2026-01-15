@@ -825,19 +825,19 @@ export default function ProspectSearch() {
                 />
                 <StatsCard
                     label="High Stability"
-                    value={results.filter(r => r.financialScore >= 75).length}
+                    value={results.filter(r => (r.financialActivityScore >= 75) || r.financialActivityBand === 'Strong' || r.financialActivityBand === 'Very Strong').length}
                     icon={<Target size={20} />}
                     variant="mint"
                 />
                 <StatsCard
                     label="With Website"
-                    value={results.filter(r => r.url).length}
+                    value={results.filter(r => r.websiteUrl && r.websiteUrl !== 'Unknown' && r.websiteUrl !== 'N/A').length}
                     icon={<Globe size={20} />}
                     variant="neutral"
                 />
                 <StatsCard
                     label="Likely Outdated"
-                    value={results.filter(r => r.score >= 60).length}
+                    value={results.filter(r => r.stalenessScore >= 60).length}
                     icon={<AlertCircle size={20} />}
                     variant="warning"
                 />
