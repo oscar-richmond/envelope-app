@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { Mail, CheckCircle, XCircle, LogOut, Lock, Shield, AlertCircle } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, LogOut, Lock, Shield, AlertCircle, Trash2, Wrench } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
 /**
@@ -246,7 +246,151 @@ function SettingsContent() {
                     </button>
                 </div>
             </div>
+
+            {/* Developer Tools - only in dev mode */}
+            <DeveloperTools />
         </div>
+    );
+}
+
+/**
+ * Developer Tools Section
+ * Only visible in development mode or with ENABLE_DEV_TOOLS=1
+ */
+function DeveloperTools() {
+    const [available, setAvailable] = useState(false);
+    const [showResetModal, setShowResetModal] = useState(false);
+    const [resetConfirmText, setResetConfirmText] = useState('');
+    const [resetLoading, setResetLoading] = useState(false);
+    const [resetResult, setResetResult] = useState<any>(null);
+
+    useEffect(() => {
+        // Check if dev tools are available
+        fetch('/api/admin/reset-enrichment')
+            .then(res => res.json())
+            .then(data => setAvailable(data.available))
+            .catch(() => setAvailable(false));
+    }, []);
+
+    const handleReset = async () => {
+        if (resetConfirmText !== 'RESET') return;
+
+        setResetLoading(true);
+        try {
+            const res = await fetch('/api/admin/reset-enrichment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scope: 'all' })
+            });
+            const data = await res.json();
+            setResetResult(data);
+
+            if (data.success) {
+                // Show success and suggest refresh
+                alert(`✅ Enrichment data cleared!\n\nProspects: ${data.prospectsAffected}\nLeads: ${data.leadsAffected}\nContacts: ${data.contactsCleared}\n\nRefresh the page to see clean state.`);
+                setShowResetModal(false);
+                setResetConfirmText('');
+            }
+        } catch (error) {
+            alert('Failed to reset enrichment data');
+        } finally {
+            setResetLoading(false);
+        }
+    };
+
+    if (!available) return null;
+
+    return (
+        <>
+            <div className="bg-amber-50 rounded-xl shadow-sm border border-amber-200 p-6 mt-6">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-amber-800">
+                    <Wrench size={18} /> Developer Tools
+                </h2>
+                <p className="text-sm text-amber-700 mb-4">
+                    These tools are only available in development mode or with ENABLE_DEV_TOOLS=1.
+                </p>
+
+                <div className="border border-amber-200 rounded-lg p-4 bg-white flex items-center justify-between">
+                    <div>
+                        <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                            <Trash2 size={16} className="text-red-500" />
+                            Reset Enrichment Data
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                            Clears derived scan/API data. Does not delete companies, leads, drafts, or manual contacts.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setShowResetModal(true)}
+                        className="bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-medium py-2 px-4 rounded-md text-sm transition"
+                    >
+                        Reset Data
+                    </button>
+                </div>
+            </div>
+
+            {/* Reset Confirmation Modal */}
+            {showResetModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <AlertCircle className="text-red-500" size={20} />
+                            Reset Enrichment Data
+                        </h3>
+
+                        <p className="text-sm text-gray-600 mb-4">
+                            This will clear all derived scan data:
+                        </p>
+
+                        <ul className="text-sm text-gray-600 mb-4 list-disc list-inside space-y-1">
+                            <li>Website Health scores & analysis</li>
+                            <li>Financial Health scores & analysis</li>
+                            <li>Auto-discovered contacts</li>
+                            <li>Priority scores & breakdowns</li>
+                        </ul>
+
+                        <p className="text-sm text-gray-600 mb-4">
+                            <strong>Not affected:</strong> Companies, leads, drafts, manual contacts, conversations.
+                        </p>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Type <code className="bg-gray-100 px-1 rounded">RESET</code> to confirm:
+                            </label>
+                            <input
+                                type="text"
+                                value={resetConfirmText}
+                                onChange={(e) => setResetConfirmText(e.target.value)}
+                                placeholder="RESET"
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowResetModal(false);
+                                    setResetConfirmText('');
+                                }}
+                                className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-md font-medium text-sm hover:bg-gray-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleReset}
+                                disabled={resetConfirmText !== 'RESET' || resetLoading}
+                                className={`flex-1 py-2 px-4 rounded-md font-medium text-sm transition ${resetConfirmText === 'RESET' && !resetLoading
+                                    ? 'bg-red-600 text-white hover:bg-red-700'
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    }`}
+                            >
+                                {resetLoading ? 'Resetting...' : 'Confirm Reset'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 
