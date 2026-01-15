@@ -187,8 +187,8 @@ async function processLeadsInBackground(
                     websiteDomain: domain,
                     lastAnalysedAt: new Date(),
                     stalenessScore: score,
-                    stalenessLabel: label,
-                    websiteSignals: JSON.stringify(signals)
+                    signals: JSON.stringify(signals),
+                    webHealthData: JSON.stringify({ score, label, signals, lastScannedAt: new Date().toISOString() })
                 }
             });
 

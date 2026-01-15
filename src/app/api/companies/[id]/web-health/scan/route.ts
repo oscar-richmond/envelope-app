@@ -145,9 +145,8 @@ export async function POST(
             data: {
                 websiteDomain: domain,
                 lastAnalysedAt: new Date(),
-                websiteSignals: JSON.stringify(signalStrings),
+                signals: JSON.stringify(signalStrings),
                 stalenessScore: report.score ?? 0,
-                stalenessLabel: report.statusLabel,
                 webHealthData: JSON.stringify(webHealthData)
             }
         });
