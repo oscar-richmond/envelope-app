@@ -175,9 +175,9 @@ export async function POST(
 }
 
 /**
- * GET /api/companies/[id]/web-health
+ * GET /api/companies/[id]/web-health/scan
  * 
- * Returns current web health status
+ * Returns current web health status including full breakdown
  */
 export async function GET(
     request: Request,
@@ -195,7 +195,7 @@ export async function GET(
                 websiteDomain: true,
                 websiteUrl: true,
                 websiteDiscoveryDate: true,
-                websiteSignals: true,
+                webHealthData: true, // This contains the full report with factors
                 stalenessScore: true,
                 stalenessLabel: true
             }
@@ -205,25 +205,37 @@ export async function GET(
             return NextResponse.json({ error: 'Company not found' }, { status: 404 });
         }
 
-        // Parse signals
-        let signals: string[] = [];
-        try {
-            if (prospect.websiteSignals) {
-                const parsed = JSON.parse(prospect.websiteSignals as string);
-                signals = Array.isArray(parsed) ? parsed : [];
+        // Parse webHealthData to get full report including factors
+        let report: any = null;
+        if (prospect.webHealthData) {
+            try {
+                report = JSON.parse(prospect.webHealthData as string);
+            } catch (e) {
+                console.error('[WebHealth] Failed to parse webHealthData:', e);
             }
-        } catch (e) {
-            // Ignore parse errors
         }
 
+        // Determine scan state
+        let scanState = 'not_scanned';
+        if (report?.status === 'failed') {
+            scanState = 'failed';
+        } else if (report?.score !== null && report?.score !== undefined) {
+            scanState = 'scanned';
+        }
+
+        // Return full report data
         return NextResponse.json({
             domain: prospect.websiteDomain,
             url: prospect.websiteUrl,
-            score: prospect.stalenessScore,
-            label: prospect.stalenessLabel,
-            signals,
+            score: report?.score ?? prospect.stalenessScore ?? null,
+            statusLabel: report?.statusLabel ?? prospect.stalenessLabel ?? 'Not scanned',
+            factors: report?.factors ?? [], // This is the key fix - return factors with points
+            signals: report?.factors?.map((f: any) => f.label) ?? [],
+            confidence: report?.confidence ?? 'low',
+            baseScore: report?.baseScore ?? 50,
+            computedAt: report?.computedAt ?? null,
             lastScanned: prospect.websiteDiscoveryDate,
-            status: prospect.stalenessScore ? 'scanned' : 'not_scanned'
+            scanState
         });
 
     } catch (error: any) {

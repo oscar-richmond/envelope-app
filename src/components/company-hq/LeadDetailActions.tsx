@@ -152,19 +152,61 @@ export function WebsiteReviewCard({ factors = [], signals = [], websiteUrl, scor
         (score !== undefined && score !== null) || factors.length > 0 || signals.length > 0 ? 'SCANNED' : 'UNSCANNED'
     );
     const [error, setError] = useState<string | null>(null);
+    const [reportData, setReportData] = useState<{
+        score: number | null;
+        factors: Factor[];
+        statusLabel: string;
+    } | null>(null);
+    const [isLoadingReport, setIsLoadingReport] = useState(false);
     const router = useRouter();
 
-    // Convert signals to factors if no factors provided (legacy support)
-    const displayFactors: Factor[] = factors.length > 0 ? factors : signals.map((s, i) => ({
+    // Initial display factors from props
+    const initialFactors: Factor[] = factors.length > 0 ? factors : signals.map((s, i) => ({
         id: `signal-${i}`,
         label: s,
-        points: 0, // Unknown points for legacy signals
+        points: 0,
         polarity: 'positive' as const
     }));
 
+    // Use fetched report data if available, otherwise use props
+    const displayScore = reportData?.score ?? score ?? null;
+    const displayFactors = reportData?.factors ?? initialFactors;
+
     // Determine if we have valid scan data
-    const hasValidData = scanStatus === 'SCANNED' && (score !== undefined && score !== null);
-    const status = getStatusFromScore(score ?? null);
+    const hasValidData = scanStatus === 'SCANNED' && (displayScore !== null);
+
+    // Fetch report data from API when opening modal
+    const fetchReportData = async () => {
+        if (!companyProspectId) return;
+
+        setIsLoadingReport(true);
+        try {
+            const res = await fetch(`/api/companies/${companyProspectId}/web-health/scan`);
+            if (res.ok) {
+                const data = await res.json();
+                setReportData({
+                    score: data.score,
+                    factors: data.factors || [],
+                    statusLabel: data.statusLabel || 'Unknown'
+                });
+                if (data.score !== null && data.score !== undefined) {
+                    setScanStatus('SCANNED');
+                }
+            }
+        } catch (e) {
+            console.error('[WebsiteReviewCard] Failed to fetch report:', e);
+        } finally {
+            setIsLoadingReport(false);
+        }
+    };
+
+    const handleViewReport = async () => {
+        setShowReport(true);
+        // Fetch fresh data from API
+        if (companyProspectId) {
+            await fetchReportData();
+        }
+    };
 
     const handleScan = async () => {
         if (!companyProspectId && !leadId) return;
@@ -192,8 +234,16 @@ export function WebsiteReviewCard({ factors = [], signals = [], websiteUrl, scor
                 throw new Error(data.error || 'Scan failed');
             }
 
-            router.refresh();
+            // Get the fresh data from scan response
+            const data = await res.json();
+            setReportData({
+                score: data.score,
+                factors: data.factors || [],
+                statusLabel: data.label || 'Unknown'
+            });
+
             setScanStatus('SCANNED');
+            router.refresh();
         } catch (e: any) {
             console.error('[WebsiteReviewCard] Scan error:', e);
             setError(e.message || 'Scan failed');
@@ -217,7 +267,7 @@ export function WebsiteReviewCard({ factors = [], signals = [], websiteUrl, scor
                     </div>
                     {hasValidData ? (
                         <button
-                            onClick={() => setShowReport(true)}
+                            onClick={handleViewReport}
                             className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                         >
                             View report
@@ -276,7 +326,7 @@ export function WebsiteReviewCard({ factors = [], signals = [], websiteUrl, scor
                     {scanStatus === 'SCANNED' && hasValidData && (
                         <div className="space-y-3">
                             {/* Score */}
-                            <ScoreDisplay score={score ?? null} showTooltip={true} size="small" />
+                            <ScoreDisplay score={displayScore} showTooltip={true} size="small" />
 
                             {/* Quick preview of factors */}
                             {displayFactors.filter(f => f.points !== 0).slice(0, 3).map((factor, idx) => (
@@ -323,15 +373,24 @@ export function WebsiteReviewCard({ factors = [], signals = [], websiteUrl, scor
                         {websiteUrl} <ExternalLink size={12} />
                     </a>
 
-                    {/* Score with status pill */}
-                    <ScoreDisplay score={score ?? null} showTooltip={true} />
+                    {isLoadingReport ? (
+                        <div className="text-center py-8">
+                            <Loader2 size={24} className="mx-auto mb-3 text-indigo-600 animate-spin" />
+                            <p className="text-sm text-gray-500">Loading report...</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Score with status pill */}
+                            <ScoreDisplay score={displayScore} showTooltip={true} />
 
-                    {/* Factors list */}
-                    <FactorsList
-                        factors={displayFactors}
-                        score={score ?? null}
-                        isPartial={displayFactors.length < 3}
-                    />
+                            {/* Factors list */}
+                            <FactorsList
+                                factors={displayFactors}
+                                score={displayScore}
+                                isPartial={displayFactors.length < 3}
+                            />
+                        </>
+                    )}
                 </div>
             </ReportModal>
         </>
@@ -354,19 +413,61 @@ export function FinancialHealthCard({ factors = [], signals = [], score, band, l
         (score !== undefined && score !== null) || factors.length > 0 || signals.length > 0 ? 'SCANNED' : 'UNSCANNED'
     );
     const [error, setError] = useState<string | null>(null);
+    const [reportData, setReportData] = useState<{
+        score: number | null;
+        factors: Factor[];
+        statusLabel: string;
+    } | null>(null);
+    const [isLoadingReport, setIsLoadingReport] = useState(false);
     const router = useRouter();
 
-    // Convert signals to factors if no factors provided (legacy support)
-    const displayFactors: Factor[] = factors.length > 0 ? factors : signals.map((s, i) => ({
+    // Initial display factors from props
+    const initialFactors: Factor[] = factors.length > 0 ? factors : signals.map((s, i) => ({
         id: `signal-${i}`,
         label: s,
-        points: 0, // Unknown points for legacy signals
+        points: 0,
         polarity: 'positive' as const
     }));
 
+    // Use fetched report data if available, otherwise use props
+    const displayScore = reportData?.score ?? score ?? null;
+    const displayFactors = reportData?.factors ?? initialFactors;
+
     // Determine if we have valid scan data
-    const hasValidData = scanStatus === 'SCANNED' && (score !== undefined && score !== null);
-    const status = getStatusFromScore(score ?? null);
+    const hasValidData = scanStatus === 'SCANNED' && (displayScore !== null);
+
+    // Fetch report data from API when opening modal
+    const fetchReportData = async () => {
+        if (!companyProspectId) return;
+
+        setIsLoadingReport(true);
+        try {
+            const res = await fetch(`/api/companies/${companyProspectId}/financials/sync`);
+            if (res.ok) {
+                const data = await res.json();
+                setReportData({
+                    score: data.score,
+                    factors: data.factors || [],
+                    statusLabel: data.statusLabel || 'Unknown'
+                });
+                if (data.score !== null && data.score !== undefined) {
+                    setScanStatus('SCANNED');
+                }
+            }
+        } catch (e) {
+            console.error('[FinancialHealthCard] Failed to fetch report:', e);
+        } finally {
+            setIsLoadingReport(false);
+        }
+    };
+
+    const handleViewReport = async () => {
+        setShowReport(true);
+        // Fetch fresh data from API
+        if (companyProspectId) {
+            await fetchReportData();
+        }
+    };
 
     const handleScan = async () => {
         if (!companyProspectId && !leadId) return;
@@ -394,8 +495,16 @@ export function FinancialHealthCard({ factors = [], signals = [], score, band, l
                 throw new Error(data.error || 'Scan failed');
             }
 
-            router.refresh();
+            // Get the fresh data from scan response
+            const data = await res.json();
+            setReportData({
+                score: data.score,
+                factors: data.factors || [],
+                statusLabel: data.band || 'Unknown'
+            });
+
             setScanStatus('SCANNED');
+            router.refresh();
         } catch (e: any) {
             console.error('[FinancialHealthCard] Scan error:', e);
             setError(e.message || 'Scan failed');
@@ -419,7 +528,7 @@ export function FinancialHealthCard({ factors = [], signals = [], score, band, l
                     </div>
                     {hasValidData ? (
                         <button
-                            onClick={() => setShowReport(true)}
+                            onClick={handleViewReport}
                             className="text-xs font-medium text-indigo-600 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                         >
                             View report
@@ -478,7 +587,7 @@ export function FinancialHealthCard({ factors = [], signals = [], score, band, l
                     {scanStatus === 'SCANNED' && hasValidData && (
                         <div className="space-y-3">
                             {/* Score */}
-                            <ScoreDisplay score={score ?? null} showTooltip={true} size="small" />
+                            <ScoreDisplay score={displayScore} showTooltip={true} size="small" />
 
                             {/* Quick preview of factors */}
                             {displayFactors.filter(f => f.points !== 0).slice(0, 3).map((factor, idx) => (
@@ -521,15 +630,24 @@ export function FinancialHealthCard({ factors = [], signals = [], score, band, l
                 isScanning={scanStatus === 'SCANNING'}
             >
                 <div className="space-y-6">
-                    {/* Score with status pill */}
-                    <ScoreDisplay score={score ?? null} showTooltip={true} />
+                    {isLoadingReport ? (
+                        <div className="text-center py-8">
+                            <Loader2 size={24} className="mx-auto mb-3 text-emerald-600 animate-spin" />
+                            <p className="text-sm text-gray-500">Loading report...</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Score with status pill */}
+                            <ScoreDisplay score={displayScore} showTooltip={true} />
 
-                    {/* Factors list */}
-                    <FactorsList
-                        factors={displayFactors}
-                        score={score ?? null}
-                        isPartial={displayFactors.length < 3}
-                    />
+                            {/* Factors list */}
+                            <FactorsList
+                                factors={displayFactors}
+                                score={displayScore}
+                                isPartial={displayFactors.length < 3}
+                            />
+                        </>
+                    )}
                 </div>
             </ReportModal>
         </>

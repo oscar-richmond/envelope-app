@@ -487,3 +487,75 @@ function calculateFinancialHealth(profile: any, latestAccounts: any) {
         details: breakdown.map(b => `${b.label}: ${b.value || b.text}`)
     };
 }
+
+/**
+ * GET /api/companies/[id]/financials/sync
+ * 
+ * Returns current financial health status including full breakdown
+ */
+export async function GET(
+    request: Request,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const companyId = parseInt(params.id);
+        if (isNaN(companyId)) {
+            return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
+        }
+
+        const prospect = await prisma.companyProspect.findUnique({
+            where: { id: companyId },
+            select: {
+                finHealthData: true, // This contains the full report with factors
+                financialActivityScore: true,
+                financialActivityBand: true,
+                financialLastCheckedAt: true,
+                companiesHouseNumber: true
+            }
+        });
+
+        if (!prospect) {
+            return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+        }
+
+        // Parse finHealthData to get full report including factors
+        let report: any = null;
+        if (prospect.finHealthData) {
+            try {
+                report = JSON.parse(prospect.finHealthData as string);
+            } catch (e) {
+                console.error('[FinancialHealth] Failed to parse finHealthData:', e);
+            }
+        }
+
+        // Determine scan state
+        let scanState = 'not_scanned';
+        if (report?.status === 'failed') {
+            scanState = 'failed';
+        } else if (report?.score !== null && report?.score !== undefined) {
+            scanState = 'scanned';
+        } else if (prospect.financialActivityScore) {
+            scanState = 'scanned';
+        }
+
+        // Return full report data
+        return NextResponse.json({
+            score: report?.score ?? prospect.financialActivityScore ?? null,
+            statusLabel: report?.statusLabel ?? prospect.financialActivityBand ?? 'Not scanned',
+            factors: report?.factors ?? [], // This is the key fix - return factors with points
+            breakdown: report?.breakdown ?? [],
+            confidence: report?.confidence ?? 'low',
+            baseScore: report?.baseScore ?? 0,
+            computedAt: report?.computedAt ?? null,
+            lastScanned: prospect.financialLastCheckedAt,
+            companiesHouseNumber: prospect.companiesHouseNumber,
+            scanState
+        });
+
+    } catch (error: any) {
+        console.error('[FinancialHealth] GET error:', error);
+        return NextResponse.json({
+            error: error.message || 'Failed to get financial health'
+        }, { status: 500 });
+    }
+}
