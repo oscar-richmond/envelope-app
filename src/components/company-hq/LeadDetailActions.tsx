@@ -21,26 +21,43 @@ export function RefreshDataButton({ leadId, companyProspectId }: { leadId: numbe
     const handleRefresh = async () => {
         setIsRefreshing(true);
         try {
-            // Trigger all scans in parallel
-            const promises = [
-                // Website scan
-                fetch('/api/scan/website', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ leadId, companyProspectId })
-                }),
-                // Financial scan
-                fetch('/api/scan/financials', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ leadId, companyProspectId })
-                })
-            ];
+            const promises = [];
 
-            // Add contacts scan if we have a company ID
+            // Use correct company endpoints if we have companyProspectId
             if (companyProspectId) {
+                // Website scan - use company endpoint for real breakdown data
+                promises.push(
+                    fetch(`/api/companies/${companyProspectId}/web-health/scan`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ force: true })
+                    })
+                );
+                // Financial scan - use company endpoint for real breakdown data
+                promises.push(
+                    fetch(`/api/companies/${companyProspectId}/financials/sync`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ force: true })
+                    })
+                );
+                // Contacts scan
                 promises.push(
                     fetch(`/api/companies/${companyProspectId}/contacts/scan`, { method: 'POST' })
+                );
+            } else {
+                // Fallback to old endpoints if no companyProspectId
+                promises.push(
+                    fetch('/api/scan/website', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ leadId })
+                    }),
+                    fetch('/api/scan/financials', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ leadId })
+                    })
                 );
             }
 
@@ -130,16 +147,26 @@ export function WebsiteReviewCard({ signals, websiteUrl, score, leadId, companyP
     const techSignals = signals.filter(s => s.toLowerCase().includes('tech') || s.toLowerCase().includes('generator') || s.toLowerCase().includes('sitemap') || s.toLowerCase().includes('https'));
 
     const handleScan = async () => {
-        if (!leadId) return;
+        // Prefer companyProspectId for the canonical endpoint
+        if (!companyProspectId && !leadId) return;
 
         setScanStatus('SCANNING');
         setError(null);
 
         try {
-            const res = await fetch('/api/scan/website', {
+            // Use the correct company endpoint that provides real breakdown data
+            const endpoint = companyProspectId
+                ? `/api/companies/${companyProspectId}/web-health/scan`
+                : `/api/scan/website`;
+
+            const body = companyProspectId
+                ? { force: true }
+                : { leadId, companyProspectId };
+
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ leadId, companyProspectId })
+                body: JSON.stringify(body)
             });
 
             if (!res.ok) {
@@ -362,16 +389,26 @@ export function FinancialHealthCard({ score, band, signals, leadId, companyProsp
         band === 'Medium' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800';
 
     const handleScan = async () => {
-        if (!leadId) return;
+        // Prefer companyProspectId for the canonical endpoint
+        if (!companyProspectId && !leadId) return;
 
         setScanStatus('SCANNING');
         setError(null);
 
         try {
-            const res = await fetch('/api/scan/financials', {
+            // Use the correct company endpoint that provides real breakdown data
+            const endpoint = companyProspectId
+                ? `/api/companies/${companyProspectId}/financials/sync`
+                : `/api/scan/financials`;
+
+            const body = companyProspectId
+                ? { force: true }
+                : { leadId, companyProspectId };
+
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ leadId, companyProspectId })
+                body: JSON.stringify(body)
             });
 
             if (!res.ok) {

@@ -349,25 +349,31 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
     // RESCAN LEAD SIGNALS
     const handleRescan = useCallback(async (lead: any, type: 'website' | 'financial' | 'both') => {
         try {
+            const companyId = lead.companyProspectId;
+
             if (type === 'website' || type === 'both') {
-                await fetch('/api/scan/website', {
+                // Use correct company endpoint for real breakdown data
+                const endpoint = companyId
+                    ? `/api/companies/${companyId}/web-health/scan`
+                    : '/api/scan/website';
+
+                await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        companyProspectId: lead.companyProspectId,
-                        leadId: lead.id
-                    })
+                    body: JSON.stringify(companyId ? { force: true } : { companyProspectId: companyId, leadId: lead.id })
                 });
             }
 
             if (type === 'financial' || type === 'both') {
-                await fetch('/api/scan/financials', {
+                // Use correct company endpoint for real breakdown data  
+                const endpoint = companyId
+                    ? `/api/companies/${companyId}/financials/sync`
+                    : '/api/scan/financials';
+
+                await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        companyProspectId: lead.companyProspectId,
-                        leadId: lead.id
-                    })
+                    body: JSON.stringify(companyId ? { force: true } : { companyProspectId: companyId, leadId: lead.id })
                 });
             }
 
