@@ -1,6 +1,7 @@
 import { Building2, Plus, PenTool, Database, X, Eye, Maximize2 } from 'lucide-react';
 import { CompanyName } from '@/components/company/CompanyName';
 import MetricTile from './MetricTile';
+import { getWebsiteHealthDisplay } from '@/lib/scoring/websiteHealthUtils';
 
 interface ProspectResultRowCardProps {
     company: any;
@@ -74,16 +75,21 @@ export default function ProspectResultRowCard({
     let finColor: any = finBand === 'Very Strong' || finBand === 'Strong' ? 'green' : finBand === 'Medium' ? 'amber' : 'gray';
     if (finBand === 'Low' || finBand === 'Very Low') finColor = 'red';
 
-    // Website Health (Staleness) Logic
-    const staleScore = c.stalenessScore;
-    let staleLabel = 'Pending';
-    let staleColor: any = 'gray';
-
-    if (staleScore !== undefined && staleScore !== null) {
-        if (staleScore >= 60) { staleLabel = 'Outdated'; staleColor = 'red'; }
-        else if (staleScore >= 30) { staleLabel = 'Aging'; staleColor = 'amber'; }
-        else { staleLabel = 'Fresh'; staleColor = 'green'; }
-    }
+    // Website Health (Staleness) Logic - using unified utility
+    const webHealth = getWebsiteHealthDisplay({
+        stalenessScore: c.stalenessScore,
+        lastAnalysedAt: c.lastAnalysedAt || c.lastAnalyzedAt,
+        websiteUrl: c.websiteUrl,
+        stalenessConfidence: c.stalenessConfidence,
+        scoreReasons: c.scoreReasons
+    });
+    const staleScore = webHealth.showScore ? webHealth.score : null;
+    const staleLabel = webHealth.label;
+    const staleColor = webHealth.color === 'red' ? 'red'
+        : webHealth.color === 'orange' ? 'amber'
+            : webHealth.color === 'amber' ? 'amber'
+                : webHealth.color === 'green' ? 'green'
+                    : 'gray';
 
     // Lead Priority Logic
     const priorityBand = c.contactPriorityBand || '-';

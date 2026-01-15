@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { PenTool, MessageSquare, Trash2, RefreshCw } from 'lucide-react';
 import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 import MetricTile from '@/components/prospects/MetricTile';
+import { getWebsiteHealthDisplay } from '@/lib/scoring/websiteHealthUtils';
 
 // Format relative time for last scanned
 function formatRelativeTime(dateStr: string | Date): string {
@@ -143,10 +144,16 @@ export default function LeadResultRowCard({
     const finBand = signals?.finHealth?.label ?? lead.financialBand;
     const hasFinData = finScore !== null && finScore !== undefined;
 
-    // Web Health (staleness)
-    const staleScore = signals?.webHealth?.score ?? lead.stalenessScore;
-    const staleLabel = signals?.webHealth?.label ?? lead.stalenessLabel;
-    const hasWebData = staleScore !== null && staleScore !== undefined;
+    // Web Health (staleness) - using unified utility
+    const webHealth = getWebsiteHealthDisplay({
+        stalenessScore: signals?.webHealth?.score ?? lead.stalenessScore,
+        lastAnalysedAt: lead.lastAnalyzedAt || lead.lastAnalysedAt,
+        websiteUrl: lead.websiteUrl,
+        stalenessConfidence: lead.scoreConfidence
+    });
+    const staleScore = webHealth.showScore ? webHealth.score : null;
+    const staleLabel = webHealth.label;
+    const hasWebData = webHealth.showScore;
 
     // Lead Opportunity (priority)
     const priority = signals?.leadOpp?.score ?? lead.priorityScore;
