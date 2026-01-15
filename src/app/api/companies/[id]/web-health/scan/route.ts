@@ -196,8 +196,7 @@ export async function GET(
                 websiteUrl: true,
                 lastAnalysedAt: true,
                 webHealthData: true, // This contains the full report with factors
-                stalenessScore: true,
-                stalenessLabel: true
+                stalenessScore: true
             }
         });
 
