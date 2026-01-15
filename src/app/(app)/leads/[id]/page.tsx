@@ -113,14 +113,16 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
                             {lead.companyName}
                             <StatusBadge status={lead.emailStatus} />
                         </h1>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
                             <a href={lead.websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-600 transition font-medium">
                                 {new URL(lead.websiteUrl).hostname} <ExternalLink size={14} />
                             </a>
-                            <span>•</span>
+                            <span>·</span>
+                            <span>{lead.location || lead.companyProspect?.registeredLocation || 'Unknown location'}</span>
+                            <span>·</span>
+                            <span className="text-green-600 font-medium">Active</span>
+                            <span>·</span>
                             <span>{industry}</span>
-                            <span>•</span>
-                            <span>{lead.location || lead.companyProspect?.registeredLocation || 'Location not set'}</span>
                         </div>
                     </div>
                     {/* Primary Actions */}

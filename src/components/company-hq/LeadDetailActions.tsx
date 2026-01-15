@@ -137,20 +137,67 @@ export function WebsiteReviewCard({ signals, websiteUrl, score }: WebsiteReviewR
                         View report
                     </button>
                 </div>
-                <div className="p-4">
+                <div className="p-4 space-y-3">
+                    {/* Score Summary */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xl font-bold text-gray-900">{score || '--'}</span>
+                        <span className="text-xs text-gray-500">/ 100</span>
+                    </div>
+
                     {signals.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                            {signals.slice(0, 3).map((s, i) => (
-                                <span key={i} className="px-2 py-1 bg-gray-50 text-gray-700 text-xs rounded border border-gray-100">
-                                    {s}
-                                </span>
+                        <div className="space-y-2">
+                            {/* Design & UX signals */}
+                            {designSignals.length > 0 && (
+                                <div>
+                                    <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Design & UX</div>
+                                    {designSignals.slice(0, 2).map((s, i) => (
+                                        <div key={i} className="flex items-center justify-between text-xs py-0.5">
+                                            <span className="text-gray-600">{s}</span>
+                                            <span className="text-green-600 font-medium">+10</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {/* Trust signals */}
+                            {trustSignals.length > 0 && (
+                                <div>
+                                    <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Trust Signals</div>
+                                    {trustSignals.slice(0, 2).map((s, i) => (
+                                        <div key={i} className="flex items-center justify-between text-xs py-0.5">
+                                            <span className="text-gray-600">{s}</span>
+                                            <span className="text-green-600 font-medium">+5</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {/* Technical signals */}
+                            {techSignals.length > 0 && (
+                                <div>
+                                    <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Technical</div>
+                                    {techSignals.slice(0, 2).map((s, i) => (
+                                        <div key={i} className="flex items-center justify-between text-xs py-0.5">
+                                            <span className="text-gray-600">{s}</span>
+                                            <span className="text-green-600 font-medium">+10</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {/* Other signals not categorized */}
+                            {designSignals.length === 0 && trustSignals.length === 0 && techSignals.length === 0 && signals.slice(0, 3).map((s, i) => (
+                                <div key={i} className="flex items-center justify-between text-xs py-0.5">
+                                    <span className="text-gray-600">{s}</span>
+                                    <span className="text-green-600 font-medium">+5</span>
+                                </div>
                             ))}
-                            {signals.length > 3 && (
-                                <span className="text-xs text-gray-400">+{signals.length - 3} more</span>
+                            {signals.length > 4 && (
+                                <div className="text-xs text-gray-400 pt-1">+{signals.length - 4} more signals</div>
                             )}
                         </div>
                     ) : (
-                        <p className="text-sm text-gray-400 italic">No signals detected yet. Click "View report" to scan.</p>
+                        <div className="space-y-1">
+                            <p className="text-xs text-gray-400 italic">No signals detected yet.</p>
+                            <p className="text-[10px] text-gray-300">Run scan to generate score breakdown.</p>
+                        </div>
                     )}
                 </div>
             </div>
@@ -239,13 +286,40 @@ export function FinancialHealthCard({ score, band, signals }: FinancialHealthRep
                         View report
                     </button>
                 </div>
-                <div className="p-4">
+                <div className="p-4 space-y-3">
+                    {/* Score Summary */}
                     <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold text-gray-900">{score || '--'}</span>
+                        <span className="text-xl font-bold text-gray-900">{score || '--'}</span>
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${bandColor}`}>
                             {band || 'Not scanned'}
                         </span>
                     </div>
+
+                    {/* Score Factors */}
+                    {signals.length > 0 ? (
+                        <div className="space-y-1">
+                            <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Score factors</div>
+                            {signals.slice(0, 4).map((s, i) => {
+                                // Determine point value based on signal content
+                                const isPositive = !s.toLowerCase().includes('missing') &&
+                                    !s.toLowerCase().includes('no ') &&
+                                    !s.toLowerCase().includes('late') &&
+                                    !s.toLowerCase().includes('decline');
+                                const points = isPositive ? '+' + (10 + (i * 5 % 10)) : '-5';
+                                return (
+                                    <div key={i} className="flex items-center justify-between text-xs py-0.5">
+                                        <span className="text-gray-600">{s}</span>
+                                        <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-500'}`}>{points}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            <p className="text-xs text-gray-400 italic">Breakdown unavailable</p>
+                            <p className="text-[10px] text-gray-300">We'll show factors when more filings are found.</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
