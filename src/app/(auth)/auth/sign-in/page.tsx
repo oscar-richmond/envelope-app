@@ -153,7 +153,7 @@ function PreviewCard({
         blue: { bg: 'var(--brand-soft)', border: 'var(--brand-border)', iconBg: 'rgba(84, 130, 237, 0.12)', text: 'var(--brand)' },
         lilac: { bg: 'var(--lilac-soft)', border: 'rgba(184, 166, 255, 0.15)', iconBg: 'var(--lilac-weak)', text: 'var(--lilac-strong)' },
         mint: { bg: 'rgba(34, 197, 94, 0.08)', border: 'rgba(34, 197, 94, 0.25)', iconBg: 'rgba(34, 197, 94, 0.18)', text: 'rgb(22, 163, 74)' },
-        yellow: { bg: 'rgba(250, 204, 21, 0.15)', border: 'rgba(234, 179, 8, 0.3)', iconBg: 'rgba(30, 30, 30, 0.9)', text: 'rgba(255, 255, 255, 0.95)' }
+        yellow: { bg: 'rgba(250, 204, 21, 0.15)', border: 'rgba(234, 179, 8, 0.3)', iconBg: 'rgba(250, 204, 21, 0.25)', text: 'rgb(180, 130, 10)' }
     };
     const c = colors[color];
 
