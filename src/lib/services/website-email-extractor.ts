@@ -38,6 +38,11 @@ export interface WebsiteExtractionResult {
     | 'SITE_UNREACHABLE'
     | 'JS_RENDER_REQUIRED';
     durationMs: number;
+    debug?: {
+        rawTextScanEnabled: boolean;
+        emailsFoundBeforeFilter: string[];
+        emailsFilteredOut: { email: string; reason: string }[];
+    };
 }
 
 // ============================================
@@ -126,31 +131,52 @@ function deobfuscateText(text: string): string {
     return result;
 }
 
-// ============================================
-// EMAIL VALIDATION
-// ============================================
+// Debug tracking
+const debugFilteredEmails: { email: string; reason: string }[] = [];
+const debugFoundEmails: string[] = [];
 
 function isValidEmail(email: string, domain: string): boolean {
     const normalized = email.toLowerCase().trim();
 
     // Basic structure check
-    if (!normalized.includes('@') || !normalized.includes('.')) return false;
-    if (normalized.length > 60 || normalized.length < 5) return false;
-
-    // Check against invalid patterns
-    for (const pattern of INVALID_PATTERNS) {
-        if (pattern.test(normalized)) return false;
+    if (!normalized.includes('@') || !normalized.includes('.')) {
+        debugFilteredEmails.push({ email: normalized, reason: 'missing @ or .' });
+        return false;
     }
-
-    // Must match company domain
-    const emailDomain = normalized.split('@')[1];
-    if (!emailDomain) return false;
-
-    // Allow exact domain match or subdomain
-    if (emailDomain !== domain && !emailDomain.endsWith('.' + domain)) {
+    if (normalized.length > 60 || normalized.length < 5) {
+        debugFilteredEmails.push({ email: normalized, reason: `length ${normalized.length} out of range 5-60` });
         return false;
     }
 
+    // Check against invalid patterns
+    for (const pattern of INVALID_PATTERNS) {
+        if (pattern.test(normalized)) {
+            debugFilteredEmails.push({ email: normalized, reason: `matched invalid pattern ${pattern}` });
+            return false;
+        }
+    }
+
+    // Extract email domain
+    const emailDomain = normalized.split('@')[1];
+    if (!emailDomain) {
+        debugFilteredEmails.push({ email: normalized, reason: 'no domain after @' });
+        return false;
+    }
+
+    // Normalize both domains for comparison (remove www.)
+    const normalizedEmailDomain = emailDomain.replace(/^www\./, '').toLowerCase();
+    const normalizedCompanyDomain = domain.replace(/^www\./, '').toLowerCase();
+
+    // Allow exact domain match or subdomain
+    if (normalizedEmailDomain !== normalizedCompanyDomain &&
+        !normalizedEmailDomain.endsWith('.' + normalizedCompanyDomain) &&
+        !normalizedCompanyDomain.endsWith('.' + normalizedEmailDomain)) {
+        debugFilteredEmails.push({ email: normalized, reason: `domain ${emailDomain} != ${domain}` });
+        return false;
+    }
+
+    // Valid!
+    debugFoundEmails.push(normalized);
     return true;
 }
 
@@ -219,19 +245,26 @@ function extractTextEmails(
 
     // Get text from the appropriate region
     let text = '';
+    let selector = '';
     if (region === 'footer') {
-        text = $('footer, [class*="footer"], [id*="footer"]').text();
+        selector = 'footer, [class*="footer"], [id*="footer"]';
+        text = $(selector).text();
     } else if (region === 'header') {
-        text = $('header, [class*="header"], [id*="header"]').text();
+        selector = 'header, [class*="header"], [id*="header"]';
+        text = $(selector).text();
     } else {
+        selector = 'body';
         text = $('body').text();
     }
+
+    console.log(`[WebsiteExtractor] Extracting from ${region} (selector: ${selector}), text length: ${text.length}`);
 
     // De-obfuscate
     const deobfuscated = deobfuscateText(text);
 
     // Extract emails
     const matches = deobfuscated.match(EMAIL_REGEX) || [];
+    console.log(`[WebsiteExtractor] Raw regex matches in ${region}: ${matches.join(', ') || 'none'}`);
 
     for (const match of matches) {
         const email = match.toLowerCase();
@@ -517,12 +550,19 @@ export async function extractEmailsFromWebsite(domain: string): Promise<WebsiteE
     // No emails found
     const reasonCode = homeResult.jsRequired ? 'JS_RENDER_REQUIRED' : 'NO_EMAILS_CONTACT_PAGES';
     console.log(`[WebsiteExtractor] No emails found for ${domain}: ${reasonCode}`);
+    console.log(`[WebsiteExtractor] Debug - emails before filter: ${debugFoundEmails.join(', ') || 'none'}`);
+    console.log(`[WebsiteExtractor] Debug - filtered out: ${JSON.stringify(debugFilteredEmails)}`);
 
     return {
         emails: [],
         pagesChecked,
         reasonCode,
-        durationMs: Date.now() - startTime
+        durationMs: Date.now() - startTime,
+        debug: {
+            rawTextScanEnabled: true,
+            emailsFoundBeforeFilter: debugFoundEmails,
+            emailsFilteredOut: debugFilteredEmails
+        }
     };
 }
 
