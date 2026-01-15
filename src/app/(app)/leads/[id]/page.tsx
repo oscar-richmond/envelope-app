@@ -44,14 +44,35 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
         try {
             const parsed = JSON.parse(lead.companyProspect.webHealthData);
             websiteScore = parsed.score ?? lead.companyProspect?.stalenessScore ?? 0;
-            if (Array.isArray(parsed.signals)) {
+            // Check multiple possible signal sources in webHealthData
+            if (Array.isArray(parsed.signals) && parsed.signals.length > 0) {
                 websiteSignals = parsed.signals;
+            } else if (Array.isArray(parsed.breakdown) && parsed.breakdown.length > 0) {
+                // Extract labels from breakdown objects if signals is empty
+                websiteSignals = parsed.breakdown.map((b: any) => b.label || b.text || String(b));
             }
         } catch (e) { /* ignore */ }
-    } else {
-        websiteScore = lead.companyProspect?.stalenessScore ?? 0;
+    }
+
+    // Fallbacks: try websiteSignals field, then scoreReasons
+    if (websiteSignals.length === 0) {
+        websiteScore = websiteScore || (lead.companyProspect?.stalenessScore ?? 0);
+        // Try websiteSignals field
+        if (lead.companyProspect?.websiteSignals) {
+            try {
+                const parsed = JSON.parse(lead.companyProspect.websiteSignals);
+                if (Array.isArray(parsed)) websiteSignals = parsed;
+            } catch (e) { /* ignore */ }
+        }
+        // Try scoreReasons field
+        if (websiteSignals.length === 0 && lead.companyProspect?.scoreReasons) {
+            try {
+                const parsed = JSON.parse(lead.companyProspect.scoreReasons);
+                if (Array.isArray(parsed)) websiteSignals = parsed;
+            } catch (e) { /* ignore */ }
+        }
         // Try legacy signals field
-        if (lead.companyProspect?.signals) {
+        if (websiteSignals.length === 0 && lead.companyProspect?.signals) {
             try {
                 const parsed = JSON.parse(lead.companyProspect.signals);
                 if (Array.isArray(parsed)) websiteSignals = parsed;
@@ -68,18 +89,33 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
             const parsed = JSON.parse(lead.companyProspect.finHealthData);
             financialScore = parsed.score ?? lead.companyProspect?.financialActivityScore ?? 0;
             financialBand = parsed.band ?? lead.companyProspect?.financialActivityBand ?? 'Unknown';
-            if (Array.isArray(parsed.breakdown)) {
-                financialSignals = parsed.breakdown;
+            // breakdown is array of objects, extract labels as strings
+            if (Array.isArray(parsed.breakdown) && parsed.breakdown.length > 0) {
+                financialSignals = parsed.breakdown.map((b: any) => {
+                    if (typeof b === 'string') return b;
+                    return b.label || b.text || b.title || JSON.stringify(b);
+                });
+            } else if (Array.isArray(parsed.signals) && parsed.signals.length > 0) {
+                financialSignals = parsed.signals;
             }
         } catch (e) { /* ignore */ }
-    } else {
-        financialScore = lead.companyProspect?.financialActivityScore ?? 0;
-        financialBand = lead.companyProspect?.financialActivityBand ?? 'Unknown';
-        // Try legacy financialSignals field
+    }
+
+    // Fallbacks if finHealthData didn't provide signals
+    if (financialSignals.length === 0) {
+        financialScore = financialScore || (lead.companyProspect?.financialActivityScore ?? 0);
+        financialBand = financialBand || (lead.companyProspect?.financialActivityBand ?? 'Unknown');
+        // Try financialSignals field
         if (lead.companyProspect?.financialSignals) {
             try {
                 const parsed = JSON.parse(lead.companyProspect.financialSignals);
-                if (Array.isArray(parsed)) financialSignals = parsed;
+                if (Array.isArray(parsed)) {
+                    // Handle both string arrays and object arrays
+                    financialSignals = parsed.map((item: any) => {
+                        if (typeof item === 'string') return item;
+                        return item.label || item.text || item.title || JSON.stringify(item);
+                    });
+                }
             } catch (e) { /* ignore */ }
         }
     }
