@@ -145,9 +145,10 @@ export default function LeadResultRowCard({
     const hasFinData = finScore !== null && finScore !== undefined;
 
     // Web Health (staleness) - using unified utility
+    // Key: use websiteLastScanned or signals.webHealth.updatedAt as the scan indicator
     const webHealth = getWebsiteHealthDisplay({
         stalenessScore: signals?.webHealth?.score ?? lead.stalenessScore,
-        lastAnalysedAt: lead.lastAnalyzedAt || lead.lastAnalysedAt,
+        lastAnalysedAt: lead.websiteLastScanned || signals?.webHealth?.updatedAt || lead.lastAnalyzedAt || lead.lastAnalysedAt,
         websiteUrl: lead.websiteUrl,
         stalenessConfidence: lead.scoreConfidence
     });
