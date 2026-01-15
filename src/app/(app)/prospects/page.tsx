@@ -9,6 +9,7 @@ import ExplainButton from '@/components/ExplainButton';
 import IndustrySelect from '@/components/industry-select';
 import OutreachComposer from '@/components/outreach/composer';
 import { MessageThreadComposerModal } from '@/components/messaging/MessageThreadComposerModal';
+import ContactsCard from '@/components/company-hq/ContactsCard';
 import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 import { StatsCard, StatsGrid } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -649,152 +650,35 @@ export default function ProspectSearch() {
 
     return (
         <div className="p-4 md:p-8 w-full max-w-[1920px] mx-auto">
-            {/* Contacts Discovery Modal */}
+            {/* Contacts Discovery Modal — uses shared ContactsCard component */}
             {viewEmails && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewEmails(null)}>
-                    <div className="bg-white rounded-xl p-0 max-w-xl w-full shadow-xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div
+                        className="bg-white rounded-xl max-w-xl w-full max-h-[80vh] overflow-hidden shadow-xl"
+                        onClick={e => e.stopPropagation()}
+                    >
                         {/* Header */}
-                        <div className="flex justify-between items-center px-5 py-4 bg-gray-50 border-b border-gray-100">
-                            <div className="flex items-center gap-2">
-                                <Users size={18} className="text-gray-500" />
-                                <h3 className="text-base font-bold text-gray-900">
-                                    Contacts
-                                    {emailResults.length > 0 && (
-                                        <span className="ml-2 text-xs font-medium text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
-                                            {emailResults.length}
-                                        </span>
-                                    )}
-                                </h3>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={runDiscovery}
-                                    disabled={isDiscovering || !viewEmails.websiteUrl}
-                                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 hover:bg-gray-100 disabled:opacity-50"
-                                    style={{ color: 'var(--text-secondary)' }}
-                                >
-                                    <RefreshCw size={12} className={isDiscovering ? 'animate-spin' : ''} />
-                                    Rescan
-                                </button>
-                                <button
-                                    className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
-                                    style={{ background: 'var(--brand)', color: 'white' }}
-                                    onClick={() => {
-                                        // TODO: Open AddContactModal
-                                        alert('Add contact coming soon');
-                                    }}
-                                >
-                                    <Plus size={12} />
-                                    Add
-                                </button>
-                                <button onClick={() => setViewEmails(null)} className="p-1 hover:bg-gray-100 rounded ml-1">
-                                    <X size={18} className="text-gray-400" />
-                                </button>
-                            </div>
+                        <div className="flex justify-between items-center px-5 py-3 border-b border-gray-100">
+                            <h3 className="text-base font-semibold text-gray-900">
+                                {viewEmails.companyName || 'Company'} — Contacts
+                            </h3>
+                            <button
+                                onClick={() => setViewEmails(null)}
+                                className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                            >
+                                <X size={18} className="text-gray-400" />
+                            </button>
                         </div>
-
-                        {/* Content */}
-                        <div className="p-5 max-h-[60vh] overflow-y-auto">
-                            {/* Loading state */}
-                            {isDiscovering && (
-                                <div className="text-center py-12">
-                                    <RefreshCw size={24} className="animate-spin mx-auto mb-3" style={{ color: 'var(--brand)' }} />
-                                    <p className="text-sm text-gray-500">Finding contacts...</p>
-                                </div>
-                            )}
-
-                            {/* Empty state */}
-                            {emailResults.length === 0 && !isDiscovering && (
-                                <div className="text-center py-10 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                                    <Users size={32} className="mx-auto mb-3 text-gray-300" />
-                                    <p className="text-sm text-gray-500 mb-4">No contacts found yet</p>
-                                    <button
-                                        onClick={runDiscovery}
-                                        disabled={!viewEmails.websiteUrl}
-                                        className="text-sm font-medium px-4 py-2 rounded-lg transition-all disabled:opacity-50"
-                                        style={{ background: 'var(--brand)', color: 'white' }}
-                                    >
-                                        Find Contacts
-                                    </button>
-                                    {!viewEmails.websiteUrl && <p className="text-xs text-red-500 mt-2">No website URL available</p>}
-                                </div>
-                            )}
-
-                            {/* Contact rows */}
-                            {emailResults.length > 0 && !isDiscovering && (
-                                <div className="space-y-2">
-                                    {emailResults.map((r, i) => {
-                                        // Derive name from email if not provided
-                                        const emailLocal = r.email.split('@')[0];
-                                        const derivedName = emailLocal.replace(/[._-]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
-                                        const displayName = r.name || derivedName || 'Unknown';
-                                        const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-                                        const role = r.role || r.title || 'Unknown role';
-                                        const source = r.source || r.type?.toLowerCase() || 'website';
-
-                                        // Source pill colors
-                                        const sourceColors: Record<string, { bg: string; text: string }> = {
-                                            website: { bg: 'bg-blue-100', text: 'text-blue-700' },
-                                            hunter: { bg: 'bg-purple-100', text: 'text-purple-700' },
-                                            manual: { bg: 'bg-green-100', text: 'text-green-700' },
-                                            companies_house: { bg: 'bg-amber-100', text: 'text-amber-700' },
-                                            personal: { bg: 'bg-purple-100', text: 'text-purple-700' },
-                                            sales: { bg: 'bg-green-100', text: 'text-green-700' },
-                                            support: { bg: 'bg-orange-100', text: 'text-orange-700' },
-                                            business: { bg: 'bg-blue-100', text: 'text-blue-700' }
-                                        };
-                                        const colors = sourceColors[source.toLowerCase()] || { bg: 'bg-gray-100', text: 'text-gray-600' };
-
-                                        return (
-                                            <div
-                                                key={i}
-                                                className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors group"
-                                            >
-                                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                    {/* Avatar */}
-                                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shrink-0">
-                                                        <span className="text-xs font-bold text-gray-600">{initials}</span>
-                                                    </div>
-                                                    {/* Info */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-0.5">
-                                                            <span className="text-sm font-medium text-gray-900 truncate">{displayName}</span>
-                                                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${colors.bg} ${colors.text}`}>
-                                                                {source}
-                                                            </span>
-                                                            {r.confidence === 'HIGH' && <Check size={12} className="text-green-600" />}
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-xs text-gray-500">{role}</span>
-                                                            <span className="text-xs text-gray-400">•</span>
-                                                            <span className="text-xs text-gray-600 truncate">{r.email}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                {/* Actions */}
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => {
-                                                            navigator.clipboard.writeText(r.email);
-                                                        }}
-                                                        className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                                                        title="Copy email"
-                                                    >
-                                                        <Copy size={14} className="text-gray-400" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleUseEmail(r.email)}
-                                                        className="text-xs font-semibold px-2.5 py-1 rounded transition-all"
-                                                        style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}
-                                                    >
-                                                        Use
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                        {/* ContactsCard — single source of truth */}
+                        <div className="max-h-[65vh] overflow-y-auto">
+                            <ContactsCard
+                                prospectId={viewEmails.id}
+                                companyName={viewEmails.companyName}
+                                onSelectEmail={(email) => {
+                                    handleUseEmail(email);
+                                    setViewEmails(null);
+                                }}
+                            />
                         </div>
                     </div>
                 </div>
