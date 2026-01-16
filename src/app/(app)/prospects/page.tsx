@@ -689,13 +689,23 @@ export default function ProspectSearch() {
         if (c.stalenessScore === undefined || c.stalenessScore === null) return null;
 
         const score = c.stalenessScore;
-        if (!score || score === 0) return null;
 
-        let badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-        let label = 'Fresh';
+        let badgeClass = 'bg-gray-50 text-gray-500 border-gray-200';
+        let label = 'Not Scanned';
+        let showScore = false;
 
-        if (score >= 60) { badgeClass = 'bg-rose-50 text-rose-700 border-rose-100'; label = 'High Priority'; }
-        else if (score >= 30) { badgeClass = 'bg-amber-50 text-amber-700 border-amber-100'; label = 'Design Opp'; }
+        if (score > 0) {
+            badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+            label = 'Fresh';
+            showScore = true;
+
+            if (score >= 60) { badgeClass = 'bg-rose-50 text-rose-700 border-rose-100'; label = 'High Priority'; }
+            else if (score >= 30) { badgeClass = 'bg-amber-50 text-amber-700 border-amber-100'; label = 'Design Opp'; }
+        } else {
+            // New / Unscanned state
+            badgeClass = 'bg-blue-50 text-blue-600 border-blue-100 cursor-pointer hover:bg-blue-100';
+            label = 'Scan Now';
+        }
 
         // Get display helper for diagnostics
         const display = diagnosticsEnabled ? getWebHealthDisplay({
