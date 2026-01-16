@@ -138,7 +138,7 @@ export async function getWebsiteHealthCanonical(companyId: number): Promise<Webs
         }
     }
 
-    // Label check
+    // Label check (using NEW staleness thresholds)
     let labelCheck = {
         pass: true,
         expectedLabel: null as string | null,
@@ -148,10 +148,12 @@ export async function getWebsiteHealthCanonical(companyId: number): Promise<Webs
 
     const score = company.websiteHealthScore;
     if (score !== null && score !== undefined) {
-        let expected = 'Critical';
-        if (score >= 75) expected = 'Healthy';
-        else if (score >= 50) expected = 'Fair';
-        else if (score >= 25) expected = 'At Risk';
+        // NEW staleness labels: higher score = more outdated
+        let expected = 'Fresh';
+        if (score >= 75) expected = 'Very Outdated';
+        else if (score >= 50) expected = 'Outdated';
+        else if (score >= 25) expected = 'Aging';
+        else expected = 'Fresh';
 
         labelCheck = {
             pass: company.websiteHealthLabel === expected,
