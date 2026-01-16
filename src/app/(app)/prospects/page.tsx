@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 export const dynamic = 'force-dynamic';
-import { Search, Filter, RefreshCw, ChevronDown, Check, X, AlertCircle, Building2, MapPin, Globe, ArrowRight, Lock, Target, Send, PenTool, Plus, Database, Mail, Info, HelpCircle, Users, Copy } from 'lucide-react';
+import { Search as SearchIcon, Filter, RefreshCw, ChevronDown, Check, X, AlertCircle, Building2, MapPin, Globe, ArrowRight, Lock, Target, Send, PenTool, Plus, Database, Mail, Info, HelpCircle, Users, Copy, Phone, ExternalLink, MessageSquare, TrendingUp, DollarSign } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import ExplainButton from '@/components/ExplainButton';
@@ -18,6 +18,13 @@ import MultiSelect from '@/components/ui/MultiSelect';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { useCompanyOverviewModal } from '@/components/modals/CompanyOverviewModalProvider';
 import RescanDropdown, { type RescanScope, type RescanTypes } from '@/components/leads/RescanDropdown';
+
+// Diagnostics
+import { useDiagnostics } from '@/hooks/useDiagnostics';
+import { getWebHealthDisplay } from '@/lib/websiteHealth/displayHelper';
+import { WebHealthDebugStrip } from '@/components/diagnostics/WebHealthDebugStrip';
+import { HealthSnapshotModal } from '@/components/diagnostics/HealthSnapshotModal';
+import { MismatchBanner } from '@/components/diagnostics/MismatchBanner';
 
 export default function ProspectSearch() {
     const router = useRouter();
@@ -63,6 +70,10 @@ export default function ProspectSearch() {
     const [viewFinancials, setViewFinancials] = useState<any>(null);
     const [viewPriority, setViewPriority] = useState<any>(null);
     const [viewWebsiteHealth, setViewWebsiteHealth] = useState<any>(null);
+
+    // Diagnostics
+    const diagnosticsEnabled = useDiagnostics();
+    const [snapshotCompanyId, setSnapshotCompanyId] = useState<number | null>(null);
 
     // --- Draft Action ---
     const [viewDraft, setViewDraft] = useState<any | null>(null);
@@ -678,36 +689,82 @@ export default function ProspectSearch() {
         if (c.stalenessScore === undefined || c.stalenessScore === null) return null;
 
         const score = c.stalenessScore;
-        let badgeClass = 'bg-gray-50 text-gray-500 border-gray-200';
-        let label = 'Low Priority';
+        if (!score || score === 0) return null;
+
+        let badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+        let label = 'Fresh';
 
         if (score >= 60) { badgeClass = 'bg-rose-50 text-rose-700 border-rose-100'; label = 'High Priority'; }
         else if (score >= 30) { badgeClass = 'bg-amber-50 text-amber-700 border-amber-100'; label = 'Design Opp'; }
 
-        return (
-            <div className="mt-1.5 flex items-center gap-2 w-full">
-                <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${badgeClass} whitespace-nowrap`}>
-                    {label} ({score})
-                </span>
+        // Get display helper for diagnostics
+        const display = diagnosticsEnabled ? getWebHealthDisplay({
+            websiteHealthStatus: c.websiteHealthStatus,
+            websiteHealthScore: c.websiteHealthScore,
+            websiteHealthLabel: c.websiteHealthLabel,
+            websiteHealthError: c.websiteHealthError
+        }) : null;
 
-                <div className="flex items-center gap-2 opacity-0 group-hover/web:opacity-100 transition-opacity ml-auto">
-                    <button
-                        onClick={() => handleReanalyze(c, c.id)}
-                        className="text-[10px] p-1 rounded transition-colors"
-                        style={{ color: 'var(--text-muted)' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--brand)'; e.currentTarget.style.background = 'var(--brand-soft)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-                        title="Refresh Analysis"
-                    >
-                        <RefreshCw size={12} />
-                    </button>
-                    {c.scoreReasons && (
-                        <ExplainButton
-                            onClick={() => setViewWebsiteHealth(c)}
-                            title="See website health breakdown"
-                        />
-                    )}
+        return (
+            <div className="mt-1.5 flex flex-col gap-1 w-full">
+                <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${badgeClass} whitespace-nowrap`}>
+                        {label} ({score})
+                    </span>
+
+                    <div className="flex items-center gap-2 opacity-0 group-hover/web:opacity-100 transition-opacity ml-auto">
+                        <button
+                            onClick={() => handleReanalyze(c, c.id)}
+                            className="text-[10px] p-1 rounded transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--brand)'; e.currentTarget.style.background = 'var(--brand-soft)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                            title="Refresh Analysis"
+                        >
+                            <RefreshCw size={12} />
+                        </button>
+                        {diagnosticsEnabled && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSnapshotCompanyId(c.id);
+                                }}
+                                className="text-[9px] px-1.5 py-0.5 bg-yellow-100 hover:bg-yellow-200 rounded transition-colors"
+                                title="View health snapshot"
+                            >
+                                📊
+                            </button>
+                        )}
+                        {c.scoreReasons && (
+                            <ExplainButton
+                                onClick={() => setViewWebsiteHealth(c)}
+                                title="See website health breakdown"
+                            />
+                        )}
+                    </div>
                 </div>
+
+                {/* Diagnostics Components */}
+                {diagnosticsEnabled && display && (
+                    <>
+                        <WebHealthDebugStrip
+                            company={c}
+                            display={display}
+                        />
+                        <MismatchBanner
+                            canonical={{
+                                websiteHealthStatus: c.websiteHealthStatus,
+                                websiteHealthScore: c.websiteHealthScore
+                            }}
+                            rendered={{
+                                score: score,
+                                label: label,
+                                showScore: true
+                            }}
+                            onOpenSnapshot={() => setSnapshotCompanyId(c.id)}
+                        />
+                    </>
+                )}
             </div>
         );
     };
@@ -1560,19 +1617,29 @@ export default function ProspectSearch() {
                 )
             }
             {/* Website Health Modal */}
-            {
-                viewWebsiteHealth && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewWebsiteHealth(null)}>
-                        <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
-                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-blue-50">
-                                <div>
-                                    <h3 className="font-semibold text-gray-900">Website Review</h3>
-                                    <div className="text-xs text-gray-500">{viewWebsiteHealth.companyName}</div>
-                                </div>
+            {viewWebsiteHealth && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewWebsiteHealth(null)}>
+                    <div className="bg-white rounded-xl p-6 max-w-2xl mx-4 shadow-2xl min-w-[600px]" onClick={e => e.stopPropagation()}>
+                        <div className="relative">
+                            {/* Close button */}
+                            <div className="absolute -top-2 -right-2 flex gap-2">
+                                {diagnosticsEnabled && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSnapshotCompanyId(viewWebsiteHealth.id);
+                                        }}
+                                        className="px-3 py-1.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 text-xs font-medium rounded-lg transition-colors"
+                                        title="View health snapshot"
+                                    >
+                                        📊 Snapshot
+                                    </button>
+                                )}
                                 <button onClick={() => setViewWebsiteHealth(null)} className="text-gray-400 hover:text-gray-600">
-                                    <X size={20} />
+                                    <X size={24} />
                                 </button>
                             </div>
+
                             <div className="p-6 space-y-4">
                                 {/* Score Section */}
                                 <div className="flex justify-between items-center pb-4 border-b border-gray-100">
@@ -1592,6 +1659,22 @@ export default function ProspectSearch() {
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Diagnostics Debug Strip */}
+                                {diagnosticsEnabled && (() => {
+                                    const display = getWebHealthDisplay({
+                                        websiteHealthStatus: viewWebsiteHealth.websiteHealthStatus,
+                                        websiteHealthScore: viewWebsiteHealth.websiteHealthScore,
+                                        websiteHealthLabel: viewWebsiteHealth.websiteHealthLabel,
+                                        websiteHealthError: viewWebsiteHealth.websiteHealthError
+                                    });
+                                    return (
+                                        <WebHealthDebugStrip
+                                            company={viewWebsiteHealth}
+                                            display={display}
+                                        />
+                                    );
+                                })()}
 
                                 {/* Breakdown Section */}
                                 <div className="space-y-3">
@@ -1742,113 +1825,120 @@ export default function ProspectSearch() {
                             </div>
                         </div>
                     </div>
-                )
+                    )
             }
 
-            {/* Warning / Confirmation Modal */}
-            {
-                viewLowPriorityConfirm && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewLowPriorityConfirm(null)}>
-                        <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
-                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-amber-50">
-                                <h3 className="font-semibold text-amber-900 flex items-center gap-2">
-                                    <span className="bg-amber-100 p-1 rounded-full"><Target size={14} className="text-amber-600" /></span>
-                                    Quality Warning
-                                </h3>
-                                <button onClick={() => setViewLowPriorityConfirm(null)} className="text-gray-400 hover:text-gray-600">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <div className="p-6">
-                                <p className="text-gray-900 font-medium mb-2">This prospect has some quality flags:</p>
-                                <ul className="space-y-2 mb-6">
-                                    {viewLowPriorityConfirm.reasons?.isHardDormant && (
-                                        <li className="flex gap-2 text-sm text-red-700 bg-red-50 p-2 rounded">
-                                            <Lock size={16} className="shrink-0 mt-0.5" />
-                                            <span><strong>Dormant/Inactive:</strong> Company status is not active according to Companies House.</span>
-                                        </li>
-                                    )}
-                                    {viewLowPriorityConfirm.reasons?.isAccountsDormant && (
-                                        <li className="flex gap-2 text-sm text-amber-700 bg-amber-50 p-2 rounded">
-                                            <Lock size={16} className="shrink-0 mt-0.5" />
-                                            <span><strong>Dormant accounts filed:</strong> Company status remains active.</span>
-                                        </li>
-                                    )}
-                                    {viewLowPriorityConfirm.reasons?.isFinLow && (
-                                        <li className="flex gap-2 text-sm text-red-700 bg-red-50 p-2 rounded">
-                                            <Building2 size={16} className="shrink-0 mt-0.5" />
-                                            <span><strong>Weak Financials:</strong> Stability score is Low.</span>
-                                        </li>
-                                    )}
-                                    {viewLowPriorityConfirm.reasons?.isWebLow && (
-                                        <li className="flex gap-2 text-sm text-orange-700 bg-orange-50 p-2 rounded">
-                                            <Search size={16} className="shrink-0 mt-0.5" />
-                                            <span><strong>Low Confidence Website:</strong> The matched website might be incorrect.</span>
-                                        </li>
-                                    )}
-                                    {viewLowPriorityConfirm.reasons?.isPriorityLow &&
-                                        !viewLowPriorityConfirm.reasons?.isHardDormant &&
-                                        !viewLowPriorityConfirm.reasons?.isAccountsDormant &&
-                                        !viewLowPriorityConfirm.reasons?.isFinLow &&
-                                        !viewLowPriorityConfirm.reasons?.isWebLow && (
-                                            <li className="flex gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                                                <Target size={16} className="shrink-0 mt-0.5" />
-                                                <span><strong>Low Priority:</strong> No urgent design issues found.</span>
-                                            </li>
-                                        )}
-                                </ul>
+                    {/* Warning / Confirmation Modal */}
+                    {
+                        viewLowPriorityConfirm && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewLowPriorityConfirm(null)}>
+                                <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-amber-50">
+                                        <h3 className="font-semibold text-amber-900 flex items-center gap-2">
+                                            <span className="bg-amber-100 p-1 rounded-full"><Target size={14} className="text-amber-600" /></span>
+                                            Quality Warning
+                                        </h3>
+                                        <button onClick={() => setViewLowPriorityConfirm(null)} className="text-gray-400 hover:text-gray-600">
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+                                    <div className="p-6">
+                                        <p className="text-gray-900 font-medium mb-2">This prospect has some quality flags:</p>
+                                        <ul className="space-y-2 mb-6">
+                                            {viewLowPriorityConfirm.reasons?.isHardDormant && (
+                                                <li className="flex gap-2 text-sm text-red-700 bg-red-50 p-2 rounded">
+                                                    <Lock size={16} className="shrink-0 mt-0.5" />
+                                                    <span><strong>Dormant/Inactive:</strong> Company status is not active according to Companies House.</span>
+                                                </li>
+                                            )}
+                                            {viewLowPriorityConfirm.reasons?.isAccountsDormant && (
+                                                <li className="flex gap-2 text-sm text-amber-700 bg-amber-50 p-2 rounded">
+                                                    <Lock size={16} className="shrink-0 mt-0.5" />
+                                                    <span><strong>Dormant accounts filed:</strong> Company status remains active.</span>
+                                                </li>
+                                            )}
+                                            {viewLowPriorityConfirm.reasons?.isFinLow && (
+                                                <li className="flex gap-2 text-sm text-red-700 bg-red-50 p-2 rounded">
+                                                    <Building2 size={16} className="shrink-0 mt-0.5" />
+                                                    <span><strong>Weak Financials:</strong> Stability score is Low.</span>
+                                                </li>
+                                            )}
+                                            {viewLowPriorityConfirm.reasons?.isWebLow && (
+                                                <li className="flex gap-2 text-sm text-orange-700 bg-orange-50 p-2 rounded">
+                                                    <Search size={16} className="shrink-0 mt-0.5" />
+                                                    <span><strong>Low Confidence Website:</strong> The matched website might be incorrect.</span>
+                                                </li>
+                                            )}
+                                            {viewLowPriorityConfirm.reasons?.isPriorityLow &&
+                                                !viewLowPriorityConfirm.reasons?.isHardDormant &&
+                                                !viewLowPriorityConfirm.reasons?.isAccountsDormant &&
+                                                !viewLowPriorityConfirm.reasons?.isFinLow &&
+                                                !viewLowPriorityConfirm.reasons?.isWebLow && (
+                                                    <li className="flex gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                                                        <Target size={16} className="shrink-0 mt-0.5" />
+                                                        <span><strong>Low Priority:</strong> No urgent design issues found.</span>
+                                                    </li>
+                                                )}
+                                        </ul>
 
-                                <p className="text-gray-500 text-xs mb-6">
-                                    Proceeding may result in lower response rates or incorrect contact data.
-                                </p>
+                                        <p className="text-gray-500 text-xs mb-6">
+                                            Proceeding may result in lower response rates or incorrect contact data.
+                                        </p>
 
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setViewLowPriorityConfirm(null)}
-                                        className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition text-sm"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            handleAction(viewLowPriorityConfirm.prospect, viewLowPriorityConfirm.index, 'ADD');
-                                            setViewLowPriorityConfirm(null);
-                                        }}
-                                        className="flex-1 px-4 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition text-sm shadow-sm"
-                                    >
-                                        Proceed Anyway
-                                    </button>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => setViewLowPriorityConfirm(null)}
+                                                className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition text-sm"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    handleAction(viewLowPriorityConfirm.prospect, viewLowPriorityConfirm.index, 'ADD');
+                                                    setViewLowPriorityConfirm(null);
+                                                }}
+                                                className="flex-1 px-4 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition text-sm shadow-sm"
+                                            >
+                                                Proceed Anyway
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                )
-            }
+                        )
+                    }
 
-            {/* --- Unified Composer Modal (with AI features) --- */}
-            {viewDraft && (
-                <MessageThreadComposerModal
-                    prospectId={viewDraft.prospect?.id}
-                    initialData={{
-                        companyName: viewDraft.prospect?.companyName || viewDraft.prospect?.brandNameOverride || viewDraft.prospect?.websiteBrandName,
-                        contactEmail: viewDraft.toEmail,
-                        lead: {
-                            id: viewDraft.leadId,
-                            companyProspectId: viewDraft.prospect?.id,
-                            emailDraft: viewDraft.draft?.body,
-                            emailDraftHtml: viewDraft.draft?.body,
-                            subjectLine1: viewDraft.draft?.subject
-                        },
-                        prospect: viewDraft.prospect
-                    }}
-                    defaultTab="compose"
-                    onClose={() => setViewDraft(null)}
-                    onSuccess={() => {
-                        setViewDraft(null);
-                    }}
-                />
-            )}
+                    {/* --- Unified Composer Modal (with AI features) --- */}
+                    {viewDraft && (
+                        <MessageThreadComposerModal
+                            prospectId={viewDraft.prospect?.id}
+                            initialData={{
+                                companyName: viewDraft.prospect?.companyName || viewDraft.prospect?.brandNameOverride || viewDraft.prospect?.websiteBrandName,
+                                contactEmail: viewDraft.toEmail,
+                                lead: {
+                                    id: viewDraft.leadId,
+                                    companyProspectId: viewDraft.prospect?.id,
+                                    emailDraft: viewDraft.draft?.body,
+                                    emailDraftHtml: viewDraft.draft?.body,
+                                    subjectLine1: viewDraft.draft?.subject
+                                },
+                                prospect: viewDraft.prospect
+                            }}
+                            defaultTab="compose"
+                            onClose={() => setViewDraft(null)}
+                            onSuccess={() => {
+                                setViewDraft(null);
+                            }}
+                        />
+                    )}
 
-        </div>
-    );
+                    {/* Diagnostics Snapshot Modal */}
+                    {snapshotCompanyId && (
+                        <HealthSnapshotModal
+                            companyId={snapshotCompanyId}
+                            onClose={() => setSnapshotCompanyId(null)}
+                        />
+                    )}
+                </div>
+            );
 }
