@@ -487,6 +487,15 @@ export default function ProspectSearch() {
     const handleReanalyze = async (company: any, id: number) => {
         if (!confirm(`Re-scan website health for ${company.companyName}?`)) return;
 
+        // Debug trace
+        if (process.env.NEXT_PUBLIC_DEBUG_HEALTH === '1') {
+            console.log('[WEB_HEALTH_UI]', {
+                event: 'SCAN_START',
+                companyId: id,
+                companyName: company.companyName
+            });
+        }
+
         try {
             // Call the actual website scan endpoint
             const res = await fetch('/api/scan/website', {
@@ -504,25 +513,45 @@ export default function ProspectSearch() {
 
             const data = await res.json();
 
+            // Debug trace response
+            if (process.env.NEXT_PUBLIC_DEBUG_HEALTH === '1') {
+                console.log('[WEB_HEALTH_UI]', {
+                    event: 'SCAN_RESPONSE',
+                    companyId: id,
+                    status: data.status,
+                    canonicalFields: {
+                        websiteHealthStatus: data.websiteHealthStatus,
+                        websiteHealthScore: data.websiteHealthScore,
+                        websiteHealthLabel: data.websiteHealthLabel,
+                        websiteHealthScannedAt: data.websiteHealthScannedAt
+                    }
+                });
+            }
+
             // Handle different response statuses
-            if (data.status === 'complete') {
-                // Update local state with new scan results
+            if (data.status === 'complete' || data.websiteHealthStatus === 'success') {
+                // Update local state with ALL canonical fields
                 setResults(prev => prev.map(p => {
                     if (p.id === id) {
                         return {
                             ...p,
-                            // Update legacy fields
-                            stalenessScore: data.data.score,
-                            lastAnalysedAt: data.data.lastScannedAt,
-                            // Update new canonical fields
-                            websiteHealthStatus: 'success',
-                            websiteHealthScore: data.data.score,
-                            websiteHealthScannedAt: data.data.lastScannedAt,
+                            // Update new canonical fields (COMPLETE SET)
+                            websiteHealthStatus: data.websiteHealthStatus || 'success',
+                            websiteHealthScore: data.websiteHealthScore ?? data.data?.score ?? null,
+                            websiteHealthLabel: data.websiteHealthLabel ?? null,
+                            websiteHealthScannedAt: data.websiteHealthScannedAt || data.data?.lastScannedAt || new Date(),
+                            websiteHealthError: data.websiteHealthError ?? null,
+                            // Also update legacy fields for backward compatibility
+                            stalenessScore: data.websiteHealthScore ?? data.data?.score ?? null,
+                            lastAnalysedAt: data.websiteHealthScannedAt || data.data?.lastScannedAt || new Date()
                         };
                     }
                     return p;
                 }));
-                alert(`Website Health scan complete!\nScore: ${data.data.score} - ${data.data.label}`);
+
+                const displayScore = data.websiteHealthScore ?? data.data?.score ?? 'N/A';
+                const displayLabel = data.websiteHealthLabel ?? data.data?.label ?? '';
+                alert(`Website Health scan complete!\nScore: ${displayScore} - ${displayLabel}`);
             } else if (data.status === 'no_website') {
                 alert('No website URL found for this company');
             } else if (data.status === 'already_complete') {

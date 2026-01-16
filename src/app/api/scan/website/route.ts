@@ -86,11 +86,10 @@ export async function POST(request: Request) {
             }
         });
 
-        // Build scan input
+        // Build scan input - START WITH CONSERVATIVE DEFAULTS
         const scanInput: WebsiteScanInput = {
-            domain,
-            isReachable: false,
-            hasHttps: domain.length > 0
+            isReachable: false,  // Assume unreachable until proven otherwise
+            isHttps: false       // Assume HTTP until HTTPS fetch succeeds
         };
 
         // Perform actual scan
@@ -98,6 +97,7 @@ export async function POST(request: Request) {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 10000);
 
+            // Try HTTPS first (most modern sites)
             const response = await fetch(`https://${domain}`, {
                 method: 'HEAD',
                 signal: controller.signal,
@@ -108,9 +108,10 @@ export async function POST(request: Request) {
 
             if (response) {
                 scanInput.isReachable = true;
-                scanInput.hasHttps = true;
+                scanInput.isHttps = true;  // HTTPS worked
                 scanInput.httpStatus = response.status;
             } else {
+                // HTTPS failed, maybe it's HTTP-only?
                 scanInput.isReachable = false;
                 scanInput.error = 'Could not connect to website';
             }
