@@ -1190,7 +1190,7 @@ export default function ProspectSearch() {
                                 value={filters.query}
                                 onChange={(e) => setFilters({ ...filters, query: e.target.value })}
                             />
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         </div>
                     </div>
 
@@ -1324,7 +1324,7 @@ export default function ProspectSearch() {
                             disabled={loading}
                             className="btn btn-primary w-full justify-center shadow-lg shadow-indigo-200/50"
                         >
-                            <Search size={18} />
+                            <SearchIcon size={18} />
                             {loading ? 'Searching...' : 'Find Companies'}
                         </button>
                     </div>
@@ -1335,7 +1335,7 @@ export default function ProspectSearch() {
             {hasSearched && results.length === 0 && (
                 <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
                     <div className="text-gray-400 mb-2">
-                        <Search size={32} className="mx-auto" />
+                        <SearchIcon size={32} className="mx-auto" />
                     </div>
                     <h3 className="text-lg font-medium text-gray-900">No prospects found</h3>
                     <p className="text-gray-500 max-w-sm mx-auto mt-1">
@@ -1865,7 +1865,7 @@ export default function ProspectSearch() {
                                     )}
                                     {viewLowPriorityConfirm.reasons?.isWebLow && (
                                         <li className="flex gap-2 text-sm text-orange-700 bg-orange-50 p-2 rounded">
-                                            <Search size={16} className="shrink-0 mt-0.5" />
+                                            <SearchIcon size={16} className="shrink-0 mt-0.5" />
                                             <span><strong>Low Confidence Website:</strong> The matched website might be incorrect.</span>
                                         </li>
                                     )}
