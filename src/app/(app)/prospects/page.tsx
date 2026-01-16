@@ -694,7 +694,10 @@ export default function ProspectSearch() {
         let label = 'Not Scanned';
         let showScore = false;
 
-        if (score > 0) {
+        // Explicitly handle 0 as a valid score (Fresh) vs null/undefined (Not Scanned)
+        const hasScore = score !== null && score !== undefined;
+
+        if (hasScore) {
             badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
             label = 'Fresh';
             showScore = true;
