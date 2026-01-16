@@ -1693,6 +1693,10 @@ export default function ProspectSearch() {
                                     <button
                                         onClick={async () => {
                                             if (!viewWebsiteHealth?.id) return;
+
+                                            const buttonEl = document.activeElement as HTMLButtonElement;
+                                            if (buttonEl) buttonEl.disabled = true;
+
                                             try {
                                                 const res = await fetch('/api/scan/website', {
                                                     method: 'POST',
@@ -1706,25 +1710,45 @@ export default function ProspectSearch() {
 
                                                 if (res.ok) {
                                                     const data = await res.json();
+                                                    console.log('Refresh response:', data);
+
                                                     if (data.updatedCompanyHealth) {
-                                                        // Update modal data
-                                                        setViewWebsiteHealth(prev => prev ? {
-                                                            ...prev,
-                                                            ...data.updatedCompanyHealth
-                                                        } : null);
+                                                        // Update modal data with canonical fields
+                                                        setViewWebsiteHealth(prev => {
+                                                            if (!prev) return null;
+                                                            return {
+                                                                ...prev,
+                                                                websiteHealthStatus: data.updatedCompanyHealth.websiteHealthStatus,
+                                                                websiteHealthScore: data.updatedCompanyHealth.websiteHealthScore,
+                                                                websiteHealthLabel: data.updatedCompanyHealth.websiteHealthLabel,
+                                                                websiteHealthError: data.updatedCompanyHealth.websiteHealthError,
+                                                                websiteHealthScannedAt: data.updatedCompanyHealth.websiteHealthScannedAt,
+                                                                // Also update legacy fields for backward compat
+                                                                stalenessScore: data.updatedCompanyHealth.websiteHealthScore,
+                                                                lastAnalysedAt: data.updatedCompanyHealth.websiteHealthScannedAt
+                                                            };
+                                                        });
+
                                                         // Update list
                                                         setResults(prev => prev.map(p =>
                                                             p.id === viewWebsiteHealth.id
                                                                 ? { ...p, ...data.updatedCompanyHealth }
                                                                 : p
                                                         ));
+
+                                                        alert('Refresh complete!');
                                                     }
+                                                } else {
+                                                    alert('Refresh failed: ' + res.statusText);
                                                 }
-                                            } catch (e) {
+                                            } catch (e: any) {
                                                 console.error('Refresh error:', e);
+                                                alert('Refresh failed: ' + e.message);
+                                            } finally {
+                                                if (buttonEl) buttonEl.disabled = false;
                                             }
                                         }}
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2"
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
