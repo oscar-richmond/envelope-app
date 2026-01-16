@@ -149,6 +149,7 @@ export async function GET() {
                 websiteHealthScore: prospect?.websiteHealthStatus === 'success'
                     ? (prospect?.websiteHealthScore ?? null)
                     : null,  // Force null if not success
+                websiteHealthLabel: prospect?.websiteHealthLabel || null,  // ✅ ADDED - was missing!
                 websiteHealthScannedAt: prospect?.websiteHealthScannedAt || null,
                 websiteHealthError: prospect?.websiteHealthError || null,
                 websiteHealthVersion: prospect?.websiteHealthVersion || null,
