@@ -22,7 +22,7 @@
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { auth } from '@/auth';
 
 // Check if production reset is allowed
 const ALLOW_PROD_DERIVED_RESET = process.env.ALLOW_PROD_DERIVED_RESET === 'true';
