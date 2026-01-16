@@ -355,6 +355,21 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
         try {
             const companyId = lead.companyProspectId;
 
+            // 1. Set scanning state IMMEDIATELY (optimistic update)
+            if (type === 'website' || type === 'both') {
+                setLeads(prev => prev.map(l =>
+                    l.id === lead.id
+                        ? {
+                            ...l,
+                            websiteHealthStatus: 'scanning',
+                            websiteHealthScore: null,
+                            websiteHealthLabel: 'Scanning...'
+                        }
+                        : l
+                ));
+            }
+
+            // 2. Trigger scans
             if (type === 'website' || type === 'both') {
                 // Use correct company endpoint for real breakdown data
                 const endpoint = companyId
@@ -381,10 +396,18 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                 });
             }
 
-            // Refresh to get updated scores
-            const res = await fetch('/api/leads');
+            // 3. Refetch with CACHE BYPASS
+            const res = await fetch('/api/leads', {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
+
             if (res.ok) {
                 const updatedLeads = await res.json();
+                // 4. Replace entire list (don't merge - ensures fresh data)
                 setLeads(updatedLeads);
             }
 
@@ -392,6 +415,13 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
         } catch (e) {
             console.error('Scan error:', e);
             showToast('Scan failed. Please try again.', 'error');
+
+            // Revert optimistic update on error
+            const res = await fetch('/api/leads', { cache: 'no-store' });
+            if (res.ok) {
+                const updatedLeads = await res.json();
+                setLeads(updatedLeads);
+            }
         }
     }, []);
 
