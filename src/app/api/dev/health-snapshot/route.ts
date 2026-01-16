@@ -11,10 +11,23 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateWebsiteHealthV2Report } from '@/lib/scoring/computeWebsiteHealthV2';
 
+import { auth } from '@/auth';
+
 export async function GET(request: Request) {
-    // Guard: Dev only
-    if (process.env.NODE_ENV === 'production' && process.env.DEBUG_HEALTH !== '1') {
-        return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+    // 1. Check for valid session
+    const session = await auth();
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 2. Guard: Diagnostics enabled
+    // Allow if either debug flag is set
+    const isDiagnosticsEnabled =
+        process.env.NEXT_PUBLIC_DIAGNOSTICS === '1' ||
+        process.env.DEBUG_HEALTH === '1';
+
+    if (process.env.NODE_ENV === 'production' && !isDiagnosticsEnabled) {
+        return NextResponse.json({ error: 'Diagnostics not enabled' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
