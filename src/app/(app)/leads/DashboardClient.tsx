@@ -371,7 +371,7 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
 
             // 2. Trigger scans - UNIFIED ENDPOINT
             if (type === 'website' || type === 'both') {
-                await fetch('/api/scan/website', {
+                const res = await fetch('/api/scan/website', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -380,6 +380,18 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                         force: true
                     })
                 });
+
+                // IMMEDIATELY patch state with authoritative response
+                if (res.ok) {
+                    const scanData = await res.json();
+                    if (scanData.updatedCompanyHealth) {
+                        setLeads(prev => prev.map(l =>
+                            l.companyProspectId === scanData.updatedCompanyHealth.companyId
+                                ? { ...l, ...scanData.updatedCompanyHealth }
+                                : l
+                        ));
+                    }
+                }
             }
 
             if (type === 'financial' || type === 'both') {
@@ -394,7 +406,7 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                 });
             }
 
-            // 3. Refetch with CACHE BYPASS
+            // 3. Refetch with CACHE BYPASS (for full consistency)
             const res = await fetch('/api/leads', {
                 cache: 'no-store',
                 headers: {

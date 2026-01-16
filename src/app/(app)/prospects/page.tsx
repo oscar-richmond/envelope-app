@@ -531,27 +531,21 @@ export default function ProspectSearch() {
 
             // Handle different response statuses
             if (data.status === 'complete' || data.websiteHealthStatus === 'success') {
-                // Update local state with ALL canonical fields
-                setResults(prev => prev.map(p => {
-                    if (p.id === id) {
-                        return {
-                            ...p,
-                            // Update new canonical fields (COMPLETE SET)
-                            websiteHealthStatus: data.websiteHealthStatus || 'success',
-                            websiteHealthScore: data.websiteHealthScore ?? data.data?.score ?? null,
-                            websiteHealthLabel: data.websiteHealthLabel ?? null,
-                            websiteHealthScannedAt: data.websiteHealthScannedAt || data.data?.lastScannedAt || new Date(),
-                            websiteHealthError: data.websiteHealthError ?? null,
-                            // Also update legacy fields for backward compatibility
-                            stalenessScore: data.websiteHealthScore ?? data.data?.score ?? null,
-                            lastAnalysedAt: data.websiteHealthScannedAt || data.data?.lastScannedAt || new Date()
-                        };
-                    }
-                    return p;
-                }));
+                // IMMEDIATELY update local state with authoritative DB readback values
+                if (data.updatedCompanyHealth) {
+                    setResults(prev => prev.map(p => {
+                        if (p.id === id) {
+                            return {
+                                ...p,
+                                ...data.updatedCompanyHealth  // Spread authoritative state
+                            };
+                        }
+                        return p;
+                    }));
+                }
 
-                const displayScore = data.websiteHealthScore ?? data.data?.score ?? 'N/A';
-                const displayLabel = data.websiteHealthLabel ?? data.data?.label ?? '';
+                const displayScore = data.websiteHealthScore ?? 'N/A';
+                const displayLabel = data.websiteHealthLabel ?? '';
                 alert(`Website Health scan complete!\nScore: ${displayScore} - ${displayLabel}`);
             } else if (data.status === 'no_website') {
                 alert('No website URL found for this company');

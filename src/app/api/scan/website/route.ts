@@ -33,7 +33,7 @@ export async function POST(request: Request) {
             force
         });
 
-        // Return enhanced response with full trace
+        // Return enhanced response with full trace AND authoritative updated state
         return NextResponse.json({
             // Status
             status: trace.status === 'success' ? 'complete' : 'failed',
@@ -44,6 +44,16 @@ export async function POST(request: Request) {
             websiteHealthLabel: trace.label,
             websiteHealthScannedAt: trace.persistedAt,
             websiteHealthError: trace.error,
+
+            // NEW: Authoritative updated state from DB readback
+            updatedCompanyHealth: {
+                companyId: targetCompanyId,
+                websiteHealthStatus: trace.status,
+                websiteHealthScore: trace.dbReadback.websiteHealthScore,
+                websiteHealthLabel: trace.dbReadback.websiteHealthLabel,
+                websiteHealthScannedAt: trace.persistedAt,
+                websiteHealthVersion: trace.dbReadback.websiteHealthVersion
+            },
 
             // Full trace (for debugging)
             _trace: trace
