@@ -81,7 +81,7 @@ model CompanyProspect {
   websiteMatchFailureReason String?
   
   // Staleness Analysis (Legacy - kept for rollback)
-  stalenessScore          Int?      @default(0)
+  stalenessScore          Int?      // Nullable, no default - null = never scanned
   stalenessConfidence     String?   // HIGH, MEDIUM, LOW
   scoreReasons            String?   // JSON
   signals                 String?   // JSON
@@ -95,7 +95,7 @@ model CompanyProspect {
   websiteHealthVersion    Int       @default(1) // Schema version for future migrations
 
   // Financial Analysis (Companies House)
-  financialActivityScore  Int?      @default(0) // 0-100
+  financialActivityScore  Int?      // 0-100, Nullable, no default - null = never checked
   financialActivityBand   String?   // "Very Strong", "Strong", "Medium", "Low"
   financialSignals        String?   // JSON
   financialLastCheckedAt  DateTime?
@@ -106,7 +106,7 @@ model CompanyProspect {
   incorporatedOnLastSyncedAt  DateTime?            // When we last fetched from CH
 
   // Contact Priority (Derived)
-  contactPriorityScore    Int?      @default(0)
+  contactPriorityScore    Int?      // Nullable, no default - null = never calculated
   contactPriorityBand     String?   // "High", "Medium", "Low"
   contactPriorityLastCalculatedAt DateTime?
 
