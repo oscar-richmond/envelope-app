@@ -686,7 +686,7 @@ export default function ProspectSearch() {
         // If not, show "Analyze" button or nothing? 
         // The previous UI showed "Not analyzed" which is clutter. Let's hide it unless there's data.
         if (!c.websiteUrl) return null;
-        if (c.stalenessScore === undefined || c.stalenessScore === null) return null;
+        // if (c.stalenessScore === undefined || c.stalenessScore === null) return null; <--- REMOVED THIS check
 
         const score = c.stalenessScore;
 
