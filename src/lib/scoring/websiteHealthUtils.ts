@@ -3,20 +3,33 @@
  * 
  * Single source of truth for website health display logic.
  * Determines scan state and provides consistent display values.
+ * 
+ * Supports dual-schema operation:
+ * - FF_NEW_WEBSITE_HEALTH=false: Uses legacy fields (stalenessScore, lastAnalysedAt)
+ * - FF_NEW_WEBSITE_HEALTH=true: Uses new canonical fields (websiteHealthStatus, websiteHealthScore)
  */
 
 import { getWebsiteHealthLabel, type WebsiteHealthLabel } from './websiteHealth';
+import { FEATURE_FLAGS } from '../featureFlags';
 
 export type WebsiteHealthStatus = 'idle' | 'scanning' | 'success' | 'failed';
 
 export interface WebsiteHealthInput {
+    // Legacy fields (for rollback compatibility)
     stalenessScore?: number | null;
     lastAnalysedAt?: Date | string | null;
     lastAnalyzedAt?: Date | string | null; // Alternative spelling
-    websiteUrl?: string | null;
-    websiteHealthStatus?: string | null;
     stalenessConfidence?: string | null;
     scoreReasons?: string | null;
+
+    // New canonical fields (used when FF_NEW_WEBSITE_HEALTH=true)
+    websiteHealthStatus?: string | null;
+    websiteHealthScore?: number | null;
+    websiteHealthScannedAt?: Date | string | null;
+    websiteHealthError?: string | null;
+
+    // Common fields
+    websiteUrl?: string | null;
 }
 
 export interface WebsiteHealthDisplay {
@@ -31,32 +44,73 @@ export interface WebsiteHealthDisplay {
     color: WebsiteHealthLabel['color'];
     confidence?: string;
     reasons?: string[];
+    error?: string;
 }
 
 /**
  * Determine if a company has been scanned for website health
- * Uses lastAnalysedAt as the authoritative indicator
+ * 
+ * With new schema: Check websiteHealthStatus === 'success'
+ * With old schema: Check lastAnalysedAt !== null
  */
 export function isWebsiteScanned(data: WebsiteHealthInput): boolean {
+    if (FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
+        return data.websiteHealthStatus === 'success';
+    }
+
+    // Legacy: use lastAnalysedAt as indicator
     const analysedAt = data.lastAnalysedAt || data.lastAnalyzedAt;
     return analysedAt !== null && analysedAt !== undefined;
 }
 
 /**
  * Determine the scan status from available data
+ * 
+ * AUTHORITY RULE (when FF_NEW_WEBSITE_HEALTH=true):
+ * - New fields are ALWAYS authoritative
+ * - Never choose legacy data because its scannedAt is newer
+ * - If new status exists (even idle/scanning/error), use new
+ * - Only fall back to legacy when the flag is false
  */
 export function getWebsiteHealthStatus(data: WebsiteHealthInput): WebsiteHealthStatus {
-    // If explicit status provided, use it
-    if (data.websiteHealthStatus) {
-        return data.websiteHealthStatus as WebsiteHealthStatus;
+    if (FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
+        // AUTHORITY: New schema is always authoritative when FF=true
+        // If websiteHealthStatus exists (any value including null), use new schema
+        // Only status values: idle, scanning, success, failed
+        const newStatus = data.websiteHealthStatus;
+
+        if (newStatus === 'success' || newStatus === 'scanning' || newStatus === 'failed') {
+            return newStatus as WebsiteHealthStatus;
+        }
+
+        // If status is 'idle' or null/undefined, treat as idle
+        // NEVER fall back to legacy - new schema is authoritative
+        return 'idle';
     }
 
-    // Otherwise infer from lastAnalysedAt
+    // Legacy mode (FF=false): infer from lastAnalysedAt
     if (isWebsiteScanned(data)) {
         return 'success';
     }
-
     return 'idle';
+}
+
+/**
+ * Get the raw score value
+ * 
+ * With new schema: Use websiteHealthScore (null = not scanned)
+ * With old schema: Use stalenessScore only if scanned
+ */
+function getScoreValue(data: WebsiteHealthInput): number | null {
+    if (FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
+        return data.websiteHealthScore ?? null;
+    }
+
+    // Legacy: only return score if actually scanned
+    if (isWebsiteScanned(data)) {
+        return data.stalenessScore ?? null;
+    }
+    return null;
 }
 
 /**
@@ -68,7 +122,7 @@ export function getWebsiteHealthStatus(data: WebsiteHealthInput): WebsiteHealthS
  * - Company Overview popup
  * - Full Company Profile
  * 
- * @param data - Company/prospect data with staleness fields
+ * @param data - Company/prospect data with health fields
  * @returns Unified display data with proper state handling
  */
 export function getWebsiteHealthDisplay(data: WebsiteHealthInput): WebsiteHealthDisplay {
@@ -76,23 +130,54 @@ export function getWebsiteHealthDisplay(data: WebsiteHealthInput): WebsiteHealth
     const isScanned = status === 'success';
     const hasWebsite = !!(data.websiteUrl && data.websiteUrl !== 'Unknown' && data.websiteUrl !== 'N/A');
 
-    // If not scanned, don't show a score (avoid 0/100 defaults)
+    // Handle error state
+    if (status === 'failed') {
+        return {
+            score: null,
+            label: 'Scan Failed',
+            status: 'failed',
+            isScanned: false,
+            showScanButton: false,
+            showScore: false,
+            showRetry: true,
+            tone: 'negative',
+            color: 'red',
+            error: data.websiteHealthError || undefined
+        };
+    }
+
+    // Handle scanning state
+    if (status === 'scanning') {
+        return {
+            score: null,
+            label: 'Scanning...',
+            status: 'scanning',
+            isScanned: false,
+            showScanButton: false,
+            showScore: false,
+            showRetry: false,
+            tone: 'neutral',
+            color: 'gray'
+        };
+    }
+
+    // Handle not scanned state (idle)
     if (!isScanned) {
         return {
             score: null,
             label: hasWebsite ? 'Not Scanned' : 'No Website',
-            status,
+            status: 'idle',
             isScanned: false,
-            showScanButton: hasWebsite && status === 'idle',
+            showScanButton: hasWebsite,
             showScore: false,
-            showRetry: status === 'failed',
+            showRetry: false,
             tone: 'neutral',
             color: 'gray'
         };
     }
 
     // Scanned - use actual score
-    const score = data.stalenessScore ?? null;
+    const score = getScoreValue(data);
     const healthLabel = getWebsiteHealthLabel(score);
 
     // Parse reasons if available
@@ -100,7 +185,7 @@ export function getWebsiteHealthDisplay(data: WebsiteHealthInput): WebsiteHealth
     if (data.scoreReasons) {
         try {
             reasons = JSON.parse(data.scoreReasons);
-        } catch (e) {
+        } catch {
             // Ignore parse errors
         }
     }
@@ -122,7 +207,7 @@ export function getWebsiteHealthDisplay(data: WebsiteHealthInput): WebsiteHealth
 
 /**
  * Get a simple score display string
- * Returns the score if scanned, or "-" / "—" if not
+ * Returns the score if scanned, or "—" if not
  */
 export function getScoreDisplay(data: WebsiteHealthInput): string | number {
     const display = getWebsiteHealthDisplay(data);
@@ -139,7 +224,7 @@ export function warnIfSuspiciousScores(items: WebsiteHealthInput[], label: strin
     const scannedItems = items.filter(i => isWebsiteScanned(i));
     if (scannedItems.length < 3) return;
 
-    const scores = scannedItems.map(i => i.stalenessScore).filter((s): s is number => s !== null && s !== undefined);
+    const scores = scannedItems.map(i => getScoreValue(i)).filter((s): s is number => s !== null && s !== undefined);
 
     if (scores.length >= 3 && scores.every(s => s === 0)) {
         console.warn(`[${label}] Suspicious: all ${scores.length} scanned scores are exactly 0`);
@@ -147,4 +232,11 @@ export function warnIfSuspiciousScores(items: WebsiteHealthInput[], label: strin
     if (scores.length >= 3 && scores.every(s => s === 100)) {
         console.warn(`[${label}] Suspicious: all ${scores.length} scanned scores are exactly 100`);
     }
+}
+
+/**
+ * Get which schema is currently active (for debugging)
+ */
+export function getActiveSchema(): 'legacy' | 'new' {
+    return FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA ? 'new' : 'legacy';
 }

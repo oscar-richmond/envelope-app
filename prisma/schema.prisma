@@ -80,12 +80,19 @@ model CompanyProspect {
   websiteMatchStatus      String?   // NEW, MATCHED, NEEDS_REVIEW, NOT_FOUND, FAILED
   websiteMatchFailureReason String?
   
-  // Staleness Analysis
+  // Staleness Analysis (Legacy - kept for rollback)
   stalenessScore          Int?      @default(0)
   stalenessConfidence     String?   // HIGH, MEDIUM, LOW
   scoreReasons            String?   // JSON
   signals                 String?   // JSON
   lastAnalysedAt          DateTime?
+
+  // Website Health (New canonical fields - no defaults!)
+  websiteHealthStatus     String?   // idle, scanning, success, failed
+  websiteHealthScore      Int?      // Nullable, NO default - null = never scanned
+  websiteHealthScannedAt  DateTime? // When last successfully scanned
+  websiteHealthError      String?   // Error message if status = failed
+  websiteHealthVersion    Int       @default(1) // Schema version for future migrations
 
   // Financial Analysis (Companies House)
   financialActivityScore  Int?      @default(0) // 0-100

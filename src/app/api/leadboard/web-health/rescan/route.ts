@@ -180,14 +180,24 @@ async function processLeadsInBackground(
             score = Math.max(0, Math.min(100, score));
             const label = score >= 70 ? 'Fresh' : score >= 40 ? 'Stale' : 'Risk';
 
-            // Update database
+            // Update database - DUAL-WRITE to both legacy and new fields
             await prisma.companyProspect.update({
                 where: { id: prospect.id },
                 data: {
                     websiteDomain: domain,
+
+                    // Legacy fields (for rollback)
                     lastAnalysedAt: new Date(),
                     stalenessScore: score,
                     signals: JSON.stringify(signals),
+
+                    // New canonical fields
+                    websiteHealthStatus: 'success',
+                    websiteHealthScore: score,
+                    websiteHealthScannedAt: new Date(),
+                    websiteHealthError: null,
+
+                    // Shared data
                     webHealthData: JSON.stringify({ score, label, signals, lastScannedAt: new Date().toISOString() })
                 }
             });

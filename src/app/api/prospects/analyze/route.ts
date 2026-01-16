@@ -49,15 +49,24 @@ export async function POST(request: Request) {
                 incorporatedOn: prospect.incorporatedOn
             });
 
-            // Update DB
+            // Update DB - DUAL-WRITE to both legacy and new fields
             await prisma.companyProspect.update({
                 where: { id },
                 data: {
+                    // Legacy fields (for rollback)
                     stalenessScore: analysis.stalenessScore,
                     stalenessConfidence: analysis.confidence,
                     scoreReasons: JSON.stringify(analysis.reasons),
                     signals: JSON.stringify(analysis.signals),
                     lastAnalysedAt: new Date(),
+
+                    // New canonical fields
+                    websiteHealthStatus: 'success',
+                    websiteHealthScore: analysis.stalenessScore,
+                    websiteHealthScannedAt: new Date(),
+                    websiteHealthError: null,
+
+                    // Priority (unchanged)
                     contactPriorityScore: result.score,
                     contactPriorityBand: result.band,
                     contactPriorityLastCalculatedAt: new Date()

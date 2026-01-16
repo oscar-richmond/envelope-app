@@ -4,6 +4,7 @@ import { PenTool, MessageSquare, Trash2, RefreshCw } from 'lucide-react';
 import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 import MetricTile from '@/components/prospects/MetricTile';
 import { getWebsiteHealthDisplay } from '@/lib/scoring/websiteHealthUtils';
+import WebsiteHealthTruthPanel from '@/components/debug/WebsiteHealthTruthPanel';
 
 // Format relative time for last scanned
 function formatRelativeTime(dateStr: string | Date): string {
@@ -145,12 +146,19 @@ export default function LeadResultRowCard({
     const hasFinData = finScore !== null && finScore !== undefined;
 
     // Web Health (staleness) - using unified utility
-    // Key: use websiteLastScanned or signals.webHealth.updatedAt as the scan indicator
+    // Pass BOTH legacy and new fields - utility picks based on FF
     const webHealth = getWebsiteHealthDisplay({
+        // Legacy fields
         stalenessScore: signals?.webHealth?.score ?? lead.stalenessScore,
         lastAnalysedAt: lead.websiteLastScanned || signals?.webHealth?.updatedAt || lead.lastAnalyzedAt || lead.lastAnalysedAt,
-        websiteUrl: lead.websiteUrl,
-        stalenessConfidence: lead.scoreConfidence
+        stalenessConfidence: lead.scoreConfidence,
+        // New canonical fields (from lead response or signals)
+        websiteHealthStatus: lead.websiteHealthStatus,
+        websiteHealthScore: lead.websiteHealthScore,
+        websiteHealthScannedAt: lead.websiteHealthScannedAt,
+        websiteHealthError: lead.websiteHealthError,
+        // Common
+        websiteUrl: lead.websiteUrl
     });
     const staleScore = webHealth.showScore ? webHealth.score : null;
     const staleLabel = webHealth.label;
@@ -294,6 +302,29 @@ export default function LeadResultRowCard({
                                 />
                             </div>
                         )}
+                        {/* Truth Panel (Debug) */}
+                        <WebsiteHealthTruthPanel
+                            companyId={lead.companyProspectId || lead.id}
+                            companyName={lead.companyName}
+                            rawData={{
+                                websiteHealthStatus: lead.websiteHealthStatus,
+                                websiteHealthScore: lead.websiteHealthScore,
+                                websiteHealthScannedAt: lead.websiteHealthScannedAt,
+                                websiteHealthError: lead.websiteHealthError,
+                                websiteHealthVersion: lead.websiteHealthVersion,
+                                stalenessScore: lead.legacyStalenessScore ?? lead.stalenessScore,
+                                lastAnalysedAt: lead.legacyLastAnalysedAt ?? lead.websiteLastScanned,
+                                _debug: lead._debug
+                            }}
+                            displayResult={{
+                                status: webHealth.status,
+                                score: webHealth.score,
+                                label: webHealth.label,
+                                showScore: webHealth.showScore,
+                                isScanned: webHealth.isScanned
+                            }}
+                            surface="leadboard"
+                        />
                     </div>
 
                     {/* Fin Health */}

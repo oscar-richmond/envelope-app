@@ -2,6 +2,7 @@ import { Building2, Plus, PenTool, Database, X, Eye, Maximize2 } from 'lucide-re
 import { CompanyName } from '@/components/company/CompanyName';
 import MetricTile from './MetricTile';
 import { getWebsiteHealthDisplay } from '@/lib/scoring/websiteHealthUtils';
+import WebsiteHealthTruthPanel from '@/components/debug/WebsiteHealthTruthPanel';
 
 interface ProspectResultRowCardProps {
     company: any;
@@ -76,12 +77,20 @@ export default function ProspectResultRowCard({
     if (finBand === 'Low' || finBand === 'Very Low') finColor = 'red';
 
     // Website Health (Staleness) Logic - using unified utility
+    // Pass BOTH legacy and new fields - utility picks based on FF
     const webHealth = getWebsiteHealthDisplay({
+        // Legacy fields
         stalenessScore: c.stalenessScore,
         lastAnalysedAt: c.lastAnalysedAt || c.lastAnalyzedAt,
-        websiteUrl: c.websiteUrl,
         stalenessConfidence: c.stalenessConfidence,
-        scoreReasons: c.scoreReasons
+        scoreReasons: c.scoreReasons,
+        // New canonical fields
+        websiteHealthStatus: c.websiteHealthStatus,
+        websiteHealthScore: c.websiteHealthScore,
+        websiteHealthScannedAt: c.websiteHealthScannedAt,
+        websiteHealthError: c.websiteHealthError,
+        // Common
+        websiteUrl: c.websiteUrl
     });
     const staleScore = webHealth.showScore ? webHealth.score : null;
     const staleLabel = webHealth.label;
@@ -222,6 +231,29 @@ export default function ProspectResultRowCard({
                         scoreColor={staleColor}
                         subtext={staleScore !== undefined ? (staleScore >= 60 ? 'Needs Update' : 'Active') : null}
                         onDetails={c.scoreReasons ? onWebsiteHealthEvidence : undefined}
+                    />
+                    {/* Truth Panel (Debug) */}
+                    <WebsiteHealthTruthPanel
+                        companyId={c.id}
+                        companyName={c.companyName}
+                        rawData={{
+                            websiteHealthStatus: c.websiteHealthStatus,
+                            websiteHealthScore: c.websiteHealthScore,
+                            websiteHealthScannedAt: c.websiteHealthScannedAt,
+                            websiteHealthError: c.websiteHealthError,
+                            websiteHealthVersion: c.websiteHealthVersion,
+                            stalenessScore: c.legacyStalenessScore ?? c.stalenessScore,
+                            lastAnalysedAt: c.legacyLastAnalysedAt ?? c.lastAnalysedAt,
+                            _debug: c._debug
+                        }}
+                        displayResult={{
+                            status: webHealth.status,
+                            score: webHealth.score,
+                            label: webHealth.label,
+                            showScore: webHealth.showScore,
+                            isScanned: webHealth.isScanned
+                        }}
+                        surface="search"
                     />
 
                     {/* D. Financials - 3rd */}

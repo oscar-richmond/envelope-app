@@ -358,13 +358,23 @@ async function runWebHealthScan(companyId: number, jobId: string) {
         lastScannedAt: new Date().toISOString()
     };
 
-    // Persist to company
+    // Persist to company - DUAL-WRITE to both legacy and new fields
     await prisma.companyProspect.update({
         where: { id: companyId },
         data: {
-            webHealthData: JSON.stringify(webHealthData),
+            websiteDomain: domain,
+
+            // Legacy fields (for rollback)
             stalenessScore: score,
-            websiteDomain: domain
+
+            // New canonical fields
+            websiteHealthStatus: 'success',
+            websiteHealthScore: score,
+            websiteHealthScannedAt: new Date(),
+            websiteHealthError: null,
+
+            // Shared data
+            webHealthData: JSON.stringify(webHealthData)
         }
     });
 

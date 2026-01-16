@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { SCAN_TTL_DAYS } from '@/lib/config/staleness-config';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 
 export async function GET() {
     try {
@@ -133,6 +134,24 @@ export async function GET() {
                 location: lead.location || prospect?.registeredLocation || null,
                 // Incorporation date
                 incorporatedOn: prospect?.incorporatedOn || null,
+                // Website Health (New canonical fields for FF cutover)
+                // SERVER-SIDE GUARD: Only show score when status is "success"
+                websiteHealthStatus: prospect?.websiteHealthStatus || null,
+                websiteHealthScore: prospect?.websiteHealthStatus === 'success'
+                    ? (prospect?.websiteHealthScore ?? null)
+                    : null,  // Force null if not success
+                websiteHealthScannedAt: prospect?.websiteHealthScannedAt || null,
+                websiteHealthError: prospect?.websiteHealthError || null,
+                websiteHealthVersion: prospect?.websiteHealthVersion || null,
+                // Legacy fields (for Truth Panel comparison)
+                legacyStalenessScore: prospect?.stalenessScore ?? null,
+                legacyLastAnalysedAt: prospect?.lastAnalysedAt || null,
+                // Debug info for Truth Panel
+                _debug: {
+                    ffNewWebsiteHealth: FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA,
+                    apiRoute: '/api/leads',
+                    activeSchema: FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA ? 'new' : 'legacy'
+                }
             };
         });
 

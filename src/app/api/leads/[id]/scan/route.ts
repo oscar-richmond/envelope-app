@@ -56,20 +56,40 @@ export async function POST(
                     const websiteData = await res.json();
 
                     if (websiteData.success) {
-                        // Update lead with staleness score
+                        const score = websiteData.overallScore ?? websiteData.stalenessScore ?? 0;
+
+                        // Update lead with staleness score (legacy)
                         await prisma.lead.update({
                             where: { id: leadId },
                             data: {
-                                stalenessScore: websiteData.overallScore ?? websiteData.stalenessScore ?? 0,
+                                stalenessScore: score,
                                 lastAnalyzedAt: new Date(),
                                 copyrightYear: websiteData.copyrightYear,
                                 hasSitemap: websiteData.hasSitemap ?? false,
                             }
                         });
 
+                        // Also update company prospect with new schema fields (DUAL-WRITE)
+                        if (lead.companyProspect?.id) {
+                            await prisma.companyProspect.update({
+                                where: { id: lead.companyProspect.id },
+                                data: {
+                                    // Legacy fields
+                                    stalenessScore: score,
+                                    lastAnalysedAt: new Date(),
+
+                                    // New canonical fields
+                                    websiteHealthStatus: 'success',
+                                    websiteHealthScore: score,
+                                    websiteHealthScannedAt: new Date(),
+                                    websiteHealthError: null
+                                }
+                            });
+                        }
+
                         results.website = {
                             success: true,
-                            score: websiteData.overallScore ?? websiteData.stalenessScore
+                            score
                         };
                     } else {
                         results.website = { success: false, error: websiteData.error };

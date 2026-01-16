@@ -74,6 +74,17 @@ export async function POST(request: Request) {
                 .split('/')[0];
         }
 
+        // ===== CRITICAL: Set status to "scanning" BEFORE starting work =====
+        // This clears any stale score so UI shows "Scanning..." not old score
+        await prisma.companyProspect.update({
+            where: { id: prospect.id },
+            data: {
+                websiteHealthStatus: 'scanning',
+                websiteHealthScore: null,  // Clear stale score
+                websiteHealthError: null
+            }
+        });
+
         // Build scan input
         const scanInput: WebsiteScanInput = {
             domain,
@@ -127,14 +138,24 @@ export async function POST(request: Request) {
 
         const signalStrings = report.factors.map(f => f.label);
 
-        // Persist
+        // Persist to BOTH legacy and new schema for rollback safety
         await prisma.companyProspect.update({
             where: { id: prospect.id },
             data: {
                 websiteDomain: domain,
+
+                // Legacy fields (for rollback)
                 lastAnalysedAt: now,
                 signals: JSON.stringify(signalStrings),
                 stalenessScore: report.score ?? 0,
+
+                // New canonical fields
+                websiteHealthStatus: 'success',
+                websiteHealthScore: report.score ?? null,
+                websiteHealthScannedAt: now,
+                websiteHealthError: null,
+
+                // Structured data (shared)
                 webHealthData: JSON.stringify(webHealthData)
             }
         });

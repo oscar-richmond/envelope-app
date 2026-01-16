@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma'; // Prisma is usually robust on lazy connect
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 
 // Lazy types
 import { CompanySearchCriteria, CompanySearchResult } from '@/lib/providers';
@@ -157,12 +158,24 @@ export async function POST(request: Request) {
                                 websiteMatchFailureReason: db.websiteMatchFailureReason,
                                 websiteLastMatchedAt: db.websiteLastMatchedAt,
 
-                                // Staleness
+                                // Staleness (Legacy)
                                 stalenessScore: db.stalenessScore,
                                 stalenessConfidence: db.stalenessConfidence,
                                 scoreReasons: db.scoreReasons,
                                 signals: db.signals,
                                 lastAnalysedAt: db.lastAnalysedAt || db.lastAnalyzedAt,
+
+                                // Website Health (New canonical)
+                                websiteHealthStatus: db.websiteHealthStatus,
+                                websiteHealthScore: db.websiteHealthStatus === 'success'
+                                    ? (db.websiteHealthScore ?? null)
+                                    : null, // Guard: null if not success
+                                websiteHealthScannedAt: db.websiteHealthScannedAt,
+                                websiteHealthError: db.websiteHealthError,
+                                websiteHealthVersion: db.websiteHealthVersion,
+                                // Legacy fields for Truth Panel
+                                legacyStalenessScore: db.stalenessScore ?? null,
+                                legacyLastAnalysedAt: db.lastAnalysedAt || db.lastAnalyzedAt || null,
 
                                 // Contact Priority
                                 contactPriorityScore: calcResults.score,
@@ -171,7 +184,14 @@ export async function POST(request: Request) {
                                 contactPriorityLastCalculatedAt: db.contactPriorityLastCalculatedAt,
 
                                 // Incorporation Date
-                                incorporatedOn: db.incorporatedOn || r.incorporationDate
+                                incorporatedOn: db.incorporatedOn || r.incorporationDate,
+
+                                // Debug info for Truth Panel
+                                _debug: {
+                                    ffNewWebsiteHealth: FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA,
+                                    apiRoute: '/api/prospects',
+                                    activeSchema: FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA ? 'new' : 'legacy'
+                                }
                             };
                         } catch (mapError) {
                             console.error(`[API] Error mapping company ${r.companyNumber}:`, mapError);
