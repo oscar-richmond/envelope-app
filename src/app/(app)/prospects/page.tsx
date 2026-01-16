@@ -712,7 +712,7 @@ export default function ProspectSearch() {
                         {label} ({score})
                     </span>
 
-                    <div className="flex items-center gap-2 opacity-0 group-hover/web:opacity-100 transition-opacity ml-auto">
+                    <div className="flex items-center gap-2 ml-auto">
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
