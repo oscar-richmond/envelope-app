@@ -9,21 +9,22 @@ import prisma from '@/lib/prisma';
 
 const COMPANIES_HOUSE_API_KEY = process.env.COMPANIES_HOUSE_API_KEY;
 
+// NEW CANONICAL API: /api/scan/financials
 export async function POST(request: Request) {
+    const traceId = crypto.randomUUID();
+
     try {
         const body = await request.json();
-        const { companyProspectId, leadId, force = false } = body;
+        const { companyProspectId, leadId, force = false, surface = 'api' } = body;
 
         if (!companyProspectId && !leadId) {
-            return NextResponse.json({ error: 'companyProspectId or leadId required' }, { status: 400 });
+            return NextResponse.json({ error: 'companyProspectId or leadId required', traceId }, { status: 400 });
         }
 
-        // Find the company prospect
+        // 1. Resolve Company
         let prospect;
         if (companyProspectId) {
-            prospect = await prisma.companyProspect.findUnique({
-                where: { id: companyProspectId }
-            });
+            prospect = await prisma.companyProspect.findUnique({ where: { id: companyProspectId } });
         } else if (leadId) {
             const lead = await prisma.lead.findUnique({
                 where: { id: leadId },
@@ -33,46 +34,54 @@ export async function POST(request: Request) {
         }
 
         if (!prospect) {
-            return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Company not found', traceId }, { status: 404 });
         }
 
-        // Check if already scanned recently
-        const now = new Date();
-        const lastScanned = prospect.financialLastCheckedAt;
-        const isStale = !lastScanned || (now.getTime() - lastScanned.getTime()) > 30 * 24 * 60 * 60 * 1000;
+        // 2. IMMEDIATE STATE WRITE: Scanning
+        await prisma.companyProspect.update({
+            where: { id: prospect.id },
+            data: {
+                financialHealthStatus: 'scanning',
+                financialHealthTraceId: traceId,
+                financialHealthLastWriter: 'api/scan/financials',
+                financialHealthLastSurface: surface
+            }
+        });
 
-        if (!force && !isStale && prospect.financialActivityScore !== null) {
-            return NextResponse.json({
-                status: 'already_complete',
-                message: 'Financials were recently scanned',
-                data: {
-                    score: prospect.financialActivityScore,
-                    band: prospect.financialActivityBand,
-                    lastScannedAt: lastScanned,
-                    isStale: false
-                }
-            });
-        }
-
-        // Check if company number exists
+        // 3. Validation: Company Number
         const companyNumber = prospect.companyNumber;
         if (!companyNumber) {
-            return NextResponse.json({
-                status: 'no_company_number',
-                message: 'No Companies House number found',
+            await prisma.companyProspect.update({
+                where: { id: prospect.id },
                 data: {
-                    score: null,
-                    error: 'No company number'
+                    financialHealthStatus: 'error',
+                    financialHealthError: 'NO_COMPANY_NUMBER',
+                    financialHealthScore: null,
+                    financialHealthLabel: null
                 }
             });
+            return NextResponse.json({
+                status: 'failed',
+                code: 'NO_COMPANY_NUMBER',
+                detail: 'No Companies House number found',
+                traceId,
+                financialHealthStatus: 'error',
+                updatedCompanyHealth: {
+                    companyId: prospect.id,
+                    financialHealthStatus: 'error',
+                    financialHealthError: 'NO_COMPANY_NUMBER'
+                }
+            }, { status: 422 });
         }
 
-        // Build factors array
-        const factors: { id: string; label: string; points: number; polarity: string; description: string }[] = [];
-        let score = 0;
-        let incorporationDate: Date | null = null; // Capture from CH response
+        const now = new Date();
+        const factors: { id: string; label: string; points: number; description: string }[] = [];
+        let score = 50; // Base score
+        let incorporationDate: Date | null = null;
+        let band = 'Medium';
+        let errorMsg: string | null = null;
 
-        // Try to fetch from Companies House
+        // 4. Run Logic (Companies House)
         if (COMPANIES_HOUSE_API_KEY) {
             try {
                 const auth = Buffer.from(`${COMPANIES_HOUSE_API_KEY}:`).toString('base64');
@@ -84,12 +93,13 @@ export async function POST(request: Request) {
                 if (profileRes.ok) {
                     const profile = await profileRes.json();
 
-                    // Company status
+                    // Active Status
                     if (profile.company_status === 'active') {
-                        factors.push({ id: 'active', label: 'Company is active', points: 25, polarity: 'positive', description: 'Currently trading' });
-                        score += 25;
+                        factors.push({ id: 'active', label: 'Company is active', points: 25, description: 'Currently trading' });
+                        score += 25; // += points logic
                     } else {
-                        factors.push({ id: 'inactive', label: `Company status: ${profile.company_status}`, points: -10, polarity: 'negative', description: 'Not currently active' });
+                        factors.push({ id: 'inactive', label: `Company status: ${profile.company_status}`, points: -25, description: 'Not currently active' });
+                        score -= 25;
                     }
 
                     // Accounts
@@ -97,80 +107,76 @@ export async function POST(request: Request) {
                         const dueDate = new Date(profile.accounts.next_due);
                         const daysUntilDue = Math.floor((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                         if (daysUntilDue > 60) {
-                            factors.push({ id: 'accounts_ok', label: 'Accounts up to date', points: 15, polarity: 'positive', description: `Next due in ${daysUntilDue} days` });
+                            factors.push({ id: 'accounts_ok', label: 'Accounts up to date', points: 15, description: `Next due in ${daysUntilDue} days` });
                             score += 15;
-                        } else if (daysUntilDue > 0) {
-                            factors.push({ id: 'accounts_due', label: 'Accounts due soon', points: 5, polarity: 'neutral', description: `Due in ${daysUntilDue} days` });
-                            score += 5;
-                        } else {
-                            factors.push({ id: 'accounts_overdue', label: 'Accounts overdue', points: -10, polarity: 'negative', description: 'Filing overdue' });
+                        } else if (daysUntilDue < 0) {
+                            factors.push({ id: 'accounts_overdue', label: 'Accounts overdue', points: -15, description: 'Filing overdue' });
+                            score -= 15;
                         }
                     }
 
-                    // Company age
+                    // Age
                     if (profile.date_of_creation) {
                         const created = new Date(profile.date_of_creation);
-                        incorporationDate = created; // Capture for persistence
+                        incorporationDate = created;
                         const yearsOld = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24 * 365));
                         if (yearsOld >= 5) {
-                            factors.push({ id: 'established', label: 'Established company', points: 20, polarity: 'positive', description: `${yearsOld} years in business` });
-                            score += 20;
-                        } else if (yearsOld >= 2) {
-                            factors.push({ id: 'growing', label: 'Growing company', points: 10, polarity: 'positive', description: `${yearsOld} years in business` });
+                            factors.push({ id: 'established', label: 'Established', points: 10, description: '>5 years' });
                             score += 10;
-                        } else {
-                            factors.push({ id: 'new', label: 'New company', points: 5, polarity: 'neutral', description: `${yearsOld} years in business` });
-                            score += 5;
+                        } else if (yearsOld < 1) {
+                            factors.push({ id: 'new', label: 'New company', points: -5, description: '<1 year old' });
+                            score -= 5;
                         }
                     }
-
-                    // Officers
-                    const officersRes = await fetch(
-                        `https://api.company-information.service.gov.uk/company/${companyNumber}/officers`,
-                        { headers: { Authorization: `Basic ${auth}` } }
-                    ).catch(() => null);
-
-                    if (officersRes?.ok) {
-                        const officers = await officersRes.json();
-                        const activeOfficers = officers.items?.filter((o: any) => !o.resigned_on)?.length || 0;
-                        if (activeOfficers >= 2) {
-                            factors.push({ id: 'officers', label: 'Multiple directors', points: 10, polarity: 'positive', description: `${activeOfficers} active officers` });
-                            score += 10;
-                        } else if (activeOfficers === 1) {
-                            factors.push({ id: 'sole_director', label: 'Sole director', points: 5, polarity: 'neutral', description: '1 active officer' });
-                            score += 5;
-                        }
-                    }
+                } else {
+                    errorMsg = `CH API Error: ${profileRes.status}`;
                 }
+
             } catch (e: any) {
-                console.error('[ScanFinancials] Companies House API error:', e);
-                factors.push({ id: 'api_error', label: 'Could not fetch CH data', points: 0, polarity: 'neutral', description: e.message });
+                errorMsg = e.message;
             }
         } else {
-            // No API key - generate basic score based on available data
-            factors.push({ id: 'no_api', label: 'Companies House API not configured', points: 0, polarity: 'neutral', description: 'Limited financial data' });
-            score = 50; // Default middle score
+            factors.push({ id: 'no_api', label: 'API Key Missing', points: 0, description: 'Dev mode' });
         }
 
-        // Ensure score is in range
-        score = Math.max(0, Math.min(100, score));
-        const band = score >= 75 ? 'Very Strong' : score >= 60 ? 'Strong' : score >= 40 ? 'Medium' : score >= 25 ? 'Weak' : 'Very Weak';
+        if (errorMsg) {
+            console.error('[ScanFinancials] Error:', errorMsg);
+        }
 
-        // Persist
+        // Clamp
+        score = Math.max(0, Math.min(100, score));
+        band = score >= 75 ? 'Very Strong' : score >= 60 ? 'Strong' : score >= 40 ? 'Medium' : score >= 25 ? 'Weak' : 'Very Weak';
+
+        // 5. Persist Canonical
         await prisma.companyProspect.update({
             where: { id: prospect.id },
             data: {
+                // Canonical New Fields
+                financialHealthStatus: 'success',
+                financialHealthScore: score,
+                financialHealthLabel: band,
+                financialHealthVersion: 1,
+                financialHealthTraceId: traceId,
+                financialHealthLastSurface: surface,
+                financialHealthLastWriter: 'api/scan/financials',
+                financialLastCheckedAt: now,
+                financialHealthError: null,
+
+                // Legacy Field Backfill (for rollback)
                 financialActivityScore: score,
                 financialActivityBand: band,
-                financialLastCheckedAt: now,
+
+                // Stored Report
                 finHealthData: JSON.stringify({
+                    version: 1,
                     score,
-                    band,
+                    label: band,
                     factors,
-                    computedAt: now.toISOString(),
-                    lastSyncedAt: now.toISOString()
+                    traceId,
+                    computedAt: now.toISOString()
                 }),
-                // Persist incorporation date if we got it from CH
+
+                // Side Effect: Incorp Date
                 ...(incorporationDate && {
                     incorporatedOn: incorporationDate,
                     incorporatedOnSource: 'companies_house',
@@ -179,24 +185,37 @@ export async function POST(request: Request) {
             }
         });
 
-        console.log(`[ScanFinancials] Completed for prospect ${prospect.id}: score=${score}`);
-
+        // 6. Return Canonical State
         return NextResponse.json({
             status: 'complete',
             message: 'Financial scan completed',
-            data: {
+            traceId,
+
+            // Canonical Readback Structure
+            updatedCompanyHealth: {
+                companyId: prospect.id,
+                financialHealthStatus: 'success',
+                financialHealthScore: score,
+                financialHealthLabel: band,
+                financialHealthVersion: 1,
+                financialLastCheckedAt: now.toISOString()
+            },
+
+            _trace: {
+                traceId,
+                factorsCount: factors.length,
                 score,
-                band,
-                factors,
-                lastScannedAt: now
+                label: band
             }
         });
 
     } catch (error: any) {
-        console.error('[ScanFinancials] Error:', error);
+        console.error('[ScanFinancials] Fatal:', error);
+
         return NextResponse.json({
             status: 'failed',
-            error: error.message
+            error: error.message,
+            traceId
         }, { status: 500 });
     }
 }

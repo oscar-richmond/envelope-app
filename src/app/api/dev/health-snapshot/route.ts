@@ -53,12 +53,23 @@ export async function GET(request: Request) {
                 websiteHealthVersion: true,
                 websiteHealthScannedAt: true,
                 websiteHealthError: true,
+                websiteHealthTraceId: true,
+                websiteHealthLastSurface: true,
+                websiteHealthLastWriter: true,
                 webHealthData: true,
 
                 // Financial Health
                 financialActivityScore: true,
                 financialActivityBand: true,
                 financialLastCheckedAt: true,
+                financialHealthStatus: true,
+                financialHealthScore: true,
+                financialHealthLabel: true,
+                financialHealthError: true,
+                financialHealthVersion: true,
+                financialHealthTraceId: true,
+                financialHealthLastSurface: true,
+                financialHealthLastWriter: true,
                 finHealthData: true,
 
                 // Legacy
@@ -179,12 +190,21 @@ export async function GET(request: Request) {
                     version: company.websiteHealthVersion,
                     scannedAt: company.websiteHealthScannedAt,
                     error: company.websiteHealthError,
+                    traceId: company.websiteHealthTraceId,
+                    lastSurface: company.websiteHealthLastSurface,
+                    lastWriter: company.websiteHealthLastWriter,
                     storedReport: webHealthReport
                 },
                 financialHealth: {
-                    score: company.financialActivityScore,
-                    band: company.financialActivityBand,
+                    status: company.financialHealthStatus,
+                    score: company.financialHealthScore ?? company.financialActivityScore,
+                    label: company.financialHealthLabel ?? company.financialActivityBand,
+                    version: company.financialHealthVersion,
                     lastCheckedAt: company.financialLastCheckedAt,
+                    error: company.financialHealthError,
+                    traceId: company.financialHealthTraceId,
+                    lastSurface: company.financialHealthLastSurface,
+                    lastWriter: company.financialHealthLastWriter,
                     storedReport: finHealthReport
                 },
                 legacy: {

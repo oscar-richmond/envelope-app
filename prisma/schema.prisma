@@ -94,12 +94,23 @@ model CompanyProspect {
   websiteHealthError      String?   // Error message if status = failed
   websiteHealthLabel      String?   // Computed label (e.g. "Healthy", "Fair", "At Risk")
   websiteHealthVersion    Int       @default(1) // Schema version for future migrations
+  websiteHealthTraceId    String?   // For forensic debugging
+  websiteHealthLastSurface String?  // search, leadboard, etc
+  websiteHealthLastWriter String?   // function name or component
 
   // Financial Analysis (Companies House)
   financialActivityScore  Int?      // 0-100, Nullable, no default - null = never checked
   financialActivityBand   String?   // "Very Strong", "Strong", "Medium", "Low"
   financialSignals        String?   // JSON
   financialLastCheckedAt  DateTime?
+  financialHealthStatus   String?   // idle, scanning, success, failed (New Canonical)
+  financialHealthScore    Int?      // Nullable alias if we move to unified model
+  financialHealthLabel    String?
+  financialHealthError    String?
+  financialHealthVersion  Int       @default(1)
+  financialHealthTraceId  String?
+  financialHealthLastSurface String?
+  financialHealthLastWriter String?
 
   // Company Incorporation (Companies House)
   incorporatedOn              DateTime?  @db.Date  // Date of incorporation

@@ -64,7 +64,21 @@ export async function runWebsiteHealthScan({
     }
 
     try {
-        // 1. Resolve website URL from multiple sources
+        // 1. IMMEDIATE STATE WRITE: "Scanning"
+        await prisma.companyProspect.update({
+            where: { id: companyId },
+            data: {
+                websiteHealthStatus: 'scanning',
+                websiteHealthScore: null,
+                websiteHealthLabel: null,
+                websiteHealthError: null,
+                websiteHealthTraceId: requestId,
+                websiteHealthLastWriter: 'runWebsiteHealthScan',
+                websiteHealthLastSurface: initiatedFrom
+            }
+        });
+
+        // 2. Resolve website URL from multiple sources
         const { resolveWebsiteUrl } = await import('./resolveUrl');
         const urlResolution = await resolveWebsiteUrl(companyId);
 
@@ -79,7 +93,10 @@ export async function runWebsiteHealthScan({
                     websiteHealthScore: null,
                     websiteHealthLabel: null,
                     websiteHealthError: 'NO_WEBSITE_URL',
-                    websiteHealthVersion: 2
+                    websiteHealthVersion: 2,
+                    websiteHealthTraceId: requestId,
+                    websiteHealthLastWriter: 'runWebsiteHealthScan',
+                    websiteHealthLastSurface: initiatedFrom
                 }
             });
 
@@ -111,7 +128,7 @@ export async function runWebsiteHealthScan({
             };
         }
 
-        // 2. Fetch company for additional data
+        // 3. Fetch company for additional data
         const company = await prisma.companyProspect.findUnique({
             where: { id: companyId },
             select: {
@@ -125,13 +142,13 @@ export async function runWebsiteHealthScan({
             throw new Error(`Company ${companyId} not found`);
         }
 
-        // 3. Extract domain from resolved URL
+        // 4. Extract domain from resolved URL
         const domain = urlResolution.url
             .replace(/^https?:\/\//, '')
             .replace(/^www\./, '')
             .split('/')[0];
 
-        // 4. Calculate days since last verified
+        // 5. Calculate days since last verified
         let daysSinceVerified: number | undefined;
         if (company.websiteHealthScannedAt) {
             daysSinceVerified = Math.floor(
@@ -139,7 +156,7 @@ export async function runWebsiteHealthScan({
             );
         }
 
-        // 5. Perform scan (simple reachability check)
+        // 6. Perform scan (simple reachability check)
         let isReachable = true;
         let isHttps = urlResolution.url.startsWith('https');
         let httpStatus = 200;
@@ -167,7 +184,7 @@ export async function runWebsiteHealthScan({
             isReachable = false;
         }
 
-        // 5. Compute score using V2 engine
+        // 7. Compute score using V2 engine
         const report = computeWebsiteHealthV2({
             domain,
             isReachable,
@@ -177,7 +194,7 @@ export async function runWebsiteHealthScan({
             hasSitemap: false // TODO: Add sitemap detection
         });
 
-        // 6. ENFORCE V2 CONTRACT
+        // 8. ENFORCE V2 CONTRACT
         if (report.version !== 2) {
             throw new Error(`Expected V2, got version ${report.version}`);
         }
@@ -185,12 +202,12 @@ export async function runWebsiteHealthScan({
             throw new Error(`V2 contract violation: baseScore=${report.baseScore}, expected 50`);
         }
 
-        // 7. ENFORCE FACTOR REQUIREMENT FOR SUCCESS
+        // 9. ENFORCE FACTOR REQUIREMENT FOR SUCCESS
         if (report.factors.length === 0) {
             throw new Error('Cannot mark as success with 0 factors - invalid scan data');
         }
 
-        // 8. VALIDATE SCORE MATH
+        // 10. VALIDATE SCORE MATH
         const sumPoints = report.factors.reduce((sum, f) => sum + f.points, 0);
         const preClampScore = report.baseScore + sumPoints;
         const expectedScore = Math.max(0, Math.min(100, preClampScore));
@@ -202,7 +219,7 @@ export async function runWebsiteHealthScan({
             );
         }
 
-        // 9. Persist to DB
+        // 11. Persist to DB
         const persistedAt = new Date();
         await prisma.companyProspect.update({
             where: { id: companyId },
@@ -211,16 +228,19 @@ export async function runWebsiteHealthScan({
 
                 // Canonical fields (V2)
                 websiteHealthStatus: 'success',
-                websiteHealthScore: report.score,
+                websiteHealthScore: report.score, // NEVER 0 unless report proves it (which is fine)
                 websiteHealthLabel: report.label,
                 websiteHealthVersion: 2,
                 websiteHealthScannedAt: persistedAt,
                 websiteHealthError: null,
+                websiteHealthTraceId: report.traceId,
+                websiteHealthLastWriter: 'runWebsiteHealthScan',
+                websiteHealthLastSurface: initiatedFrom,
 
                 // Stored report (full V2 report with traceId)
                 webHealthData: JSON.stringify(report),
 
-                // Legacy dual-write
+                // Legacy dual-write (for fallback safety only)
                 stalenessScore: report.score,
                 lastAnalysedAt: persistedAt,
                 signals: JSON.stringify(report.factors.map(f => f.label))

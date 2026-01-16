@@ -85,6 +85,30 @@ export function HealthSnapshotModal({ companyId, onClose }: Props) {
                             </button>
                         )}
                         <button
+                            onClick={async () => {
+                                if (!confirm('Force re-run scan?')) return;
+                                setLoading(true);
+                                try {
+                                    /* Determine scan type based on active tab or default to web */
+                                    await fetch('/api/scan/website', {
+                                        method: 'POST',
+                                        body: JSON.stringify({ companyId, force: true, surface: 'snapshot_modal' })
+                                    });
+                                    // Refresh snapshot
+                                    const res = await fetch(`/api/dev/health-snapshot?companyId=${companyId}`);
+                                    const json = await res.json();
+                                    setData(json);
+                                } catch (e) {
+                                    alert('Scan failed: ' + e.message);
+                                } finally {
+                                    setLoading(false);
+                                }
+                            }}
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors border border-gray-300"
+                        >
+                            🔄 Re-Run Scan
+                        </button>
+                        <button
                             onClick={onClose}
                             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                         >
@@ -125,7 +149,15 @@ export function HealthSnapshotModal({ companyId, onClose }: Props) {
                             <section>
                                 <h3 className="text-sm font-semibold text-gray-700 mb-2">DB - Canonical Fields</h3>
                                 <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs overflow-x-auto font-mono">
-                                    {JSON.stringify(data.db?.websiteHealth, null, 2)}
+                                    {JSON.stringify({
+                                        ...data.db?.websiteHealth,
+                                        // Highlight forensics
+                                        _FORENSICS: {
+                                            TRACE: data.db?.websiteHealth?.traceId,
+                                            WRITER: data.db?.websiteHealth?.lastWriter,
+                                            SURFACE: data.db?.websiteHealth?.lastSurface
+                                        }
+                                    }, null, 2)}
                                 </pre>
                             </section>
 
