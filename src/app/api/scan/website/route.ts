@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { computeWebsiteReview, type WebsiteScanInput } from '@/lib/scoring';
+import { computeWebsiteHealthV2, type WebsiteScanInputV2 } from '@/lib/scoring/computeWebsiteHealthV2';
 import { validateReport } from '@/lib/scoring/types';
 
 /**
@@ -128,30 +128,36 @@ export async function POST(request: Request) {
             scanInput.error = e.message || 'Scan error';
         }
 
-        // Compute score using canonical scoring engine
-        const report = computeWebsiteReview(scanInput);
-
-        // VALIDATE score matches factors (enforce math consistency)
-        const validation = validateReport(report);
-        if (!validation.valid) {
-            const errorMsg = `Scoring mismatch: computed=${report.score}, expected=${validation.expectedScore}`;
-            console.error('[ScanWebsite] VALIDATION FAILED', {
+        // Compute score using V2 scoring engine (with built-in validation)
+        let report;
+        try {
+            report = computeWebsiteHealthV2({
+                domain,
+                isReachable: scanInput.isReachable,
+                isHttps: scanInput.isHttps,
+                httpStatus: scanInput.httpStatus,
+                daysSinceVerified: scanInput.daysSinceVerified,
+                hasSitemap: false // TODO: Add sitemap detection
+            });
+        } catch (validationError: any) {
+            // V2 scorer throws on validation failure
+            const errorMsg = validationError.message || 'Scoring validation failed';
+            console.error('[ScanWebsite] V2 VALIDATION FAILED', {
                 companyId: prospect.id,
                 companyName: prospect.companyName,
-                computed: report.score,
-                expected: validation.expectedScore,
-                baseScore: report.baseScore,
-                factors: report.factors
+                error: errorMsg,
+                scanInput
             });
 
-            // Set error status in DB
+            // Persist error state
             await prisma.companyProspect.update({
                 where: { id: prospect.id },
                 data: {
                     websiteHealthStatus: 'error',
                     websiteHealthScore: null,
                     websiteHealthLabel: null,
-                    websiteHealthError: errorMsg
+                    websiteHealthError: errorMsg,
+                    websiteHealthVersion: 2
                 }
             });
 
@@ -161,15 +167,6 @@ export async function POST(request: Request) {
             }, { status: 500 });
         }
 
-        // Build webHealthData
-        const webHealthData = {
-            ...report,
-            status: 'success',
-            domain
-        };
-
-        const signalStrings = report.factors.map(f => f.label);
-
         // Persist to BOTH legacy and new schema for rollback safety
         await prisma.companyProspect.update({
             where: { id: prospect.id },
@@ -178,18 +175,19 @@ export async function POST(request: Request) {
 
                 // Legacy fields (for rollback)
                 lastAnalysedAt: now,
-                signals: JSON.stringify(signalStrings),
-                stalenessScore: report.score ?? null,  // FIXED: null for incomplete scans
+                signals: JSON.stringify(report.factors.map(f => f.label)),
+                stalenessScore: report.score,
 
-                // New canonical fields
+                // New canonical fields (V2)
                 websiteHealthStatus: 'success',
-                websiteHealthScore: report.score ?? null,
-                websiteHealthLabel: report.statusLabel,  // Persist computed label
+                websiteHealthScore: report.score,
+                websiteHealthLabel: report.label,
                 websiteHealthScannedAt: now,
                 websiteHealthError: null,
+                websiteHealthVersion: 2, // V2 marker
 
-                // Structured data (shared)
-                webHealthData: JSON.stringify(webHealthData)
+                // Structured report (contains full V2 report with tr aceId)
+                webHealthData: JSON.stringify(report)
             }
         });
 
