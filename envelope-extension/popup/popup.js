@@ -2,6 +2,19 @@
 
 const API_BASE = 'https://envelope-app-sage.vercel.app';
 
+// Debug toggle - set via localStorage: envelope-debug
+const DEBUG = (() => {
+    try {
+        return localStorage.getItem('envelope-debug') === 'true';
+    } catch {
+        return false;
+    }
+})();
+
+function log(...args) {
+    if (DEBUG) console.log('[Envelope]', ...args);
+}
+
 // DOM Elements
 const elements = {
     authRequired: document.getElementById('auth-required'),
@@ -315,16 +328,28 @@ async function getPageData(tabId, context, url) {
                 target: { tabId },
                 func: parseLinkedInPage,
                 args: [context]
+            }).catch(err => {
+                log('Script execution failed:', err.message);
+                return null;
             });
-            return results[0]?.result;
+            if (!results || !Array.isArray(results) || results.length === 0) {
+                return extractFromUrl(url);
+            }
+            return results[0]?.result || extractFromUrl(url);
         }
 
         if (context === 'google_maps') {
             const results = await chrome.scripting.executeScript({
                 target: { tabId },
                 func: parseGoogleMapsPage
+            }).catch(err => {
+                log('Script execution failed:', err.message);
+                return null;
             });
-            return results[0]?.result;
+            if (!results || !Array.isArray(results) || results.length === 0) {
+                return extractFromUrl(url);
+            }
+            return results[0]?.result || extractFromUrl(url);
         }
 
         if (context.startsWith('directory_')) {
@@ -332,16 +357,28 @@ async function getPageData(tabId, context, url) {
                 target: { tabId },
                 func: parseDirectoryPage,
                 args: [context]
+            }).catch(err => {
+                log('Script execution failed:', err.message);
+                return null;
             });
-            return results[0]?.result;
+            if (!results || !Array.isArray(results) || results.length === 0) {
+                return extractFromUrl(url);
+            }
+            return results[0]?.result || extractFromUrl(url);
         }
 
         if (context === 'website') {
             const results = await chrome.scripting.executeScript({
                 target: { tabId },
                 func: parseWebsitePage
+            }).catch(err => {
+                log('Script execution failed:', err.message);
+                return null;
             });
-            return results[0]?.result;
+            if (!results || !Array.isArray(results) || results.length === 0) {
+                return extractFromUrl(url);
+            }
+            return results[0]?.result || extractFromUrl(url);
         }
     } catch (e) {
         console.error('Script injection failed:', e);
@@ -800,6 +837,32 @@ function updateComposeButton() {
     elements.btnCompose.disabled = selectedWithValidEmail.length === 0;
 }
 
+// Normalize API responses with safe defaults
+function normalizeDiscoveryResult(result) {
+    if (!result || typeof result !== 'object') {
+        return {
+            success: false,
+            error: 'Invalid response',
+            bestContacts: [],
+            emails: [],
+            patterns: [],
+            stats: {},
+            warnings: []
+        };
+    }
+
+    return {
+        success: result.success || false,
+        error: result.error || null,
+        bestContacts: Array.isArray(result.bestContacts) ? result.bestContacts : [],
+        emails: Array.isArray(result.emails) ? result.emails : [],
+        patterns: Array.isArray(result.patterns) ? result.patterns : [],
+        stats: result.stats || {},
+        warnings: Array.isArray(result.warnings) ? result.warnings : [],
+        requestId: result.requestId || null
+    };
+}
+
 // Find contacts using Phase 3 email discovery v3
 async function findContacts() {
     const website = elements.fieldWebsite.value.trim();
@@ -852,7 +915,8 @@ async function findContacts() {
         });
 
         responseRequestId = res.headers.get('x-request-id') || '';
-        const result = await res.json();
+        const rawResult = await res.json();
+        const result = normalizeDiscoveryResult(rawResult);
 
         console.log('[Envelope V3] Result:', result);
 

@@ -1,7 +1,15 @@
 // Envelope Chrome Extension - Background Service Worker
 
 const API_BASE = 'https://envelope-app-sage.vercel.app';
-const DEBUG = true; // Set to false in production
+
+// Debug toggle - set via environment or manually
+const DEBUG = (() => {
+    try {
+        return self.localStorage?.getItem('envelope-debug') === 'true';
+    } catch {
+        return false; // Production default: off
+    }
+})();
 
 function log(...args) {
     if (DEBUG) console.log('[Envelope]', ...args);
@@ -40,7 +48,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                     return;
                 }
 
-                // Execute script to read token from page localStorage
+                // Execute script safely with error handling
                 const results = await chrome.scripting.executeScript({
                     target: { tabId },
                     func: () => {
@@ -63,9 +71,28 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                         }
                         return null;
                     }
+                }).catch(error => {
+                    // Handle script execution errors gracefully
+                    const msg = error.message || '';
+                    if (
+                        msg.includes('No tab with id') ||
+                        msg.includes('No frame with id') ||
+                        msg.includes('cannot be scripted') ||
+                        msg.includes('was removed')
+                    ) {
+                        log('Tab/frame gone during script execution (expected)');
+                        return null; // Tab closed/navigated - stop polling
+                    }
+                    throw error; // Re-throw unexpected errors
                 });
 
-                const data = results[0]?.result;
+                // Check if we got results (tab might have closed)
+                if (!results || !Array.isArray(results) || results.length === 0) {
+                    log('No results from script execution - tab likely closed');
+                    return; // Stop polling
+                }
+
+                const data = results[0]?.result || null;
                 if (data?.token && data?.email) {
                     log('Token received from localStorage!');
 
