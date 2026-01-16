@@ -64,13 +64,59 @@ export async function runWebsiteHealthScan({
     }
 
     try {
-        // 1. Fetch company
+        // 1. Resolve website URL from multiple sources
+        const { resolveWebsiteUrl } = await import('./resolveUrl');
+        const urlResolution = await resolveWebsiteUrl(companyId);
+
+        if (!urlResolution.url) {
+            // NO URL FOUND - Return explicit error state
+            const errorMsg = 'No website URL available for this company';
+
+            await prisma.companyProspect.update({
+                where: { id: companyId },
+                data: {
+                    websiteHealthStatus: 'error',
+                    websiteHealthScore: null,
+                    websiteHealthLabel: null,
+                    websiteHealthError: 'NO_WEBSITE_URL',
+                    websiteHealthVersion: 2
+                }
+            });
+
+            return {
+                traceId: crypto.randomUUID(),
+                scorerVersion: 2,
+                baseScoreUsed: 50,
+                route: 'runWebsiteHealthScan',
+                initiatedFrom,
+
+                factorsCount: 0,
+                preClampScore: 0,
+                finalScore: 0,
+                label: 'Error',
+
+                dbWriteConfirmed: true,
+                dbReadback: {
+                    websiteHealthScore: null,
+                    websiteHealthLabel: null,
+                    websiteHealthVersion: 2,
+                    webHealthDataExists: false
+                },
+
+                status: 'error',
+                error: errorMsg,
+                computedAt: new Date().toISOString(),
+                persistedAt: new Date().toISOString(),
+                requestId
+            };
+        }
+
+        // 2. Fetch company for additional data
         const company = await prisma.companyProspect.findUnique({
             where: { id: companyId },
             select: {
                 id: true,
                 companyName: true,
-                websiteUrl: true,
                 websiteHealthScannedAt: true
             }
         });
@@ -79,17 +125,13 @@ export async function runWebsiteHealthScan({
             throw new Error(`Company ${companyId} not found`);
         }
 
-        if (!company.websiteUrl) {
-            throw new Error('No website URL found');
-        }
-
-        // 2. Extract domain
-        const domain = company.websiteUrl
+        // 3. Extract domain from resolved URL
+        const domain = urlResolution.url
             .replace(/^https?:\/\//, '')
             .replace(/^www\./, '')
             .split('/')[0];
 
-        // 3. Calculate days since last verified
+        // 4. Calculate days since last verified
         let daysSinceVerified: number | undefined;
         if (company.websiteHealthScannedAt) {
             daysSinceVerified = Math.floor(
@@ -97,9 +139,9 @@ export async function runWebsiteHealthScan({
             );
         }
 
-        // 4. Perform scan (simple reachability check)
+        // 5. Perform scan (simple reachability check)
         let isReachable = true;
-        let isHttps = company.websiteUrl.startsWith('https');
+        let isHttps = urlResolution.url.startsWith('https');
         let httpStatus = 200;
 
         try {
@@ -143,11 +185,24 @@ export async function runWebsiteHealthScan({
             throw new Error(`V2 contract violation: baseScore=${report.baseScore}, expected 50`);
         }
 
-        // 7. Calculate pre-clamp score for diagnostics
+        // 7. ENFORCE FACTOR REQUIREMENT FOR SUCCESS
+        if (report.factors.length === 0) {
+            throw new Error('Cannot mark as success with 0 factors - invalid scan data');
+        }
+
+        // 8. VALIDATE SCORE MATH
         const sumPoints = report.factors.reduce((sum, f) => sum + f.points, 0);
         const preClampScore = report.baseScore + sumPoints;
+        const expectedScore = Math.max(0, Math.min(100, preClampScore));
 
-        // 8. Persist to DB
+        if (report.score !== expectedScore) {
+            throw new Error(
+                `Score math violation: score=${report.score}, expected=${expectedScore} ` +
+                `(base=${report.baseScore} + points=${sumPoints} = ${preClampScore}, clamped to ${expectedScore})`
+            );
+        }
+
+        // 9. Persist to DB
         const persistedAt = new Date();
         await prisma.companyProspect.update({
             where: { id: companyId },

@@ -56,7 +56,13 @@ export async function POST(request: Request) {
             },
 
             // Full trace (for debugging)
-            _trace: trace
+            _trace: {
+                ...trace,
+                // Enhanced forensics
+                resolvedUrlUsed: trace.status === 'success' ? 'urlResolution?.url' : null,
+                urlSource: trace.status === 'success' ? 'urlResolution?.source' : 'none',
+                httpStatus: trace.status === 'success' ? 200 : null  // TODO: Get actual from trace
+            }
         });
 
     } catch (error: any) {
