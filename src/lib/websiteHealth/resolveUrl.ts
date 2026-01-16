@@ -50,14 +50,6 @@ export async function resolveWebsiteUrl(companyId: number): Promise<{ url: strin
         };
     }
 
-    // Priority 3: Google Places website
-    if (company.placesWebsite && company.placesWebsite.trim().length > 0) {
-        return {
-            url: company.placesWebsite,
-            source: 'google_places'
-        };
-    }
-
     // No URL found
     return {
         url: null,
