@@ -25,6 +25,8 @@ import { getWebHealthDisplay } from '@/lib/websiteHealth/displayHelper';
 import { WebHealthDebugStrip } from '@/components/diagnostics/WebHealthDebugStrip';
 import { HealthSnapshotModal } from '@/components/diagnostics/HealthSnapshotModal';
 import { MismatchBanner } from '@/components/diagnostics/MismatchBanner';
+import { scanWebsiteHealth, getErrorMessage } from '@/lib/websiteHealth/scanClient';
+import { getWebHealthDisplay, getWebHealthColorClasses } from '@/lib/websiteHealth/displayHelper';
 
 export default function ProspectSearch() {
     const router = useRouter();
@@ -74,6 +76,7 @@ export default function ProspectSearch() {
     // Diagnostics
     const diagnosticsEnabled = useDiagnostics();
     const [snapshotCompanyId, setSnapshotCompanyId] = useState<number | null>(null);
+    const [scanningIds, setScanningIds] = useState<Set<number>>(new Set());
 
     // --- Draft Action ---
     const [viewDraft, setViewDraft] = useState<any | null>(null);
@@ -496,61 +499,54 @@ export default function ProspectSearch() {
         );
     };
     const handleReanalyze = async (company: any, id: number) => {
-        if (!confirm(`Re-scan website health for ${company.companyName}?`)) return;
-
-        // Debug trace
-        if (process.env.NEXT_PUBLIC_DEBUG_HEALTH === '1') {
-            console.log('[WEB_HEALTH_UI]', {
-                event: 'SCAN_START',
-                companyId: id,
-                companyName: company.companyName
-            });
+        // Confirmation only if it has a score already to avoid accidental rescans
+        if (company.stalenessScore !== undefined && company.stalenessScore !== null) {
+            if (!confirm(`Re-scan website health for ${company.companyName}?`)) return;
         }
 
-        try {
-            // Use shared scan client
-            const { scanWebsiteHealth, getErrorMessage } = await import('@/lib/websiteHealth/scanClient');
+        setScanningIds(prev => {
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+        });
 
+        // Optimistic UI check - ensure we don't block interaction immediately
+        // The UI will show "Scanning..." via scanningIds state
+
+        try {
             const result = await scanWebsiteHealth({
                 companyId: id,
                 surface: 'search',
                 force: true
             });
 
-            // Debug trace response
-            if (process.env.NEXT_PUBLIC_DEBUG_HEALTH === '1') {
-                console.log('[WEB_HEALTH_UI]', {
-                    event: 'SCAN_RESPONSE',
-                    companyId: id,
-                    status: result.status,
-                    updatedCompanyHealth: result.updatedCompanyHealth
-                });
-            }
-
-            // Update local state immediately
+            // Update local state immediately with canonical fields
             if (result.updatedCompanyHealth) {
                 setResults(prev => prev.map(p => {
                     if (p.id === id) {
                         return {
                             ...p,
-                            ...result.updatedCompanyHealth
+                            ...result.updatedCompanyHealth,
+                            // Ensure legacy stalenessScore is synced to prevent mismatch
+                            stalenessScore: result.updatedCompanyHealth.websiteHealthScore
                         };
                     }
                     return p;
                 }));
             }
 
-            const displayScore = result.websiteHealthScore ?? 'N/A';
-            const displayLabel = result.websiteHealthLabel ?? '';
-            alert(`Website Health scan complete!\nScore: ${displayScore} - ${displayLabel}`);
-
         } catch (error: any) {
-            // Show specific error message based on error code
-            const { getErrorMessage } = await import('@/lib/websiteHealth/scanClient');
             const message = getErrorMessage(error);
-
             console.error('Website scan error:', error);
+
+            // Mark as error in UI if possible, or just alert for now
             alert(`Scan failed: ${message}`);
+        } finally {
+            setScanningIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
         }
     };
 
@@ -686,37 +682,30 @@ export default function ProspectSearch() {
         // If not, show "Analyze" button or nothing? 
         // The previous UI showed "Not analyzed" which is clutter. Let's hide it unless there's data.
         if (!c.websiteUrl) return null;
-        // if (c.stalenessScore === undefined || c.stalenessScore === null) return null; <--- REMOVED THIS check
 
-        const score = c.stalenessScore;
-
-        let badgeClass = 'bg-gray-50 text-gray-500 border-gray-200';
-        let label = 'Not Scanned';
-        let showScore = false;
-
-        // Explicitly handle 0 as a valid score (Fresh) vs null/undefined (Not Scanned)
-        const hasScore = score !== null && score !== undefined;
-
-        if (hasScore) {
-            badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-            label = 'Fresh';
-            showScore = true;
-
-            if (score >= 60) { badgeClass = 'bg-rose-50 text-rose-700 border-rose-100'; label = 'High Priority'; }
-            else if (score >= 30) { badgeClass = 'bg-amber-50 text-amber-700 border-amber-100'; label = 'Design Opp'; }
-        } else {
-            // New / Unscanned state
-            badgeClass = 'bg-blue-50 text-blue-600 border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors';
-            label = 'Scan Now';
+        // Check explicit scanning state first
+        if (scanningIds.has(c.id)) {
+            // Render scanning state
+            return (
+                <div className="mt-1.5 flex flex-col gap-1 w-full">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100 whitespace-nowrap">
+                        <RefreshCw size={10} className="mr-1 animate-spin" /> Analysing...
+                    </span>
+                </div>
+            );
         }
 
-        // Get display helper for diagnostics
-        const display = diagnosticsEnabled ? getWebHealthDisplay({
+        // Use canonical display logic
+        const display = getWebHealthDisplay({
             websiteHealthStatus: c.websiteHealthStatus,
             websiteHealthScore: c.websiteHealthScore,
             websiteHealthLabel: c.websiteHealthLabel,
             websiteHealthError: c.websiteHealthError
-        }) : null;
+        });
+        const { label, score, badgeClass, showScore } = display;
+
+        // For diagnostics (strip below) - we reuse the same display object
+        // NOTE: display variable is now declared above for logic reuse
 
         return (
             <div className="mt-1.5 flex flex-col gap-1 w-full">
@@ -724,7 +713,7 @@ export default function ProspectSearch() {
                     className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={(e) => {
                         e.stopPropagation();
-                        if (label === 'Scan Now') {
+                        if (label === 'Scan Now' || display.isError) {
                             handleReanalyze(c, c.id);
                         } else {
                             setViewWebsiteHealth(c);
@@ -732,7 +721,7 @@ export default function ProspectSearch() {
                     }}
                 >
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${badgeClass} whitespace-nowrap`}>
-                        {label} {showScore && `(${score})`}
+                        {label} {showScore && typeof score === 'number' && `(${score})`}
                     </span>
 
                     <div className="flex items-center gap-2 ml-auto">
