@@ -74,8 +74,12 @@ export default async function Dashboard() {
       ? (financialScore > 75 ? 'Strong' : financialScore > 50 ? 'Medium' : 'Low')
       : null);
 
-    const stalenessScore = webHealthPersisted?.score ?? lead.stalenessScore ?? prospect?.stalenessScore ?? null;
-    const stalenessLabel = webHealthPersisted?.label ?? (stalenessScore !== null
+    // Compute scores using canonical fields first
+    const canonicalWebHealthScore = prospect?.websiteHealthScore ?? null;
+    const canonicalWebHealthLabel = prospect?.websiteHealthLabel ?? null;
+
+    const stalenessScore = canonicalWebHealthScore ?? webHealthPersisted?.score ?? lead.stalenessScore ?? prospect?.stalenessScore ?? null;
+    const stalenessLabel = canonicalWebHealthLabel ?? webHealthPersisted?.label ?? (stalenessScore !== null
       ? (stalenessScore >= 60 ? 'Outdated' : stalenessScore >= 30 ? 'Aging' : 'Fresh')
       : null);
 
