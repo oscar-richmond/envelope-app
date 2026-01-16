@@ -706,7 +706,7 @@ export default function ProspectSearch() {
             else if (score >= 30) { badgeClass = 'bg-amber-50 text-amber-700 border-amber-100'; label = 'Design Opp'; }
         } else {
             // New / Unscanned state
-            badgeClass = 'bg-blue-50 text-blue-600 border-blue-100 cursor-pointer hover:bg-blue-100';
+            badgeClass = 'bg-blue-50 text-blue-600 border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors';
             label = 'Scan Now';
         }
 
