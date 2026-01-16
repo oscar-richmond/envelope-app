@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DebugOverlayWrapper } from "@/components/debug/DebugOverlayWrapper";
 import { ActionRouterProvider } from "@/lib/context/ActionRouter";
 import { CTADebugProvider } from "@/lib/context/CTADebug";
+import { DiagnosticsToggle } from "@/components/diagnostics/DiagnosticsToggle";
 
 export default async function AppLayout({
     children,
@@ -57,6 +58,11 @@ export default async function AppLayout({
 
             {/* CTA Debug Mode - toggle with Cmd+Shift+D */}
             <DebugOverlayWrapper />
+
+            {/* Diagnostics Toggle - Bottom Left */}
+            <div className="fixed bottom-4 left-4 z-50">
+                <DiagnosticsToggle />
+            </div>
         </div>
     );
 }
