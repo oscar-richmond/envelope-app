@@ -13,13 +13,14 @@ export interface UrlResolution {
     error?: string;
 }
 
-export async function resolveWebsiteUrl(companyId: number): Promise<UrlResolution> {
+export async function resolveWebsiteUrl(companyId: number): Promise<{ url: string | null; source: string | null }> {
     const company = await prisma.companyProspect.findUnique({
         where: { id: companyId },
         select: {
             websiteUrl: true,
             websiteDomain: true,
-            placesWebsite: true
+            placesDisplayName: true,
+            websiteMetaTitle: true
         }
     });
 
