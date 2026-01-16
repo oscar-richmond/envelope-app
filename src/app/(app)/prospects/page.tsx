@@ -707,7 +707,13 @@ export default function ProspectSearch() {
 
         return (
             <div className="mt-1.5 flex flex-col gap-1 w-full">
-                <div className="flex items-center gap-2">
+                <div
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setViewWebsiteHealth(c);
+                    }}
+                >
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${badgeClass} whitespace-nowrap`}>
                         {label} ({score})
                     </span>
