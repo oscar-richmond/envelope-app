@@ -146,17 +146,18 @@ export default function LeadResultRowCard({
     const hasFinData = finScore !== null && finScore !== undefined;
 
     // Web Health (staleness) - using unified utility
-    // Pass BOTH legacy and new fields - utility picks based on FF
+    // CRITICAL: Use ONLY canonical fields from Company (via API)
+    // The API already reads from prospect.websiteHealthStatus/Score/ScannedAt
+    // Do NOT use signals.webHealth or lead.stalenessScore - these create stale data mixing
     const webHealth = getWebsiteHealthDisplay({
-        // Legacy fields
-        stalenessScore: signals?.webHealth?.score ?? lead.stalenessScore,
-        lastAnalysedAt: lead.websiteLastScanned || signals?.webHealth?.updatedAt || lead.lastAnalyzedAt || lead.lastAnalysedAt,
-        stalenessConfidence: lead.scoreConfidence,
-        // New canonical fields (from lead response or signals)
+        // Canonical fields from Company (via prospect in API response)
         websiteHealthStatus: lead.websiteHealthStatus,
         websiteHealthScore: lead.websiteHealthScore,
         websiteHealthScannedAt: lead.websiteHealthScannedAt,
         websiteHealthError: lead.websiteHealthError,
+        // Legacy fields ONLY for FF rollback (read from prospect, not lead)
+        stalenessScore: lead.legacyStalenessScore,
+        lastAnalysedAt: lead.legacyLastAnalysedAt,
         // Common
         websiteUrl: lead.websiteUrl
     });

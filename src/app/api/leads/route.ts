@@ -77,6 +77,8 @@ export async function GET() {
                 : prospect?.financialLastCheckedAt || null;
 
             // Stable signals contract
+            // FIXED: Read from canonical Company fields (prospect.websiteHealthScore)
+            // NOT from mixed legacy fallback chain
             const signals = {
                 leadOpp: {
                     score: priorityScore,
@@ -84,9 +86,16 @@ export async function GET() {
                     updatedAt: websiteLastScanned
                 },
                 webHealth: {
-                    score: stalenessScore,
-                    label: stalenessLabel,
-                    updatedAt: websiteLastScanned
+                    // Use canonical Company field ONLY
+                    score: prospect?.websiteHealthStatus === 'success'
+                        ? (prospect?.websiteHealthScore ?? null)
+                        : null,
+                    label: prospect?.websiteHealthStatus === 'success'
+                        ? (prospect?.websiteHealthScore !== null
+                            ? (prospect.websiteHealthScore >= 60 ? 'Outdated' : prospect.websiteHealthScore >= 30 ? 'Aging' : 'Fresh')
+                            : null)
+                        : (prospect?.websiteHealthStatus === 'scanning' ? 'Scanning...' : 'Not Scanned'),
+                    updatedAt: prospect?.websiteHealthScannedAt || null
                 },
                 finHealth: {
                     score: financialScore,
