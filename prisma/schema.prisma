@@ -92,6 +92,7 @@ model CompanyProspect {
   websiteHealthScore      Int?      // Nullable, NO default - null = never scanned
   websiteHealthScannedAt  DateTime? // When last successfully scanned
   websiteHealthError      String?   // Error message if status = failed
+  websiteHealthLabel      String?   // Computed label (e.g. "Healthy", "Fair", "At Risk")
   websiteHealthVersion    Int       @default(1) // Schema version for future migrations
 
   // Financial Analysis (Companies House)

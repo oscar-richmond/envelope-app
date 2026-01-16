@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { computeWebsiteReview, type WebsiteScanInput } from '@/lib/scoring';
+import { validateReport } from '@/lib/scoring/types';
 
 /**
  * Website Scan API
@@ -126,8 +127,38 @@ export async function POST(request: Request) {
             scanInput.error = e.message || 'Scan error';
         }
 
-        // Compute score
+        // Compute score using canonical scoring engine
         const report = computeWebsiteReview(scanInput);
+
+        // VALIDATE score matches factors (enforce math consistency)
+        const validation = validateReport(report);
+        if (!validation.valid) {
+            const errorMsg = `Scoring mismatch: computed=${report.score}, expected=${validation.expectedScore}`;
+            console.error('[ScanWebsite] VALIDATION FAILED', {
+                companyId: prospect.id,
+                companyName: prospect.companyName,
+                computed: report.score,
+                expected: validation.expectedScore,
+                baseScore: report.baseScore,
+                factors: report.factors
+            });
+
+            // Set error status in DB
+            await prisma.companyProspect.update({
+                where: { id: prospect.id },
+                data: {
+                    websiteHealthStatus: 'error',
+                    websiteHealthScore: null,
+                    websiteHealthLabel: null,
+                    websiteHealthError: errorMsg
+                }
+            });
+
+            return NextResponse.json({
+                status: 'failed',
+                error: errorMsg
+            }, { status: 500 });
+        }
 
         // Build webHealthData
         const webHealthData = {
@@ -152,6 +183,7 @@ export async function POST(request: Request) {
                 // New canonical fields
                 websiteHealthStatus: 'success',
                 websiteHealthScore: report.score ?? null,
+                websiteHealthLabel: report.statusLabel,  // Persist computed label
                 websiteHealthScannedAt: now,
                 websiteHealthError: null,
 
