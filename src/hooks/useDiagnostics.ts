@@ -2,7 +2,7 @@
  * Diagnostics Mode Hook
  * 
  * Enables in-app diagnostics when NEXT_PUBLIC_DIAGNOSTICS=1
- * and user has enabled the toggle (persisted in localStorage).
+ * Supports URL params (?diag=1/0) and localStorage persistence
  */
 
 'use client';
@@ -15,12 +15,30 @@ export function useDiagnostics(): boolean {
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const stored = localStorage.getItem('diagnostics_enabled');
-        setEnabled(stored === 'true');
+        // Only enable if env var is set
+        if (process.env.NEXT_PUBLIC_DIAGNOSTICS !== '1') {
+            setEnabled(false);
+            return;
+        }
+
+        // Check URL params first (?diag=1 or ?diag=0)
+        const params = new URLSearchParams(window.location.search);
+        const diagParam = params.get('diag');
+
+        if (diagParam === '1') {
+            localStorage.setItem('diagnostics_enabled', 'true');
+            setEnabled(true);
+        } else if (diagParam === '0') {
+            localStorage.removeItem('diagnostics_enabled');
+            setEnabled(false);
+        } else {
+            // Check localStorage
+            const stored = localStorage.getItem('diagnostics_enabled');
+            setEnabled(stored === 'true');
+        }
     }, []);
 
-    // Only enable if env flag is set AND user toggled on
-    return process.env.NEXT_PUBLIC_DIAGNOSTICS === '1' && enabled;
+    return enabled;
 }
 
 export function toggleDiagnostics(): void {
