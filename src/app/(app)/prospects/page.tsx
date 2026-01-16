@@ -21,7 +21,7 @@ import RescanDropdown, { type RescanScope, type RescanTypes } from '@/components
 
 // Diagnostics
 import { useDiagnostics } from '@/hooks/useDiagnostics';
-import { getWebHealthDisplay } from '@/lib/websiteHealth/displayHelper';
+
 import { WebHealthDebugStrip } from '@/components/diagnostics/WebHealthDebugStrip';
 import { HealthSnapshotModal } from '@/components/diagnostics/HealthSnapshotModal';
 import { MismatchBanner } from '@/components/diagnostics/MismatchBanner';
@@ -702,7 +702,9 @@ export default function ProspectSearch() {
             websiteHealthLabel: c.websiteHealthLabel,
             websiteHealthError: c.websiteHealthError
         });
-        const { label, score, badgeClass, showScore } = display;
+        const colors = getWebHealthColorClasses(display);
+        const badgeClass = `${colors.bg} ${colors.text} ${colors.border}`;
+        const { label, score, showScore } = display;
 
         // For diagnostics (strip below) - we reuse the same display object
         // NOTE: display variable is now declared above for logic reuse
