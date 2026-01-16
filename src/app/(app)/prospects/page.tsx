@@ -721,11 +721,15 @@ export default function ProspectSearch() {
                     className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={(e) => {
                         e.stopPropagation();
-                        setViewWebsiteHealth(c);
+                        if (label === 'Scan Now') {
+                            handleReanalyze(c, c.id);
+                        } else {
+                            setViewWebsiteHealth(c);
+                        }
                     }}
                 >
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${badgeClass} whitespace-nowrap`}>
-                        {label} ({score})
+                        {label} {showScore && `(${score})`}
                     </span>
 
                     <div className="flex items-center gap-2 ml-auto">
