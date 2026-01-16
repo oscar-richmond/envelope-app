@@ -1593,13 +1593,20 @@ export default function ProspectSearch() {
                             <div className="p-6 space-y-4">
                                 {/* Score Section */}
                                 <div className="flex justify-between items-center pb-4 border-b border-gray-100">
-                                    <span className="text-lg font-bold text-gray-700">Staleness Score</span>
+                                    <span className="text-lg font-bold text-gray-700">Website Health</span>
                                     <div className="text-right">
-                                        <div className="text-3xl font-black text-blue-600">{viewWebsiteHealth.stalenessScore || 0}</div>
-                                        <div className="text-xs text-blue-400 font-bold">
-                                            {(viewWebsiteHealth.stalenessScore || 0) >= 60 ? 'Outdated' :
-                                                (viewWebsiteHealth.stalenessScore || 0) >= 30 ? 'Aging' : 'Fresh'}
-                                        </div>
+                                        {viewWebsiteHealth.websiteHealthStatus === 'success' && typeof viewWebsiteHealth.websiteHealthScore === 'number' ? (
+                                            <>
+                                                <div className="text-3xl font-black text-blue-600">{viewWebsiteHealth.websiteHealthScore}</div>
+                                                <div className="text-xs text-blue-400 font-bold">{viewWebsiteHealth.websiteHealthLabel || 'Unknown'}</div>
+                                            </>
+                                        ) : viewWebsiteHealth.websiteHealthStatus === 'error' && viewWebsiteHealth.websiteHealthError === 'NO_WEBSITE_URL' ? (
+                                            <div className="text-sm text-gray-500">No website URL</div>
+                                        ) : viewWebsiteHealth.websiteHealthStatus === 'error' ? (
+                                            <div className="text-sm text-red-500">Scan failed</div>
+                                        ) : (
+                                            <div className="text-sm text-gray-500">Not scanned</div>
+                                        )}
                                     </div>
                                 </div>
 
