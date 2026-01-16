@@ -485,29 +485,54 @@ export default function ProspectSearch() {
         );
     };
     const handleReanalyze = async (company: any, id: number) => {
-        if (!confirm(`Force re-analysis for ${company.companyName}?`)) return;
-
-        // Optimistic UI? Maybe loading state. 
-        // For now just alert/toast or silent.
+        if (!confirm(`Re-scan website health for ${company.companyName}?`)) return;
 
         try {
-            const res = await fetch('/api/prospects/analyze', {
+            // Call the actual website scan endpoint
+            const res = await fetch('/api/scan/website', {
                 method: 'POST',
-                body: JSON.stringify({ prospectIds: [id], force: true }) // Assuming API accepts force? Or just by calling it we re-analyze if we update logic
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyProspectId: id,
+                    force: true
+                })
             });
+
+            if (!res.ok) {
+                throw new Error('Scan request failed');
+            }
+
             const data = await res.json();
-            if (data.results) {
+
+            // Handle different response statuses
+            if (data.status === 'complete') {
+                // Update local state with new scan results
                 setResults(prev => prev.map(p => {
-                    const result = data.results.find((r: any) => r.id === p.id);
-                    if (result && result.status === 'ANALYSED') {
-                        return { ...p, stalenessScore: result.score, scoreReasons: result.scoreReasons, lastAnalysedAt: new Date().toISOString() };
+                    if (p.id === id) {
+                        return {
+                            ...p,
+                            // Update legacy fields
+                            stalenessScore: data.data.score,
+                            lastAnalysedAt: data.data.lastScannedAt,
+                            // Update new canonical fields
+                            websiteHealthStatus: 'success',
+                            websiteHealthScore: data.data.score,
+                            websiteHealthScannedAt: data.data.lastScannedAt,
+                        };
                     }
                     return p;
                 }));
-                alert("Analysis updated.");
+                alert(`Website Health scan complete!\nScore: ${data.data.score} - ${data.data.label}`);
+            } else if (data.status === 'no_website') {
+                alert('No website URL found for this company');
+            } else if (data.status === 'already_complete') {
+                alert('Website was recently scanned. Use force=true to rescan.');
+            } else {
+                alert('Scan completed with unknown status: ' + data.status);
             }
         } catch (e: any) {
-            alert("Re-analysis failed: " + e.message);
+            console.error('Website scan error:', e);
+            alert('Website scan failed: ' + e.message);
         }
     };
 

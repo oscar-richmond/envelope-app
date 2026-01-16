@@ -147,7 +147,7 @@ export async function POST(request: Request) {
                 // Legacy fields (for rollback)
                 lastAnalysedAt: now,
                 signals: JSON.stringify(signalStrings),
-                stalenessScore: report.score ?? 0,
+                stalenessScore: report.score ?? null,  // FIXED: null for incomplete scans
 
                 // New canonical fields
                 websiteHealthStatus: 'success',
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
             await prisma.lead.update({
                 where: { id: leadId },
                 data: {
-                    stalenessScore: report.score ?? 0,
+                    stalenessScore: report.score ?? null,  // FIXED: null for incomplete scans
                     lastAnalyzedAt: now
                 }
             });
@@ -185,10 +185,28 @@ export async function POST(request: Request) {
         });
 
     } catch (error: any) {
-        console.error('[ScanWebsite] Error:', error);
+        console.error('[ScanWebsite] Fatal error:', error);
+
+        // Try to mark as failed in DB if we have a prospect
+        if (prospect?.id) {
+            try {
+                await prisma.companyProspect.update({
+                    where: { id: prospect.id },
+                    data: {
+                        websiteHealthStatus: 'error',
+                        websiteHealthScore: null,
+                        websiteHealthError: error.message || 'Unknown error during scan'
+                    }
+                });
+            } catch (dbError) {
+                console.error('[ScanWebsite] Failed to update error status:', dbError);
+            }
+        }
+
         return NextResponse.json({
             status: 'failed',
-            error: error.message
+            error: error.message || 'Unknown error',
+            message: 'Website scan failed'
         }, { status: 500 });
     }
 }
