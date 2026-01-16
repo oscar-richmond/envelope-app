@@ -714,7 +714,10 @@ export default function ProspectSearch() {
 
                     <div className="flex items-center gap-2 opacity-0 group-hover/web:opacity-100 transition-opacity ml-auto">
                         <button
-                            onClick={() => handleReanalyze(c, c.id)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleReanalyze(c, c.id);
+                            }}
                             className="text-[10px] p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--brand)'; e.currentTarget.style.background = 'var(--brand-soft)'; }}
@@ -735,12 +738,13 @@ export default function ProspectSearch() {
                                 📊
                             </button>
                         )}
-                        {c.scoreReasons && (
-                            <ExplainButton
-                                onClick={() => setViewWebsiteHealth(c)}
-                                title="See website health breakdown"
-                            />
-                        )}
+                        <ExplainButton
+                            onClick={(e: any) => {
+                                e.stopPropagation();
+                                setViewWebsiteHealth(c);
+                            }}
+                            title="See website health breakdown"
+                        />
                     </div>
                 </div>
 
