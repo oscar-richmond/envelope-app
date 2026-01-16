@@ -1,13 +1,16 @@
 /**
  * Website Review Scoring Engine
  * 
- * Computes website health score from scan data.
- * Score = BASE_SCORE (50) + Σ(factor.points), clamped 0-100
+ * Computes STALENESS/OPPORTUNITY score from scan data.
+ * Score = BASE_SCORE (0) + Σ(outdatedness signals), clamped 0-100
+ * 
+ * HIGHER SCORE = MORE OUTDATED = HIGHER REDESIGN OPPORTUNITY
+ * 0-24: Fresh, 25-49: Aging, 50-74: Outdated, 75-100: Very Outdated
  */
 
 import { Factor, ReportResult, computeScoreFromFactors } from './types';
 
-const BASE_SCORE = 50;
+const BASE_SCORE = 0; // Start at 0, add outdatedness signals
 
 export interface WebsiteScanInput {
     isReachable: boolean;
@@ -21,97 +24,116 @@ export interface WebsiteScanInput {
 }
 
 /**
- * Compute website review from raw scan data
- * 
- * All factors are determined from actual scan results - no fabrication
+ * Compute website staleness/opportunity score from raw scan data
+ * Higher score = more outdated = higher redesign opportunity
  */
 export function computeWebsiteReview(input: WebsiteScanInput): ReportResult {
     const factors: Factor[] = [];
 
-    // Factor: Reachability
-    if (input.isReachable) {
+    // OUTDATEDNESS SIGNALS (increase score = more outdated)
+
+    // Factor: Not HTTPS (insecure = outdated practice)
+    if (!input.isHttps && input.isReachable) {
         factors.push({
-            id: 'reachable',
-            label: 'Website is reachable',
-            points: 20,
-            polarity: 'positive',
-            description: 'Site responds to requests'
+            id: 'no_https',
+            label: 'No HTTPS / Insecure',
+            points: 25,
+            polarity: 'negative',
+            description: 'Site uses HTTP instead of HTTPS - outdated security'
         });
-    } else {
+    }
+
+    // Factor: Site unreachable (likely abandoned/outdated)
+    if (!input.isReachable) {
         factors.push({
             id: 'unreachable',
-            label: 'Website may be unreachable',
-            points: -20,
+            label: 'Site unreachable or down',
+            points: 40,
             polarity: 'negative',
-            description: input.error || 'Could not connect to website'
+            description: input.error || 'Could not connect - possibly abandoned'
         });
     }
 
-    // Factor: HTTPS
-    if (input.isHttps) {
+    // Factor: HTTP errors (broken site = outdated/unmaintained)
+    if (input.httpStatus !== undefined && input.httpStatus >= 400) {
         factors.push({
-            id: 'https',
-            label: 'SSL certificate is active',
-            points: 10,
-            polarity: 'positive',
-            description: 'HTTPS enabled for secure connections'
+            id: 'http_error',
+            label: `Server returns ${input.httpStatus} error`,
+            points: 30,
+            polarity: 'negative',
+            description: 'Broken pages indicate unmaintained site'
         });
     }
 
-    // Factor: HTTP Status
-    if (input.httpStatus !== undefined) {
-        if (input.httpStatus >= 200 && input.httpStatus < 300) {
-            factors.push({
-                id: 'http_ok',
-                label: 'Website returns 200 OK',
-                points: 10,
-                polarity: 'positive',
-                description: 'Server returns successful response'
-            });
-        } else if (input.httpStatus >= 400) {
-            factors.push({
-                id: 'http_error',
-                label: `Website returns ${input.httpStatus} error`,
-                points: -15,
-                polarity: 'negative',
-                description: 'Server returns error response'
-            });
-        }
-    }
-
-    // Factor: Verification recency
+    // Factor: Long time since verification (stale check)
     if (input.daysSinceVerified !== undefined) {
-        if (input.daysSinceVerified < 7) {
+        if (input.daysSinceVerified > 180) {
+            // 6+ months old check
             factors.push({
-                id: 'recent_verify',
-                label: 'Recently verified',
-                points: 10,
-                polarity: 'positive',
-                description: 'Verified within the last week'
-            });
-        } else if (input.daysSinceVerified > 30) {
-            factors.push({
-                id: 'stale_verify',
-                label: 'May need re-verification',
-                points: -10,
+                id: 'very_stale_check',
+                label: 'Not verified in 6+ months',
+                points: 15,
                 polarity: 'negative',
-                description: 'Last verified over 30 days ago'
+                description: 'Long time since last check - likely outdated'
+            });
+        } else if (input.daysSinceVerified > 90) {
+            // 3-6 months
+            factors.push({
+                id: 'stale_check',
+                label: 'Not verified in 3+ months',
+                points: 10,
+                polarity: 'negative',
+                description: 'Moderate time since last check'
             });
         }
     }
 
-    // Compute score from factors  
-    // Note: This is a HEALTH score - higher score = healthier website
-    // BASE_SCORE=50 is neutral, positive signals add points, negative signals subtract
+    // Factor: Missing modern features (if detectable)
+    if (!input.hasSitemap && input.isReachable) {
+        factors.push({
+            id: 'no_sitemap',
+            label: 'No sitemap.xml found',
+            points: 5,
+            polarity: 'negative',
+            description: 'Missing modern SEO practice'
+        });
+    }
+
+    // FRESHNESS SIGNALS (decrease score = more modern)
+
+    // Factor: HTTPS + reachable + 200 OK = basic modern standards met
+    if (input.isHttps && input.isReachable && input.httpStatus === 200) {
+        factors.push({
+            id: 'modern_basics',
+            label: 'Meets modern basics',
+            points: -10,
+            polarity: 'positive',
+            description: 'HTTPS, reachable, and working correctly'
+        });
+    }
+
+    // Factor: Recently verified (active monitoring = maintained)
+    if (input.daysSinceVerified !== undefined && input.daysSinceVerified < 30) {
+        factors.push({
+            id: 'recently_checked',
+            label: 'Recently verified',
+            points: -5,
+            polarity: 'positive',
+            description: 'Checked within last month - actively monitored'
+        });
+    }
+
+    // Compute staleness score from factors
+    // Higher score = more stale/outdated
     const score = computeScoreFromFactors(BASE_SCORE, factors);
 
-    // Determine status label based on health score
-    // Higher score = better health = greener color in UI
-    let statusLabel = 'Critical';
-    if (score >= 75) statusLabel = 'Healthy';        // 75-100: Excellent health (green)
-    else if (score >= 50) statusLabel = 'Fair';      // 50-74: Acceptable (yellow)
-    else if (score >= 25) statusLabel = 'At Risk';   // 25-49: Warning signs (orange)
-    else statusLabel = 'Critical';                   // 0-24: Serious issues (red)
+    // Determine status label based on staleness score
+    // Remember: higher = more outdated
+    let statusLabel = 'Fresh';
+    if (score >= 75) statusLabel = 'Very Outdated';      // 75-100: Critical redesign opportunity
+    else if (score >= 50) statusLabel = 'Outdated';       // 50-74: Clear redesign need
+    else if (score >= 25) statusLabel = 'Aging';          // 25-49: Starting to show age
+    else statusLabel = 'Fresh';                           // 0-24: Modern/recent
 
     // Determine confidence based on how much data we have
     let confidence: 'high' | 'medium' | 'low' = 'high';
