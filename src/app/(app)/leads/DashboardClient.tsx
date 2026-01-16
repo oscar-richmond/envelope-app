@@ -369,30 +369,28 @@ export default function DashboardClient({ leads: initialLeads }: { leads: any[] 
                 ));
             }
 
-            // 2. Trigger scans
+            // 2. Trigger scans - UNIFIED ENDPOINT
             if (type === 'website' || type === 'both') {
-                // Use correct company endpoint for real breakdown data
-                const endpoint = companyId
-                    ? `/api/companies/${companyId}/web-health/scan`
-                    : '/api/scan/website';
-
-                await fetch(endpoint, {
+                await fetch('/api/scan/website', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(companyId ? { force: true } : { companyProspectId: companyId, leadId: lead.id })
+                    body: JSON.stringify({
+                        companyId,
+                        surface: 'leadboard',
+                        force: true
+                    })
                 });
             }
 
             if (type === 'financial' || type === 'both') {
-                // Use correct company endpoint for real breakdown data  
-                const endpoint = companyId
-                    ? `/api/companies/${companyId}/financials/sync`
-                    : '/api/scan/financials';
-
-                await fetch(endpoint, {
+                await fetch('/api/scan/financials', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(companyId ? { force: true } : { companyProspectId: companyId, leadId: lead.id })
+                    body: JSON.stringify({
+                        companyId,
+                        surface: 'leadboard',
+                        force: true
+                    })
                 });
             }
 

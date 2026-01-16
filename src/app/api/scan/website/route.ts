@@ -10,20 +10,26 @@ import { runWebsiteHealthScan } from '@/lib/websiteHealth/runScan';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { companyProspectId, leadId, force = false } = body;
+        const {
+            companyId,
+            companyProspectId,  // Legacy parameter name
+            surface = 'api',
+            force = false
+        } = body;
 
-        if (!companyProspectId) {
-            return NextResponse.json({ error: 'companyProspectId required' }, { status: 400 });
+        // Accept both parameter names for backward compatibility
+        const targetCompanyId = companyId || companyProspectId;
+
+        if (!targetCompanyId) {
+            return NextResponse.json({
+                error: 'companyId or companyProspectId required'
+            }, { status: 400 });
         }
-
-        // Determine initiating surface
-        let initiatedFrom: 'search' | 'leadboard' | 'overview' | 'api' = 'api';
-        if (leadId) initiatedFrom = 'leadboard';
 
         // Use unified scan function with full tracing
         const trace = await runWebsiteHealthScan({
-            companyId: companyProspectId,
-            initiatedFrom,
+            companyId: targetCompanyId,
+            initiatedFrom: surface,
             force
         });
 

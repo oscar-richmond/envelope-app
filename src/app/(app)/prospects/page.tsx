@@ -502,7 +502,8 @@ export default function ProspectSearch() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    companyProspectId: id,
+                    companyId: id,
+                    surface: 'search',
                     force: true
                 })
             });
