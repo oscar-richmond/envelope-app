@@ -36,13 +36,40 @@ export async function POST(request: Request) {
             select: { id: true, companyName: true, websiteUrl: true, websiteDomain: true }
         });
 
-        if (!company || !company.websiteUrl) {
+        if (!company) {
             return NextResponse.json({
-                error: 'Company not found or no website URL',
+                error: 'Company not found',
                 before,
                 after: null,
                 scanDurationMs: Date.now() - startTime
-            }, { status: 400 });
+            }, { status: 404 });
+        }
+
+        // If no website URL, write error state instead of early exit
+        if (!company.websiteUrl && !company.websiteDomain) {
+            const writeResult = await writeWebsiteHealth(
+                parseInt(companyId),
+                {
+                    status: 'error',
+                    score: null,
+                    label: null,
+                    scannedAt: new Date(),
+                    error: 'NO_WEBSITE_URL_FOUND'
+                },
+                'forensics-scan'
+            );
+
+            const after = await getWebsiteHealthCanonical(parseInt(companyId));
+
+            return NextResponse.json({
+                success: false,
+                error: 'NO_WEBSITE_URL_FOUND',
+                reason: 'Company has no websiteUrl or websiteDomain',
+                before,
+                after,
+                writeTraceId: writeResult.writeTraceId,
+                scanDurationMs: Date.now() - startTime
+            });
         }
 
         // Run scan (same logic as real scan endpoint)
