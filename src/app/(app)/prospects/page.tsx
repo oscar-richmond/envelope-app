@@ -497,66 +497,49 @@ export default function ProspectSearch() {
         }
 
         try {
-            // Call the actual website scan endpoint
-            const res = await fetch('/api/scan/website', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    companyId: id,
-                    surface: 'search',
-                    force: true
-                })
+            // Use shared scan client
+            const { scanWebsiteHealth, getErrorMessage } = await import('@/lib/websiteHealth/scanClient');
+
+            const result = await scanWebsiteHealth({
+                companyId: id,
+                surface: 'search',
+                force: true
             });
-
-            if (!res.ok) {
-                throw new Error('Scan request failed');
-            }
-
-            const data = await res.json();
 
             // Debug trace response
             if (process.env.NEXT_PUBLIC_DEBUG_HEALTH === '1') {
                 console.log('[WEB_HEALTH_UI]', {
                     event: 'SCAN_RESPONSE',
                     companyId: id,
-                    status: data.status,
-                    canonicalFields: {
-                        websiteHealthStatus: data.websiteHealthStatus,
-                        websiteHealthScore: data.websiteHealthScore,
-                        websiteHealthLabel: data.websiteHealthLabel,
-                        websiteHealthScannedAt: data.websiteHealthScannedAt
-                    }
+                    status: result.status,
+                    updatedCompanyHealth: result.updatedCompanyHealth
                 });
             }
 
-            // Handle different response statuses
-            if (data.status === 'complete' || data.websiteHealthStatus === 'success') {
-                // IMMEDIATELY update local state with authoritative DB readback values
-                if (data.updatedCompanyHealth) {
-                    setResults(prev => prev.map(p => {
-                        if (p.id === id) {
-                            return {
-                                ...p,
-                                ...data.updatedCompanyHealth  // Spread authoritative state
-                            };
-                        }
-                        return p;
-                    }));
-                }
-
-                const displayScore = data.websiteHealthScore ?? 'N/A';
-                const displayLabel = data.websiteHealthLabel ?? '';
-                alert(`Website Health scan complete!\nScore: ${displayScore} - ${displayLabel}`);
-            } else if (data.status === 'no_website') {
-                alert('No website URL found for this company');
-            } else if (data.status === 'already_complete') {
-                alert('Website was recently scanned. Use force=true to rescan.');
-            } else {
-                alert('Scan completed with unknown status: ' + data.status);
+            // Update local state immediately
+            if (result.updatedCompanyHealth) {
+                setResults(prev => prev.map(p => {
+                    if (p.id === id) {
+                        return {
+                            ...p,
+                            ...result.updatedCompanyHealth
+                        };
+                    }
+                    return p;
+                }));
             }
-        } catch (e: any) {
-            console.error('Website scan error:', e);
-            alert('Website scan failed: ' + e.message);
+
+            const displayScore = result.websiteHealthScore ?? 'N/A';
+            const displayLabel = result.websiteHealthLabel ?? '';
+            alert(`Website Health scan complete!\nScore: ${displayScore} - ${displayLabel}`);
+
+        } catch (error: any) {
+            // Show specific error message based on error code
+            const { getErrorMessage } = await import('@/lib/websiteHealth/scanClient');
+            const message = getErrorMessage(error);
+
+            console.error('Website scan error:', error);
+            alert(`Scan failed: ${message}`);
         }
     };
 
