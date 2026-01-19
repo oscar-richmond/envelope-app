@@ -147,6 +147,43 @@ export async function POST(request: Request) {
             console.error('[ScanFinancials] Error:', errorMsg);
         }
 
+        // CRITICAL INVARIANT: Cannot mark success without factors
+        // If Companies House API failed or produced no meaningful data, this is an ERROR state, not success
+        if (factors.length === 0 || errorMsg) {
+            const finalError = errorMsg || 'NO_FACTORS_COMPUTED';
+
+            await prisma.companyProspect.update({
+                where: { id: prospect.id },
+                data: {
+                    financialHealthStatus: 'error',
+                    financialHealthError: finalError,
+                    financialHealthScore: null,
+                    financialHealthLabel: null,
+                    financialHealthVersion: 2,
+                    financialHealthTraceId: traceId,
+                    financialHealthLastSurface: surface,
+                    financialHealthLastWriter: 'api/scan/financials',
+                    finHealthData: null // Ensure no stale data
+                }
+            });
+
+            return NextResponse.json({
+                status: 'failed',
+                code: 'NO_DATA_AVAILABLE',
+                detail: finalError,
+                traceId,
+
+                updatedCompanyHealth: {
+                    companyId: prospect.id,
+                    financialHealthStatus: 'error',
+                    financialHealthError: finalError,
+                    financialHealthScore: null,
+                    financialHealthLabel: null,
+                    financialHealthVersion: 2
+                }
+            }, { status: 422 });
+        }
+
         // Clamp
         score = Math.max(0, Math.min(100, score));
         band = score >= 75 ? 'Very Strong' : score >= 60 ? 'Strong' : score >= 40 ? 'Medium' : score >= 25 ? 'Weak' : 'Very Weak';

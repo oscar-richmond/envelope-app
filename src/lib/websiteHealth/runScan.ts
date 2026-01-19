@@ -298,8 +298,8 @@ export async function runWebsiteHealthScan({
         // INVARIANT ENFORCEMENT:
         // Ensure that we didn't just write a 'success' status without a valid report in the payload.
         // (The above 'data' construction guarantees it, but we add an explicit check for safety).
-        if (!report || typeof report.score !== 'number') {
-            throw new Error("Invariant violation: Attempting to write success without valid report");
+        if (!report || typeof report.score !== 'number' || report.factors.length === 0) {
+            throw new Error("Invariant violation: Attempting to write success without valid report (missing score or factors)");
         }
 
         // 9. POST-WRITE READBACK VERIFICATION
