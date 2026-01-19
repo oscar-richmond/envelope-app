@@ -27,6 +27,8 @@ export interface WebsiteHealthInput {
     websiteHealthScore?: number | null;
     websiteHealthScannedAt?: Date | string | null;
     websiteHealthError?: string | null;
+    websiteHealthVersion?: number | null;
+    webHealthData?: string | null; // JSON string of stored report
 
     // Common fields
     websiteUrl?: string | null;
@@ -83,6 +85,9 @@ export function isWebHealthInteractive(companyId?: number | null): boolean {
 /**
  * Determine the scan status from available data
  * 
+ * CRITICAL INVARIANT: Only version=2 records with stored reports can show as 'success'.
+ * All version=1 records are treated as 'idle' (legacy pre-migration data).
+ * 
  * AUTHORITY RULE (when FF_NEW_WEBSITE_HEALTH=true):
  * - New fields are ALWAYS authoritative
  * - Never choose legacy data because its scannedAt is newer
@@ -92,11 +97,21 @@ export function isWebHealthInteractive(companyId?: number | null): boolean {
 export function getWebsiteHealthStatus(data: WebsiteHealthInput): WebsiteHealthStatus {
     if (FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
         // AUTHORITY: New schema is always authoritative when FF=true
-        // If websiteHealthStatus exists (any value including null), use new schema
-        // Only status values: idle, scanning, success, failed
         const newStatus = data.websiteHealthStatus;
+        const version = data.websiteHealthVersion;
+        const hasReport = !!data.webHealthData;
 
-        if (newStatus === 'success' || newStatus === 'scanning' || newStatus === 'failed') {
+        // CRITICAL: Only version=2 + stored report can be success
+        if (newStatus === 'success') {
+            // Validate V2 compliance
+            if (version !== 2 || !hasReport) {
+                console.warn(`[WebsiteHealth] Invalid success record detected: version=${version}, reportExists=${hasReport}. Treating as idle.`);
+                return 'idle';
+            }
+            return 'success';
+        }
+
+        if (newStatus === 'scanning' || newStatus === 'failed') {
             return newStatus as WebsiteHealthStatus;
         }
 

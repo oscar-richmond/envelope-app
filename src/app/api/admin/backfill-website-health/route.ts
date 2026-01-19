@@ -4,18 +4,22 @@ import prisma from '@/lib/prisma';
 const BATCH_SIZE = 100;
 
 /**
+ * ⚠️ DEPRECATED - DO NOT USE ⚠️
+ * 
  * Backfill Website Health Fields
  * 
- * Migrates data from legacy fields (stalenessScore, lastAnalysedAt) 
- * to new canonical fields (websiteHealthStatus, websiteHealthScore, etc.)
+ * This route is DISABLED because it creates invalid canonical records:
+ * - Writes version=1 (not V2-compliant)
+ * - Writes success status WITHOUT webHealthData/websiteHealthLabel
+ * - Can write score=0 with success status
+ * - Missing traceId, lastWriter, lastSurface metadata
  * 
- * GET: Check status / run backfill
- *   ?dryRun=true - Preview changes without applying
- *   ?lastProcessedId=X - Resume from specific ID
- *   ?limit=100 - Batch size
+ * REPLACEMENT: Use runWebsiteHealthScan() to properly scan companies.
  * 
- * POST: Force run backfill (for cron jobs)
+ * This endpoint is kept for reference only and requires admin secret to execute.
  */
+
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'BACKFILL_DISABLED_NO_SECRET_SET';
 
 interface BackfillResult {
     id: number;
@@ -26,7 +30,17 @@ interface BackfillResult {
 }
 
 export async function GET(request: Request) {
+    // GUARD: Require admin secret
     const { searchParams } = new URL(request.url);
+    const secret = searchParams.get('secret');
+
+    if (secret !== ADMIN_SECRET) {
+        return NextResponse.json({
+            error: 'DEPRECATED_ENDPOINT',
+            message: 'This backfill route is disabled. It creates invalid version=1 records. Use runWebsiteHealthScan() instead.',
+            documentation: 'See investigation_findings.md for details on why this was disabled.'
+        }, { status: 403 });
+    }
     const lastProcessedId = parseInt(searchParams.get('lastProcessedId') || '0');
     const limit = parseInt(searchParams.get('limit') || String(BATCH_SIZE));
     const dryRun = searchParams.get('dryRun') === 'true';
