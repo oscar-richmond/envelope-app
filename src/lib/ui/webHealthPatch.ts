@@ -65,6 +65,6 @@ export function applyWebsiteHealthPatch(updatedHealth: UpdatedCompanyHealth) {
 export function getWebHealthPatchDebug(companyId: number) {
     if (typeof sessionStorage === 'undefined') return null;
 
-    const data = session Storage.getItem(`healthPatch_${companyId}`);
+    const data = sessionStorage.getItem(`healthPatch_${companyId}`);
     return data ? JSON.parse(data) : null;
 }
