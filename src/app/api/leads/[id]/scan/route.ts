@@ -44,98 +44,56 @@ export async function POST(
 
         // Run website analysis
         if (type === 'website' || type === 'both') {
-            if (domain) {
-                try {
-                    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://envelope-app-sage.vercel.app';
-                    const res = await fetch(`${baseUrl}/api/enrichment/website-analysis`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: `https://${domain}` })
-                    });
+            if (lead.companyProspect?.id) {
+                const { runWebsiteHealthScan } = await import('@/lib/websiteHealth/runScan');
 
-                    const websiteData = await res.json();
+                // DELEGATE TO CANONICAL
+                const webResult = await runWebsiteHealthScan({
+                    companyId: lead.companyProspect.id,
+                    initiatedFrom: 'lead_scan_api',
+                    force: true
+                });
 
-                    if (websiteData.success) {
-                        const score = websiteData.overallScore ?? websiteData.stalenessScore ?? 0;
+                if (webResult.status === 'success') {
+                    results.website = { success: true, score: webResult.finalScore };
 
-                        // Update lead with staleness score (legacy)
-                        await prisma.lead.update({
-                            where: { id: leadId },
-                            data: {
-                                stalenessScore: score,
-                                lastAnalyzedAt: new Date(),
-                                copyrightYear: websiteData.copyrightYear,
-                                hasSitemap: websiteData.hasSitemap ?? false,
-                            }
-                        });
-
-                        // Also update company prospect with new schema fields (DUAL-WRITE)
-                        if (lead.companyProspect?.id) {
-                            await prisma.companyProspect.update({
-                                where: { id: lead.companyProspect.id },
-                                data: {
-                                    // Legacy fields
-                                    stalenessScore: score,
-                                    lastAnalysedAt: new Date(),
-
-                                    // New canonical fields
-                                    websiteHealthStatus: 'success',
-                                    websiteHealthScore: score,
-                                    websiteHealthScannedAt: new Date(),
-                                    websiteHealthError: null
-                                }
-                            });
+                    // Sync legacy fields on Lead model for older UI
+                    await prisma.lead.update({
+                        where: { id: leadId },
+                        data: {
+                            stalenessScore: webResult.finalScore,
+                            lastAnalyzedAt: new Date(),
+                            // We don't have copyrightYear/hasSitemap directly exposed in V2 trace response easily without parsing receipt
+                            // But usually V2 is the source of truth.
                         }
-
-                        results.website = {
-                            success: true,
-                            score
-                        };
-                    } else {
-                        results.website = { success: false, error: websiteData.error };
-                    }
-                } catch (err: any) {
-                    results.website = { success: false, error: err.message };
+                    });
+                } else {
+                    results.website = { success: false, error: webResult.error };
                 }
             } else {
-                results.website = { success: false, error: 'No domain available' };
+                results.website = { success: false, error: 'No company attached to lead' };
             }
         }
 
         // Run financial analysis
         if (type === 'financial' || type === 'both') {
-            if (companyNumber && lead.companyProspect) {
-                try {
-                    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://envelope-app-sage.vercel.app';
-                    const res = await fetch(`${baseUrl}/api/enrichment/financial-analysis`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ companyNumber })
-                    });
+            if (lead.companyProspect?.id && companyNumber) {
+                const { runFinancialHealthScan } = await import('@/lib/financials/runFinancialScan');
 
-                    const financialData = await res.json();
+                // DELEGATE TO CANONICAL
+                const finResult = await runFinancialHealthScan({
+                    companyId: lead.companyProspect.id,
+                    initiatedFrom: 'lead_scan_api',
+                    force: true
+                });
 
-                    if (financialData.success || financialData.score !== undefined) {
-                        // Update company prospect with financial data
-                        await prisma.companyProspect.update({
-                            where: { id: lead.companyProspect.id },
-                            data: {
-                                financialActivityScore: financialData.score ?? financialData.overallScore ?? 0,
-                                financialActivityBand: financialData.band,
-                                financialSignals: JSON.stringify(financialData.signals || {}),
-                                financialLastCheckedAt: new Date(),
-                            }
-                        });
-
-                        results.financial = {
-                            success: true,
-                            score: financialData.score ?? financialData.overallScore
-                        };
-                    } else {
-                        results.financial = { success: false, error: financialData.error };
-                    }
-                } catch (err: any) {
-                    results.financial = { success: false, error: err.message };
+                if (finResult.status === 'success') {
+                    results.financial = {
+                        success: true,
+                        score: finResult.receipt.computed.score
+                    };
+                } else {
+                    results.financial = { success: false, error: finResult.error };
                 }
             } else {
                 results.financial = { success: false, error: 'No company number available' };

@@ -212,7 +212,15 @@ export async function GET(
  * Async worker that runs the actual scan
  * Fire-and-forget pattern for Vercel serverless
  */
+/**
+ * Async worker that runs the actual scan
+ * Fire-and-forget pattern for Vercel serverless
+ */
 async function runScanWorkerAsync(jobId: string, scanType: string, companyId: number) {
+    // Import canonical scanners dynamically to avoid circular deps during init if any
+    const { runWebsiteHealthScan } = await import('@/lib/websiteHealth/runScan');
+    const { runFinancialHealthScan } = await import('@/lib/financials/runFinancialScan');
+
     // Don't await - let it run in background
     (async () => {
         try {
@@ -227,9 +235,28 @@ async function runScanWorkerAsync(jobId: string, scanType: string, companyId: nu
             let result: any = null;
 
             if (scanType === 'web_health') {
-                result = await runWebHealthScan(companyId, jobId);
+                // CANONICAL DELEGATION
+                const scanResult = await runWebsiteHealthScan({
+                    companyId,
+                    initiatedFrom: 'scan_job',
+                    requestId: jobId,
+                    force: true
+                });
+
+                if (scanResult.status === 'error') throw new Error(scanResult.error);
+                result = { summary: `Score: ${scanResult.finalScore}, ${scanResult.label}` };
+
             } else if (scanType === 'financial_health') {
-                result = await runFinancialHealthScan(companyId, jobId);
+                // CANONICAL DELEGATION
+                const scanResult = await runFinancialHealthScan({
+                    companyId,
+                    initiatedFrom: 'scan_job',
+                    force: true
+                });
+
+                if (scanResult.status === 'error') throw new Error(scanResult.error);
+                result = { summary: scanResult.receipt.computed.score ? `Score: ${scanResult.receipt.computed.score}` : 'Completed' };
+
             } else if (scanType === 'contacts') {
                 result = await runContactsScan(companyId, jobId);
             }
@@ -264,233 +291,7 @@ async function runScanWorkerAsync(jobId: string, scanType: string, companyId: nu
 }
 
 /**
- * Web Health Scan Worker
- */
-async function runWebHealthScan(companyId: number, jobId: string) {
-    const company = await prisma.companyProspect.findUnique({
-        where: { id: companyId },
-        select: { websiteUrl: true, websiteDomain: true }
-    });
-
-    if (!company) throw new Error('Company not found');
-
-    // Normalize domain
-    let domain = company.websiteDomain || '';
-    const websiteUrl = company.websiteUrl || '';
-
-    if (!domain && websiteUrl) {
-        domain = websiteUrl
-            .replace(/^https?:\/\//, '')
-            .replace(/^www\./, '')
-            .split('/')[0];
-    }
-
-    if (!domain) {
-        throw new Error('No website URL found');
-    }
-
-    // Update progress
-    await prisma.scanJob.update({
-        where: { id: jobId },
-        data: { progress: 20 }
-    });
-
-    // Perform website check
-    let score = 50;
-    const signals: string[] = [];
-    let isReachable = false;
-
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
-
-        const url = `https://${domain}`;
-        const response = await fetch(url, {
-            method: 'HEAD',
-            signal: controller.signal,
-            headers: { 'User-Agent': 'EnvelopeBot/1.0' }
-        }).catch(() => null);
-
-        clearTimeout(timeout);
-
-        if (response) {
-            isReachable = true;
-            score += 20;
-            signals.push('Website is reachable');
-
-            if (url.startsWith('https://')) {
-                score += 10;
-                signals.push('SSL certificate is active');
-            }
-
-            if (response.ok) {
-                score += 10;
-                signals.push('Website returns 200 OK');
-            }
-        } else {
-            score -= 20;
-            signals.push('Website may be unreachable');
-        }
-    } catch (e) {
-        signals.push('Could not verify website');
-    }
-
-    // Update progress
-    await prisma.scanJob.update({
-        where: { id: jobId },
-        data: { progress: 80 }
-    });
-
-    // Score capped at 0-100
-    score = Math.max(0, Math.min(100, score));
-
-    // Determine label
-    let label = 'Fresh';
-    if (score >= 70) label = 'Fresh';
-    else if (score >= 40) label = 'Stale';
-    else label = 'Risk';
-
-    const webHealthData = {
-        score,
-        label,
-        signals,
-        isReachable,
-        lastScannedAt: new Date().toISOString()
-    };
-
-    // Persist to company - DUAL-WRITE to both legacy and new fields
-    await prisma.companyProspect.update({
-        where: { id: companyId },
-        data: {
-            websiteDomain: domain,
-
-            // Legacy fields (for rollback)
-            stalenessScore: score,
-
-            // New canonical fields
-            websiteHealthStatus: 'success',
-            websiteHealthScore: score,
-            websiteHealthScannedAt: new Date(),
-            websiteHealthError: null,
-
-            // Shared data
-            webHealthData: JSON.stringify(webHealthData)
-        }
-    });
-
-    return { summary: `Score: ${score}, ${signals.length} signals` };
-}
-
-/**
- * Financial Health Scan Worker
- */
-async function runFinancialHealthScan(companyId: number, jobId: string) {
-    const company = await prisma.companyProspect.findUnique({
-        where: { id: companyId },
-        select: { companyNumber: true }
-    });
-
-    if (!company?.companyNumber) {
-        throw new Error('No company number found');
-    }
-
-    // Update progress
-    await prisma.scanJob.update({
-        where: { id: jobId },
-        data: { progress: 30 }
-    });
-
-    // Fetch from Companies House
-    const apiKey = process.env.COMPANIES_HOUSE_API_KEY;
-    if (!apiKey) {
-        throw new Error('Companies House API key not configured');
-    }
-
-    const res = await fetch(
-        `https://api.company-information.service.gov.uk/company/${company.companyNumber}`,
-        {
-            headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}` }
-        }
-    );
-
-    if (!res.ok) {
-        throw new Error(`Companies House API error: ${res.status}`);
-    }
-
-    const data = await res.json();
-
-    // Update progress
-    await prisma.scanJob.update({
-        where: { id: jobId },
-        data: { progress: 70 }
-    });
-
-    // Calculate financial health score
-    let score = 50;
-    const breakdown: string[] = [];
-
-    if (data.company_status === 'active') {
-        score += 20;
-        breakdown.push('Company is active');
-    } else if (data.company_status === 'dissolved') {
-        score -= 40;
-        breakdown.push('Company is dissolved');
-    }
-
-    if (data.accounts?.next_due) {
-        const dueDate = new Date(data.accounts.next_due);
-        const now = new Date();
-        if (dueDate > now) {
-            score += 10;
-            breakdown.push('Accounts up to date');
-        } else {
-            score -= 10;
-            breakdown.push('Accounts overdue');
-        }
-    }
-
-    if (data.confirmation_statement?.next_due) {
-        const dueDate = new Date(data.confirmation_statement.next_due);
-        const now = new Date();
-        if (dueDate > now) {
-            score += 10;
-            breakdown.push('Confirmation statement current');
-        }
-    }
-
-    score = Math.max(0, Math.min(100, score));
-
-    // Determine band
-    let band = 'Medium';
-    if (score >= 80) band = 'Very Strong';
-    else if (score >= 60) band = 'Strong';
-    else if (score >= 40) band = 'Medium';
-    else band = 'Low';
-
-    const finHealthData = {
-        score,
-        band,
-        breakdown,
-        companyStatus: data.company_status,
-        lastSyncedAt: new Date().toISOString()
-    };
-
-    // Persist to company
-    await prisma.companyProspect.update({
-        where: { id: companyId },
-        data: {
-            finHealthData: JSON.stringify(finHealthData),
-            financialActivityScore: score,
-            financialActivityBand: band,
-            financialLastCheckedAt: new Date()
-        }
-    });
-
-    return { summary: `Score: ${score} (${band})` };
-}
-
-/**
- * Contacts Scan Worker
+ * Contacts Scan Worker (Kept as is for now, user focus is Health)
  */
 async function runContactsScan(companyId: number, jobId: string) {
     const company = await prisma.companyProspect.findUnique({
@@ -508,11 +309,7 @@ async function runContactsScan(companyId: number, jobId: string) {
         data: { progress: 20 }
     });
 
-    const domain = company.websiteDomain ||
-        company.websiteUrl?.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
-
-    // Call the existing contact scan endpoint logic
-    // For now, just mark as complete - actual implementation would call Hunter.io etc.
+    // Mock implementation for contacts
     await prisma.scanJob.update({
         where: { id: jobId },
         data: { progress: 80 }

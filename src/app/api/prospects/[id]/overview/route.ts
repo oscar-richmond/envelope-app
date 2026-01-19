@@ -72,9 +72,9 @@ export async function GET(
             kpis: {
                 opportunityScore: prospect.contactPriorityScore || prospect.stalenessScore || 0,
                 opportunityBand: prospect.contactPriorityBand || 'Unknown',
-                financialScore: prospect.financialActivityScore || 0,
+                financialScore: prospect.financialActivityScore,
                 financialBand: prospect.financialActivityBand || 'Unknown',
-                websiteScore: prospect.stalenessScore || 0,
+                websiteScore: prospect.stalenessScore,
                 websiteMatchConfidence: prospect.websiteConfidence || 'LOW'
             },
             websiteSignals,

@@ -224,14 +224,34 @@ export default function ProspectResultRowCard({
                     />
 
                     {/* C. Website Health - 2nd */}
-                    <MetricTile
-                        label="Website Health"
-                        value={c.websiteUrl ? staleLabel : '-'}
-                        score={staleScore ?? undefined}
-                        scoreColor={staleColor}
-                        subtext={staleScore !== undefined ? (staleScore >= 60 ? 'Needs Update' : 'Active') : null}
-                        onDetails={c.scoreReasons ? onWebsiteHealthEvidence : undefined}
-                    />
+                    {/* C. Website Health - 2nd */}
+                    <WebHealthCardContainer
+                        companyId={c.id}
+                        surface="search"
+                        className="h-full"
+                    >
+                        <MetricTile
+                            label="Website Health"
+                            value={c.websiteUrl ? staleLabel : '-'}
+                            score={staleScore ?? undefined}
+                            scoreColor={staleColor}
+                            subtext={staleScore !== undefined ? (staleScore >= 60 ? 'Needs Update' : 'Active') : null}
+                            subtext={staleScore !== undefined ? (staleScore >= 60 ? 'Needs Update' : 'Active') : null}
+                            interactive={true} // Visual hover state only, click handled by container
+                            topRightAction={
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onWebsiteHealthEvidence();
+                                    }}
+                                    className="p-1 rounded-md hover:bg-[rgba(84,130,237,0.15)] text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors z-20"
+                                    title="Diagnostics & Snapshot"
+                                >
+                                    <Maximize2 size={12} />
+                                </button>
+                            }
+                        />
+                    </WebHealthCardContainer>
                     {/* Truth Panel (Debug) */}
                     <WebsiteHealthTruthPanel
                         companyId={c.id}

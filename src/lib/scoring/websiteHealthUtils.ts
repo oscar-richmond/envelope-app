@@ -71,6 +71,18 @@ export function isWebsiteScanned(data: WebsiteHealthInput): boolean {
 }
 
 /**
+ * Determine if the Web Health card should be interactive/clickable.
+ * 
+ * RULES:
+ * 1. If we have a companyId, it's ALWAYS interactive (can open modal).
+ * 2. It doesn't matter if score is 0, null, or error.
+ * 3. Modal handles the "Not Scanned" or "Error" states internally.
+ */
+export function isWebHealthInteractive(companyId?: number | null): boolean {
+    return typeof companyId === 'number' && companyId > 0;
+}
+
+/**
  * Determine the scan status from available data
  * 
  * AUTHORITY RULE (when FF_NEW_WEBSITE_HEALTH=true):
@@ -185,6 +197,24 @@ export function getWebsiteHealthDisplay(data: WebsiteHealthInput): WebsiteHealth
 
     // Scanned - use actual score
     const score = getScoreValue(data);
+
+    // CORRUPTION CHECK: If score is 0 and label is missing/null, this is invalid success
+    // Or if score is non-null but status is success and we suspect missing data
+    if (score === 0 && !data.websiteHealthLabel && FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
+        return {
+            score: null,
+            label: 'Data Invalid',
+            status: 'failed',
+            isScanned: false,
+            showScanButton: true, // Allow re-scan
+            showScore: false,
+            showRetry: true,
+            tone: 'negative',
+            color: 'red',
+            error: 'Database says success but data is missing'
+        };
+    }
+
     const healthLabel = getWebsiteHealthLabel(score);
 
     // Parse reasons if available

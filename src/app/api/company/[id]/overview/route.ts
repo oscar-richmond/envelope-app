@@ -70,9 +70,9 @@ export async function GET(
             contacts: lead.contacts,
             kpis: {
                 opportunityScore: lead.stalenessScore, // Using staleness as proxy for now
-                financialScore: lead.companyProspect?.financialActivityScore || 0,
+                financialScore: lead.companyProspect?.financialActivityScore,
                 financialBand: lead.companyProspect?.financialActivityBand || 'Unknown',
-                websiteScore: lead.companyProspect?.stalenessScore || 0, // Fallback
+                websiteScore: lead.companyProspect?.stalenessScore, // Fallback
             },
             websiteSignals,
             financialSignals,

@@ -51,6 +51,18 @@ export async function scanWebsiteHealth(
 
     const data = await res.json();
 
+    // START: Receipt Capture (Diagnostics)
+    // We import dynamically or check window to avoid circular dep issues in some unrelated call sites if any
+    try {
+        if (data.receipt) {
+            const { saveScanReceipt } = await import('../ui/webHealthActions');
+            saveScanReceipt(params.companyId, data.receipt);
+        }
+    } catch (e) {
+        console.warn('Failed to save receipt', e);
+    }
+    // END: Receipt Capture
+
     if (!res.ok) {
         throw {
             status: res.status,

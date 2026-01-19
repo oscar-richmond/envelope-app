@@ -21,6 +21,7 @@ import RescanDropdown, { type RescanScope, type RescanTypes } from '@/components
 
 // Diagnostics
 import { useDiagnostics } from '@/hooks/useDiagnostics';
+import WebHealthCardContainer from '@/components/ui/WebHealthCardContainer';
 
 import { WebHealthDebugStrip } from '@/components/diagnostics/WebHealthDebugStrip';
 import { HealthSnapshotModal } from '@/components/diagnostics/HealthSnapshotModal';
@@ -97,7 +98,6 @@ export default function ProspectSearch() {
             const isWebMissing = c.stalenessScore === undefined || c.stalenessScore === null;
             const isFinMissing = !c.financialActivityScore && c.financialActivityBand === 'Unknown';
             if (isWebMissing || isFinMissing) missingCount++;
-
             // Consider stale if scanned more than 7 days ago (or flag set)
             const webLastScanned = c.lastAnalysedAt ? new Date(c.lastAnalysedAt) : null;
             const finLastScanned = c.financialLastCheckedAt ? new Date(c.financialLastCheckedAt) : null;
@@ -108,9 +108,63 @@ export default function ProspectSearch() {
             const isFinStale = finLastScanned && (now.getTime() - finLastScanned.getTime() > staleThresholdMs);
             if (isWebStale || isFinStale) staleCount++;
         }
-
         return { missingCount, staleCount };
     }, [results]);
+
+    // --- Email Discovery State (Moved from bottom) ---
+    const [viewEmails, setViewEmails] = useState<any | null>(null);
+    const [emailResults, setEmailResults] = useState<any[]>([]);
+    const [isDiscovering, setIsDiscovering] = useState(false);
+
+    const handleOpenDiscovery = (c: any) => {
+        setViewEmails(c);
+        setEmailResults([]); // Clear previous
+    };
+
+    const runDiscovery = async () => {
+        if (!viewEmails) return;
+        setIsDiscovering(true);
+        try {
+            // 1. Ensure Saved
+            let id = viewEmails.id;
+            if (!id) {
+                const saveRes = await fetch('/api/prospects', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(viewEmails)
+                });
+                if (!saveRes.ok) throw new Error("Failed to save prospect record");
+                const saved = await saveRes.json();
+                id = saved.id;
+
+                // Update local state so we have the ID for future
+                setViewEmails((prev: any) => ({ ...prev, id }));
+                // Also update the main list
+                setResults(prev => prev.map(p => p.companyNumber === viewEmails.companyNumber ? { ...p, id } : p));
+            }
+
+            if (!id) throw new Error("Missing ID after save attempt");
+
+            const res = await fetch(`/api/prospects/${id}/emails/find`, { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Discovery failed");
+            }
+            const data = await res.json();
+            setEmailResults(data.emails || []);
+        } catch (e: any) {
+            console.error(e);
+            alert(`Discovery failed: ${e.message}`);
+        } finally {
+            setIsDiscovering(false);
+        }
+    };
+
+    const handleUseEmail = (email: string) => {
+        const c = viewEmails;
+        setViewEmails(null);
+        handleGenerateDraft(c, email);
+    };
 
     // Unified Bulk Scan Handler (matches Lead Board exactly)
     const handleUnifiedBulkScan = useCallback(async (scope: RescanScope, types: RescanTypes) => {
@@ -449,6 +503,95 @@ export default function ProspectSearch() {
         }
     };
 
+    // Lead Gating Helper
+    const checkAddLead = (c: any, index: number) => {
+        // Safe Parse Signals
+        let signals: any = {};
+        try {
+            if (typeof c.financialSignals === 'string') {
+                signals = JSON.parse(c.financialSignals);
+            } else if (typeof c.financialSignals === 'object') {
+                signals = c.financialSignals;
+            }
+        } catch (e) { console.warn("Signal parse error", e); }
+
+        // Rule A: Hard Dormant (Company Status is NOT active)
+        // CANONICAL CHECK: Only block if status is explicitly NOT active.
+        const isHardDormant = signals.status && signals.status !== 'active' && signals.status !== 'unknown';
+
+        // Rule B: Dormant Accounts (Active company, but filed dormant accounts)
+        // Soft Warning: Status is active, but accounts type implies dormant filing.
+        const isAccountsDormant = !isHardDormant && (
+            signals.hasDormantAccounts ||
+            (signals.accountsType && signals.accountsType.includes('dormant'))
+        );
+
+        // Other Flags
+        const isFinLow = c.financialActivityBand === 'Low';
+        const isWebLow = c.websiteConfidence === 'LOW' && c.websiteMatchStatus === 'MATCHED';
+        const isPriorityLow = c.contactPriorityBand === 'Low';
+
+        // Check for any warnings
+        if (isHardDormant || isAccountsDormant || isFinLow || isWebLow || isPriorityLow) {
+            setViewLowPriorityConfirm({
+                prospect: c,
+                index,
+                reasons: {
+                    isHardDormant,
+                    isAccountsDormant,
+                    isFinLow,
+                    isWebLow,
+                    isPriorityLow
+                }
+            });
+        } else {
+            // Clean green light
+            handleAction(c, index, 'ADD');
+        }
+    };
+
+    // --- Inspect Handler (saves prospect first if needed) ---
+    const handleInspect = async (company: any, index: number) => {
+        // If the company already has a database ID, just open the modal
+        if (company.id) {
+            openCompanyOverview({ prospectId: company.id });
+            return;
+        }
+
+        // Otherwise, save the prospect first to get an ID
+        try {
+            const saveRes = await fetch('/api/prospects', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(company)
+            });
+
+            if (!saveRes.ok) {
+                const err = await saveRes.json();
+                throw new Error(`Save failed: ${err.error || saveRes.statusText}`);
+            }
+
+            const saved = await saveRes.json();
+            const id = saved.id;
+
+            if (!id) throw new Error("Saved prospect returned no ID");
+
+            // Update the results array with the new ID so future actions work
+            setResults(prev => {
+                const next = [...prev];
+                next[index] = { ...next[index], id };
+                return next;
+            });
+
+            // Open the modal with the new ID
+            openCompanyOverview({ prospectId: id });
+
+        } catch (e: any) {
+            console.error("Inspect failed", e);
+            alert(`Could not open company: ${e.message}`);
+        }
+    };
+
     // Auto-match removed per requirements.
 
     const renderMatchState = (c: any, index: number) => {
@@ -709,17 +852,17 @@ export default function ProspectSearch() {
         // For diagnostics (strip below) - we reuse the same display object
         // NOTE: display variable is now declared above for logic reuse
 
+        // Always interactive if we have an ID (which we do in this context)
+        const isInteractive = true;
+
         return (
             <div className="mt-1.5 flex flex-col gap-1 w-full">
                 <div
-                    className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
+                    className={`flex items-center gap-2 transition-opacity ${isInteractive ? 'cursor-pointer hover:opacity-90' : ''}`}
                     onClick={(e) => {
                         e.stopPropagation();
-                        if (label === 'Scan Now' || display.isError) {
-                            handleReanalyze(c, c.id);
-                        } else {
-                            setViewWebsiteHealth(c);
-                        }
+                        // ALWAYS open modal
+                        setViewWebsiteHealth(c);
                     }}
                 >
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${badgeClass} whitespace-nowrap`}>
@@ -789,165 +932,13 @@ export default function ProspectSearch() {
 
 
 
-    // Lead Gating Helper
-    const checkAddLead = (c: any, index: number) => {
-        // Safe Parse Signals
-        let signals: any = {};
-        try {
-            if (typeof c.financialSignals === 'string') {
-                signals = JSON.parse(c.financialSignals);
-            } else if (typeof c.financialSignals === 'object') {
-                signals = c.financialSignals;
-            }
-        } catch (e) { console.warn("Signal parse error", e); }
-
-        // Rule A: Hard Dormant (Company Status is NOT active)
-        // CANONICAL CHECK: Only block if status is explicitly NOT active.
-        const isHardDormant = signals.status && signals.status !== 'active' && signals.status !== 'unknown';
-
-        // Rule B: Dormant Accounts (Active company, but filed dormant accounts)
-        // Soft Warning: Status is active, but accounts type implies dormant filing.
-        const isAccountsDormant = !isHardDormant && (
-            signals.hasDormantAccounts ||
-            (signals.accountsType && signals.accountsType.includes('dormant'))
-        );
-
-        // Other Flags
-        const isFinLow = c.financialActivityBand === 'Low';
-        const isWebLow = c.websiteConfidence === 'LOW' && c.websiteMatchStatus === 'MATCHED';
-        const isPriorityLow = c.contactPriorityBand === 'Low';
-
-        // Check for any warnings
-        if (isHardDormant || isAccountsDormant || isFinLow || isWebLow || isPriorityLow) {
-            setViewLowPriorityConfirm({
-                prospect: c,
-                index,
-                reasons: {
-                    isHardDormant,
-                    isAccountsDormant,
-                    isFinLow,
-                    isWebLow,
-                    isPriorityLow
-                }
-            });
-        } else {
-            // Clean green light
-            handleAction(c, index, 'ADD');
-        }
-    };
 
 
 
 
 
-    // --- Inspect Handler (saves prospect first if needed) ---
-    const handleInspect = async (company: any, index: number) => {
-        // If the company already has a database ID, just open the modal
-        if (company.id) {
-            openCompanyOverview({ prospectId: company.id });
-            return;
-        }
 
-        // Otherwise, save the prospect first to get an ID
-        try {
-            const saveRes = await fetch('/api/prospects', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(company)
-            });
 
-            if (!saveRes.ok) {
-                const err = await saveRes.json();
-                throw new Error(`Save failed: ${err.error || saveRes.statusText}`);
-            }
-
-            const saved = await saveRes.json();
-            const id = saved.id;
-
-            if (!id) throw new Error("Saved prospect returned no ID");
-
-            // Update the results array with the new ID so future actions work
-            setResults(prev => {
-                const next = [...prev];
-                next[index] = { ...next[index], id };
-                return next;
-            });
-
-            // Now open the modal with the saved ID
-            openCompanyOverview({ prospectId: id });
-        } catch (e: any) {
-            console.error("Inspect failed:", e);
-            alert(`Failed to load company profile: ${e.message}`);
-        }
-    };
-
-    // --- Email Discovery ---
-    const [viewEmails, setViewEmails] = useState<any | null>(null);
-    const [emailResults, setEmailResults] = useState<any[]>([]);
-    const [isDiscovering, setIsDiscovering] = useState(false);
-
-    const handleOpenDiscovery = (c: any) => {
-        setViewEmails(c);
-        setEmailResults([]); // Clear previous
-        // Optionally auto-trigger? Let's make it manual per req.
-    };
-
-    const runDiscovery = async () => {
-        if (!viewEmails) return;
-        setIsDiscovering(true);
-        try {
-            // 1. Ensure Saved
-            let id = viewEmails.id;
-            if (!id) {
-                const saveRes = await fetch('/api/prospects', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(viewEmails)
-                });
-                if (!saveRes.ok) throw new Error("Failed to save prospect record");
-                const saved = await saveRes.json();
-                id = saved.id;
-
-                // Update local state so we have the ID for future
-                setViewEmails((prev: any) => ({ ...prev, id }));
-                // Also update the main list
-                setResults(prev => prev.map(p => p.companyNumber === viewEmails.companyNumber ? { ...p, id } : p));
-            }
-
-            if (!id) throw new Error("Missing ID after save attempt");
-
-            const res = await fetch(`/api/prospects/${id}/emails/find`, { method: 'POST' });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || "Discovery failed");
-            }
-            const data = await res.json();
-            setEmailResults(data.emails || []);
-        } catch (e: any) {
-            console.error(e);
-            alert(`Discovery failed: ${e.message}`);
-        } finally {
-            setIsDiscovering(false);
-        }
-    };
-
-    const handleUseEmail = (email: string) => {
-        // Open Draft with this email
-        // We need to trigger draft generation logic first OR just open compser?
-        // Let's trigger draft generation but override the email.
-        const c = viewEmails;
-        setViewEmails(null);
-
-        // Check if draft already exists?
-        // For simplicity, we just trigger handleGenerateDraft but pass the email override.
-        // We modify handleGenerateDraft to accept an override or set a temporary state.
-
-        // Better: Just open Draft modal manually with pre-fill? 
-        // But we need the AI draft content.
-        // So let's call API draft, then open modal with email.
-
-        handleGenerateDraft(c, email);
-    };
 
     return (
         <div className="p-4 md:p-8 w-full max-w-[1920px] mx-auto">
@@ -983,130 +974,137 @@ export default function ProspectSearch() {
                         </div>
                     </div>
                 </div>
-            )}
+            )
+            }
             {/* Location Modal */}
-            {viewLocation && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewLocation(null)}>
-                    <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold flex items-center gap-2">
-                                <MapPin size={18} className="text-gray-500" />
-                                Full Address
-                            </h3>
-                            <button onClick={() => setViewLocation(null)} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
+            {
+                viewLocation && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewLocation(null)}>
+                        <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold flex items-center gap-2">
+                                    <MapPin size={18} className="text-gray-500" />
+                                    Full Address
+                                </h3>
+                                <button onClick={() => setViewLocation(null)} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
+                            </div>
+                            <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{viewLocation}</p>
                         </div>
-                        <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{viewLocation}</p>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Financial Modal */}
-            {viewFinancials && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewFinancials(null)}>
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4 border-b pb-3">
-                            <h3 className="text-lg font-bold flex items-center gap-2 text-gray-900">
-                                <Building2 size={18} className="text-gray-500" />
-                                Financial Activity
-                            </h3>
-                            <button onClick={() => setViewFinancials(null)} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
-                        </div>
-
-                        <div className="mb-6 flex items-center justify-between bg-gray-50 p-4 rounded-lg">
-                            <div>
-                                <div className="text-xs text-gray-500 uppercase font-bold tracking-wide">Overall Score</div>
-                                <div className="text-3xl font-bold text-gray-900 mt-1">{viewFinancials.financialActivityScore}<span className="text-sm text-gray-400 font-medium">/100</span></div>
+            {
+                viewFinancials && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewFinancials(null)}>
+                        <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-4 border-b pb-3">
+                                <h3 className="text-lg font-bold flex items-center gap-2 text-gray-900">
+                                    <Building2 size={18} className="text-gray-500" />
+                                    Financial Activity
+                                </h3>
+                                <button onClick={() => setViewFinancials(null)} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
                             </div>
-                            <div className={`px-3 py-1 rounded-full text-sm font-bold 
+
+                            <div className="mb-6 flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                                <div>
+                                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wide">Overall Score</div>
+                                    <div className="text-3xl font-bold text-gray-900 mt-1">{viewFinancials.financialActivityScore}<span className="text-sm text-gray-400 font-medium">/100</span></div>
+                                </div>
+                                <div className={`px-3 py-1 rounded-full text-sm font-bold 
                                 ${viewFinancials.financialActivityBand === 'Very Strong' ? 'bg-emerald-100 text-emerald-800' :
-                                    viewFinancials.financialActivityBand === 'Strong' ? 'bg-green-100 text-green-800' :
-                                        viewFinancials.financialActivityBand === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-gray-100 text-gray-600'}`}>
-                                {viewFinancials.financialActivityBand}
+                                        viewFinancials.financialActivityBand === 'Strong' ? 'bg-green-100 text-green-800' :
+                                            viewFinancials.financialActivityBand === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                'bg-gray-100 text-gray-600'}`}>
+                                    {viewFinancials.financialActivityBand}
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="space-y-3">
-                            {viewFinancials.financialSignals ? (() => {
-                                try {
-                                    const sigs = JSON.parse(viewFinancials.financialSignals);
-                                    return (
-                                        <>
-                                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Score Breakdown</h4>
-                                            <div className="space-y-2">
-                                                {sigs.details && sigs.details.map((d: string, i: number) => (
-                                                    <div key={i} className="flex items-start gap-2 text-sm text-gray-700 bg-white border border-gray-100 p-2 rounded">
-                                                        <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${d.includes('+0') ? 'bg-red-400' : 'bg-green-500'}`} />
-                                                        {d}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="mt-4 pt-4 border-t text-xs text-gray-400 italic">
-                                                Based on Companies House filings. Not a credit rating.
-                                            </div>
-                                        </>
-                                    );
-                                } catch (e) { return <span className="text-red-500">Error parsing details</span>; }
-                            })() : <p className="text-gray-500">No details available.</p>}
+                            <div className="space-y-3">
+                                {viewFinancials.financialSignals ? (() => {
+                                    try {
+                                        const sigs = JSON.parse(viewFinancials.financialSignals);
+                                        return (
+                                            <>
+                                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Score Breakdown</h4>
+                                                <div className="space-y-2">
+                                                    {sigs.details && sigs.details.map((d: string, i: number) => (
+                                                        <div key={i} className="flex items-start gap-2 text-sm text-gray-700 bg-white border border-gray-100 p-2 rounded">
+                                                            <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${d.includes('+0') ? 'bg-red-400' : 'bg-green-500'}`} />
+                                                            {d}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div className="mt-4 pt-4 border-t text-xs text-gray-400 italic">
+                                                    Based on Companies House filings. Not a credit rating.
+                                                </div>
+                                            </>
+                                        );
+                                    } catch (e) { return <span className="text-red-500">Error parsing details</span>; }
+                                })() : <p className="text-gray-500">No details available.</p>}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Modal Logic (Existing) */}
-            {viewEvidence && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewEvidence(null)}>
-                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold">Analysis Evidence</h3>
-                            <button onClick={() => setViewEvidence(null)}><X size={20} /></button>
-                        </div>
-                        {Array.isArray(viewEvidence) ? (
-                            <div className="space-y-4">
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Content & Activity Signals</h4>
-                                    <ul className="list-disc pl-5 space-y-1">
-                                        {viewEvidence.filter(r => r.match(/blog|sitemap|copyright|content update/i)).map((r: string, i: number) => (
-                                            <li key={i} className="text-sm text-gray-700">{r}</li>
-                                        ))}
-                                        {viewEvidence.filter(r => r.match(/blog|sitemap|copyright|content update/i)).length === 0 && (
-                                            <li className="text-sm text-gray-400 italic">No strong content signals recorded.</li>
-                                        )}
-                                    </ul>
-                                </div>
-                                <div className="border-t pt-4">
-                                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Design & Technical Opportunities</h4>
-                                    <ul className="list-disc pl-5 space-y-1">
-                                        {viewEvidence.filter(r => !r.match(/blog|sitemap|copyright|Assumed Fresh|content update/i)).map((r: string, i: number) => (
-                                            <li key={i} className="text-sm text-gray-700">{r}</li>
-                                        ))}
-                                        {viewEvidence.filter(r => !r.match(/blog|sitemap|copyright|Assumed Fresh|content update/i)).length === 0 && (
-                                            <li className="text-sm text-gray-400 italic">No specific design issues detected.</li>
-                                        )}
-                                    </ul>
-                                </div>
+            {
+                viewEvidence && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewEvidence(null)}>
+                        <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold">Analysis Evidence</h3>
+                                <button onClick={() => setViewEvidence(null)}><X size={20} /></button>
                             </div>
-                        ) : (
-                            <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-                                {Object.entries(viewEvidence).map(([key, value]) => {
-                                    if (key === 'geometry' || key === 'opening_hours' || key === 'photos' || key === 'address_components') return null; // Skip complex/noisy fields
+                            {Array.isArray(viewEvidence) ? (
+                                <div className="space-y-4">
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Content & Activity Signals</h4>
+                                        <ul className="list-disc pl-5 space-y-1">
+                                            {viewEvidence.filter(r => r.match(/blog|sitemap|copyright|content update/i)).map((r: string, i: number) => (
+                                                <li key={i} className="text-sm text-gray-700">{r}</li>
+                                            ))}
+                                            {viewEvidence.filter(r => r.match(/blog|sitemap|copyright|content update/i)).length === 0 && (
+                                                <li className="text-sm text-gray-400 italic">No strong content signals recorded.</li>
+                                            )}
+                                        </ul>
+                                    </div>
+                                    <div className="border-t pt-4">
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Design & Technical Opportunities</h4>
+                                        <ul className="list-disc pl-5 space-y-1">
+                                            {viewEvidence.filter(r => !r.match(/blog|sitemap|copyright|Assumed Fresh|content update/i)).map((r: string, i: number) => (
+                                                <li key={i} className="text-sm text-gray-700">{r}</li>
+                                            ))}
+                                            {viewEvidence.filter(r => !r.match(/blog|sitemap|copyright|Assumed Fresh|content update/i)).length === 0 && (
+                                                <li className="text-sm text-gray-400 italic">No specific design issues detected.</li>
+                                            )}
+                                        </ul>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                                    {Object.entries(viewEvidence).map(([key, value]) => {
+                                        if (key === 'geometry' || key === 'opening_hours' || key === 'photos' || key === 'address_components') return null; // Skip complex/noisy fields
 
-                                    return (
-                                        <div key={key} className="flex flex-col sm:flex-row border-b border-gray-100 last:border-0 p-3 text-sm">
-                                            <span className="font-semibold text-gray-600 sm:w-1/3 capitalize">
-                                                {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
-                                            </span>
-                                            <span className="text-gray-900 sm:w-2/3 break-all sm:break-words mt-1 sm:mt-0 font-mono text-xs sm:text-sm">
-                                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
+                                        return (
+                                            <div key={key} className="flex flex-col sm:flex-row border-b border-gray-100 last:border-0 p-3 text-sm">
+                                                <span className="font-semibold text-gray-600 sm:w-1/3 capitalize">
+                                                    {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
+                                                </span>
+                                                <span className="text-gray-900 sm:w-2/3 break-all sm:break-words mt-1 sm:mt-0 font-mono text-xs sm:text-sm">
+                                                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* ... Filters ... */}
 
@@ -1116,41 +1114,43 @@ export default function ProspectSearch() {
             />
 
             {/* Bulk Action Bar - appears when rows are selected */}
-            {selectedRows.size > 0 && (
-                <div
-                    className="flex items-center gap-4 px-4 py-3 mb-4 rounded-[var(--radius-lg)] border border-[var(--border-default)]"
-                    style={{ background: 'linear-gradient(135deg, rgba(84,130,237,0.08), rgba(84,130,237,0.04))' }}
-                >
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            checked={selectedRows.size === results.length && results.length > 0}
-                            onChange={toggleSelectAll}
-                            className="w-4 h-4 rounded border-[var(--border-default)]"
-                        />
-                        <span className="text-sm font-semibold text-[var(--text-primary)]">
-                            {selectedRows.size} selected
-                        </span>
+            {
+                selectedRows.size > 0 && (
+                    <div
+                        className="flex items-center gap-4 px-4 py-3 mb-4 rounded-[var(--radius-lg)] border border-[var(--border-default)]"
+                        style={{ background: 'linear-gradient(135deg, rgba(84,130,237,0.08), rgba(84,130,237,0.04))' }}
+                    >
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={selectedRows.size === results.length && results.length > 0}
+                                onChange={toggleSelectAll}
+                                className="w-4 h-4 rounded border-[var(--border-default)]"
+                            />
+                            <span className="text-sm font-semibold text-[var(--text-primary)]">
+                                {selectedRows.size} selected
+                            </span>
+                        </div>
+
+                        <div className="h-5 w-px bg-[var(--border-soft)]" />
+
+                        <button
+                            onClick={handleBulkAdd}
+                            disabled={bulkAddLoading}
+                            className="px-4 py-1.5 rounded-[var(--radius-button)] text-sm font-semibold bg-[var(--brand)] text-white hover:opacity-90 disabled:opacity-50 transition-all"
+                        >
+                            {bulkAddLoading ? 'Adding...' : `+ Add ${selectedRows.size} to Lead Board`}
+                        </button>
+
+                        <button
+                            onClick={() => setSelectedRows(new Set())}
+                            className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                        >
+                            Clear
+                        </button>
                     </div>
-
-                    <div className="h-5 w-px bg-[var(--border-soft)]" />
-
-                    <button
-                        onClick={handleBulkAdd}
-                        disabled={bulkAddLoading}
-                        className="px-4 py-1.5 rounded-[var(--radius-button)] text-sm font-semibold bg-[var(--brand)] text-white hover:opacity-90 disabled:opacity-50 transition-all"
-                    >
-                        {bulkAddLoading ? 'Adding...' : `+ Add ${selectedRows.size} to Lead Board`}
-                    </button>
-
-                    <button
-                        onClick={() => setSelectedRows(new Set())}
-                        className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                    >
-                        Clear
-                    </button>
-                </div>
-            )}
+                )
+            }
 
             {/* Dashboard Overview Cards */}
             <StatsGrid>
@@ -1181,18 +1181,20 @@ export default function ProspectSearch() {
             </StatsGrid>
 
             {/* Rescan Controls - only show when there are results */}
-            {results.length > 0 && (
-                <div className="flex justify-end mb-4">
-                    <RescanDropdown
-                        totalCount={results.filter(c => c.id).length}
-                        missingCount={stalenessCounts.missingCount}
-                        staleCount={stalenessCounts.staleCount}
-                        onScan={handleUnifiedBulkScan}
-                        isScanning={bulkScanning}
-                        progress={scanProgress}
-                    />
-                </div>
-            )}
+            {
+                results.length > 0 && (
+                    <div className="flex justify-end mb-4">
+                        <RescanDropdown
+                            totalCount={results.filter(c => c.id).length}
+                            missingCount={stalenessCounts.missingCount}
+                            staleCount={stalenessCounts.staleCount}
+                            onScan={handleUnifiedBulkScan}
+                            isScanning={bulkScanning}
+                            progress={scanProgress}
+                        />
+                    </div>
+                )
+            }
 
             {/* Search Filters */}
             <form onSubmit={handleSearch} className="card p-6 mb-8">
@@ -1350,104 +1352,108 @@ export default function ProspectSearch() {
             </form>
 
             {/* Results List */}
-            {hasSearched && results.length === 0 && (
-                <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-                    <div className="text-gray-400 mb-2">
-                        <SearchIcon size={32} className="mx-auto" />
+            {
+                hasSearched && results.length === 0 && (
+                    <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                        <div className="text-gray-400 mb-2">
+                            <SearchIcon size={32} className="mx-auto" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900">No prospects found</h3>
+                        <p className="text-gray-500 max-w-sm mx-auto mt-1">
+                            Try adjusting your filters (e.g. broader age range) or search for a different company name.
+                        </p>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900">No prospects found</h3>
-                    <p className="text-gray-500 max-w-sm mx-auto mt-1">
-                        Try adjusting your filters (e.g. broader age range) or search for a different company name.
-                    </p>
-                </div>
-            )}
+                )
+            }
 
-            {results.length > 0 ? (
-                <div className="space-y-4">
-                    {/* Header Label (Optional, maybe just count) */}
-                    <div className="flex justify-between items-center px-1">
-                        <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{results.length} Prospects Found</span>
-                        {/* Sort dropdown could go here */}
-                    </div>
+            {
+                results.length > 0 ? (
+                    <div className="space-y-4">
+                        {/* Header Label (Optional, maybe just count) */}
+                        <div className="flex justify-between items-center px-1">
+                            <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{results.length} Prospects Found</span>
+                            {/* Sort dropdown could go here */}
+                        </div>
 
-                    {results.map((c, i) => {
-                        const status = statusMap[i]; // Use index for status lookup
-                        if (status === 'REJECTED') return null; // Hide rejected
+                        {results.map((c, i) => {
+                            const status = statusMap[i]; // Use index for status lookup
+                            if (status === 'REJECTED') return null; // Hide rejected
 
-                        const isLoadingFin = statusMap[`fin-${i}`] === 'LOADING';
-                        const isMatchLoading = matchingMap[i];
+                            const isLoadingFin = statusMap[`fin-${i}`] === 'LOADING';
+                            const isMatchLoading = matchingMap[i];
 
-                        // Calculate days since incorporation for badge
-                        const daysSinceInc = c.incorporatedOn
-                            ? Math.floor((Date.now() - new Date(c.incorporatedOn).getTime()) / (1000 * 60 * 60 * 24))
-                            : null;
-                        const showRegisteredBadge = (activePreset === 'newly_registered' || (daysSinceInc !== null && daysSinceInc <= 30));
+                            // Calculate days since incorporation for badge
+                            const daysSinceInc = c.incorporatedOn
+                                ? Math.floor((Date.now() - new Date(c.incorporatedOn).getTime()) / (1000 * 60 * 60 * 24))
+                                : null;
+                            const showRegisteredBadge = (activePreset === 'newly_registered' || (daysSinceInc !== null && daysSinceInc <= 30));
 
-                        return (
-                            <div key={c.companyNumber || i} className="flex items-start gap-3">
-                                {/* Selection Checkbox */}
-                                <div className="pt-5 flex-shrink-0">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedRows.has(c.companyNumber)}
-                                        onChange={() => toggleRowSelection(c.companyNumber)}
-                                        className="w-4 h-4 rounded border-[var(--border-default)] cursor-pointer"
-                                    />
+                            return (
+                                <div key={c.companyNumber || i} className="flex items-start gap-3">
+                                    {/* Selection Checkbox */}
+                                    <div className="pt-5 flex-shrink-0">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedRows.has(c.companyNumber)}
+                                            onChange={() => toggleRowSelection(c.companyNumber)}
+                                            className="w-4 h-4 rounded border-[var(--border-default)] cursor-pointer"
+                                        />
+                                    </div>
+
+                                    {/* Row Content */}
+                                    <div className="flex-1 relative">
+                                        {/* Registered Recently Badge */}
+                                        {showRegisteredBadge && daysSinceInc !== null && (
+                                            <div className="absolute -top-1 left-3 z-10">
+                                                <span className="px-2 py-0.5 bg-[rgba(166,244,179,0.15)] text-[var(--accent-mint-text)] text-[10px] font-bold rounded-full border border-[rgba(166,244,179,0.3)]">
+                                                    🆕 Registered {daysSinceInc} days ago
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        <ProspectResultRowCard
+                                            index={i}
+                                            company={c}
+                                            status={status}
+
+                                            // Action Handlers
+                                            onAction={(act) => handleAction(c, i, act)}
+                                            onCheckAddLead={() => checkAddLead(c, i)}
+                                            onFindEmails={() => handleOpenDiscovery(c)}
+                                            onDraftEmail={() => handleGenerateDraft(c)}
+                                            onViewLocation={() => setViewLocation(c.location)}
+                                            onInspect={() => handleInspect(c, i)}
+
+                                            // Evidence Handlers
+                                            onMatchEvidence={() => setViewEvidence(JSON.parse(c.websiteMatchEvidence || '{}'))}
+                                            onFinancialEvidence={() => setViewFinancials(c)}
+                                            onPriorityEvidence={() => setViewPriority(c)}
+                                            onWebsiteHealthEvidence={() => setViewWebsiteHealth(c)}
+
+                                            // Logic Triggers
+                                            onFindWebsite={() => handleMatch(c, i)}
+                                            onCheckFinancials={() => handleCheckFinancials(c, i)}
+                                            onRefreshAnalysis={() => handleReanalyze(c, c.id)}
+
+                                            // State
+                                            isFinancialLoading={isLoadingFin}
+                                            isMatchLoading={isMatchLoading}
+                                        />
+                                    </div>
                                 </div>
-
-                                {/* Row Content */}
-                                <div className="flex-1 relative">
-                                    {/* Registered Recently Badge */}
-                                    {showRegisteredBadge && daysSinceInc !== null && (
-                                        <div className="absolute -top-1 left-3 z-10">
-                                            <span className="px-2 py-0.5 bg-[rgba(166,244,179,0.15)] text-[var(--accent-mint-text)] text-[10px] font-bold rounded-full border border-[rgba(166,244,179,0.3)]">
-                                                🆕 Registered {daysSinceInc} days ago
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    <ProspectResultRowCard
-                                        index={i}
-                                        company={c}
-                                        status={status}
-
-                                        // Action Handlers
-                                        onAction={(act) => handleAction(c, i, act)}
-                                        onCheckAddLead={() => checkAddLead(c, i)}
-                                        onFindEmails={() => handleOpenDiscovery(c)}
-                                        onDraftEmail={() => handleGenerateDraft(c)}
-                                        onViewLocation={() => setViewLocation(c.location)}
-                                        onInspect={() => handleInspect(c, i)}
-
-                                        // Evidence Handlers
-                                        onMatchEvidence={() => setViewEvidence(JSON.parse(c.websiteMatchEvidence || '{}'))}
-                                        onFinancialEvidence={() => setViewFinancials(c)}
-                                        onPriorityEvidence={() => setViewPriority(c)}
-                                        onWebsiteHealthEvidence={() => setViewWebsiteHealth(c)}
-
-                                        // Logic Triggers
-                                        onFindWebsite={() => handleMatch(c, i)}
-                                        onCheckFinancials={() => handleCheckFinancials(c, i)}
-                                        onRefreshAnalysis={() => handleReanalyze(c, c.id)}
-
-                                        // State
-                                        isFinancialLoading={isLoadingFin}
-                                        isMatchLoading={isMatchLoading}
-                                    />
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            ) : !hasSearched ? (
-                <div className="text-center py-16 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
-                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Building2 className="h-8 w-8 text-gray-300" />
+                            );
+                        })}
                     </div>
-                    <h3 className="text-base font-semibold text-gray-900">No prospects to show</h3>
-                    <p className="mt-1 text-sm text-gray-500">Get started by searching for companies above.</p>
-                </div>
-            ) : null}
+                ) : !hasSearched ? (
+                    <div className="text-center py-16 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
+                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Building2 className="h-8 w-8 text-gray-300" />
+                        </div>
+                        <h3 className="text-base font-semibold text-gray-900">No prospects to show</h3>
+                        <p className="mt-1 text-sm text-gray-500">Get started by searching for companies above.</p>
+                    </div>
+                ) : null
+            }
             {
                 viewFinancials && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewFinancials(null)}>
@@ -1635,216 +1641,218 @@ export default function ProspectSearch() {
                 )
             }
             {/* Website Health Modal */}
-            {viewWebsiteHealth && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewWebsiteHealth(null)}>
-                    <div className="bg-white rounded-xl p-6 max-w-2xl mx-4 shadow-2xl min-w-[600px]" onClick={e => e.stopPropagation()}>
-                        <div className="relative">
-                            {/* Close button */}
-                            <div className="absolute -top-2 -right-2 flex gap-2">
-                                {diagnosticsEnabled && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSnapshotCompanyId(viewWebsiteHealth.id);
-                                        }}
-                                        className="px-3 py-1.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 text-xs font-medium rounded-lg transition-colors"
-                                        title="View health snapshot"
-                                    >
-                                        📊 Snapshot
+            {
+                viewWebsiteHealth && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewWebsiteHealth(null)}>
+                        <div className="bg-white rounded-xl p-6 max-w-2xl mx-4 shadow-2xl min-w-[600px]" onClick={e => e.stopPropagation()}>
+                            <div className="relative">
+                                {/* Close button */}
+                                <div className="absolute -top-2 -right-2 flex gap-2">
+                                    {diagnosticsEnabled && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSnapshotCompanyId(viewWebsiteHealth.id);
+                                            }}
+                                            className="px-3 py-1.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 text-xs font-medium rounded-lg transition-colors"
+                                            title="View health snapshot"
+                                        >
+                                            📊 Snapshot
+                                        </button>
+                                    )}
+                                    <button onClick={() => setViewWebsiteHealth(null)} className="text-gray-400 hover:text-gray-600">
+                                        <X size={24} />
                                     </button>
-                                )}
-                                <button onClick={() => setViewWebsiteHealth(null)} className="text-gray-400 hover:text-gray-600">
-                                    <X size={24} />
-                                </button>
-                            </div>
-
-                            <div className="p-6 space-y-4">
-                                {/* Score Section */}
-                                <div className="flex justify-between items-center pb-4 border-b border-gray-100">
-                                    <span className="text-lg font-bold text-gray-700">Website Health</span>
-                                    <div className="text-right">
-                                        {viewWebsiteHealth.websiteHealthStatus === 'success' && typeof viewWebsiteHealth.websiteHealthScore === 'number' ? (
-                                            <>
-                                                <div className="text-3xl font-black text-blue-600">{viewWebsiteHealth.websiteHealthScore}</div>
-                                                <div className="text-xs text-blue-400 font-bold">{viewWebsiteHealth.websiteHealthLabel || 'Unknown'}</div>
-                                            </>
-                                        ) : viewWebsiteHealth.websiteHealthStatus === 'error' && viewWebsiteHealth.websiteHealthError === 'NO_WEBSITE_URL' ? (
-                                            <div className="text-sm text-gray-500">No website URL</div>
-                                        ) : viewWebsiteHealth.websiteHealthStatus === 'error' ? (
-                                            <div className="text-sm text-red-500">Scan failed</div>
-                                        ) : (
-                                            <div className="text-sm text-gray-500">Not scanned</div>
-                                        )}
-                                    </div>
                                 </div>
 
-                                {/* Diagnostics Debug Strip */}
-                                {diagnosticsEnabled && (() => {
-                                    const display = getWebHealthDisplay({
-                                        websiteHealthStatus: viewWebsiteHealth.websiteHealthStatus,
-                                        websiteHealthScore: viewWebsiteHealth.websiteHealthScore,
-                                        websiteHealthLabel: viewWebsiteHealth.websiteHealthLabel,
-                                        websiteHealthError: viewWebsiteHealth.websiteHealthError
-                                    });
-                                    return (
-                                        <WebHealthDebugStrip
-                                            company={viewWebsiteHealth}
-                                            display={display}
-                                        />
-                                    );
-                                })()}
+                                <div className="p-6 space-y-4">
+                                    {/* Score Section */}
+                                    <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                                        <span className="text-lg font-bold text-gray-700">Website Health</span>
+                                        <div className="text-right">
+                                            {viewWebsiteHealth.websiteHealthStatus === 'success' && typeof viewWebsiteHealth.websiteHealthScore === 'number' ? (
+                                                <>
+                                                    <div className="text-3xl font-black text-blue-600">{viewWebsiteHealth.websiteHealthScore}</div>
+                                                    <div className="text-xs text-blue-400 font-bold">{viewWebsiteHealth.websiteHealthLabel || 'Unknown'}</div>
+                                                </>
+                                            ) : viewWebsiteHealth.websiteHealthStatus === 'error' && viewWebsiteHealth.websiteHealthError === 'NO_WEBSITE_URL' ? (
+                                                <div className="text-sm text-gray-500">No website URL</div>
+                                            ) : viewWebsiteHealth.websiteHealthStatus === 'error' ? (
+                                                <div className="text-sm text-red-500">Scan failed</div>
+                                            ) : (
+                                                <div className="text-sm text-gray-500">Not scanned</div>
+                                            )}
+                                        </div>
+                                    </div>
 
-                                {/* Breakdown Section */}
-                                <div className="space-y-3">
-                                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Signals Detected</div>
-                                    {(() => {
-                                        let signals: string[] = [];
-                                        try {
-                                            if (viewWebsiteHealth.scoreReasons) {
-                                                signals = JSON.parse(viewWebsiteHealth.scoreReasons);
-                                            }
-                                        } catch (e) { }
-
-                                        if (!Array.isArray(signals) || signals.length === 0) {
-                                            return <p className="text-sm text-gray-400 italic">No detailed signals recorded</p>;
-                                        }
-
-                                        // Categorize signals
-                                        const contentSignals = signals.filter(s => s.match(/blog|content|copyright|update/i));
-                                        const techSignals = signals.filter(s => s.match(/sitemap|generator|https|ssl|viewport/i));
-                                        const designSignals = signals.filter(s => s.match(/mobile|responsive|design|ui/i));
-                                        const otherSignals = signals.filter(s => !s.match(/blog|content|copyright|update|sitemap|generator|https|ssl|viewport|mobile|responsive|design|ui/i));
-
+                                    {/* Diagnostics Debug Strip */}
+                                    {diagnosticsEnabled && (() => {
+                                        const display = getWebHealthDisplay({
+                                            websiteHealthStatus: viewWebsiteHealth.websiteHealthStatus,
+                                            websiteHealthScore: viewWebsiteHealth.websiteHealthScore,
+                                            websiteHealthLabel: viewWebsiteHealth.websiteHealthLabel,
+                                            websiteHealthError: viewWebsiteHealth.websiteHealthError
+                                        });
                                         return (
-                                            <div className="space-y-3">
-                                                {contentSignals.length > 0 && (
-                                                    <div>
-                                                        <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Content Freshness</div>
-                                                        {contentSignals.map((s, i) => (
-                                                            <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-green-400 pl-2 mb-1">
-                                                                <span className="text-gray-600">{s}</span>
-                                                                <span className="text-green-600 font-medium">+{10 + i * 5}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {techSignals.length > 0 && (
-                                                    <div>
-                                                        <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Technical</div>
-                                                        {techSignals.map((s, i) => (
-                                                            <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-blue-400 pl-2 mb-1">
-                                                                <span className="text-gray-600">{s}</span>
-                                                                <span className="text-blue-600 font-medium">+{5 + i * 5}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {designSignals.length > 0 && (
-                                                    <div>
-                                                        <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Design</div>
-                                                        {designSignals.map((s, i) => (
-                                                            <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-purple-400 pl-2 mb-1">
-                                                                <span className="text-gray-600">{s}</span>
-                                                                <span className="text-purple-600 font-medium">+{10 + i * 5}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {otherSignals.length > 0 && (
-                                                    <div>
-                                                        <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Other</div>
-                                                        {otherSignals.map((s, i) => (
-                                                            <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-gray-300 pl-2 mb-1">
-                                                                <span className="text-gray-600">{s}</span>
-                                                                <span className="text-gray-500 font-medium">+5</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <WebHealthDebugStrip
+                                                company={viewWebsiteHealth}
+                                                display={display}
+                                            />
                                         );
                                     })()}
-                                </div>
 
-                                {/* Explanation */}
-                                <div className="text-xs text-gray-400 pt-3 border-t border-gray-100">
-                                    Website Health measures how outdated a company's website appears.
-                                    <br />Higher scores indicate more opportunity for redesign services.
-                                </div>
-
-                                {/* Refresh Button - Bottom Right */}
-                                <div className="flex justify-end pt-4 border-t border-gray-100 mt-4">
-                                    <button
-                                        onClick={async () => {
-                                            if (!viewWebsiteHealth?.id) return;
-
-                                            const buttonEl = document.activeElement as HTMLButtonElement;
-                                            if (buttonEl) buttonEl.disabled = true;
-
+                                    {/* Breakdown Section */}
+                                    <div className="space-y-3">
+                                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Signals Detected</div>
+                                        {(() => {
+                                            let signals: string[] = [];
                                             try {
-                                                const res = await fetch('/api/scan/website', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({
-                                                        companyId: viewWebsiteHealth.id,
-                                                        surface: 'search',
-                                                        force: true
-                                                    })
-                                                });
-
-                                                if (res.ok) {
-                                                    const data = await res.json();
-                                                    console.log('Refresh response:', data);
-
-                                                    if (data.updatedCompanyHealth) {
-                                                        // Update modal data with canonical fields
-                                                        setViewWebsiteHealth(prev => {
-                                                            if (!prev) return null;
-                                                            return {
-                                                                ...prev,
-                                                                websiteHealthStatus: data.updatedCompanyHealth.websiteHealthStatus,
-                                                                websiteHealthScore: data.updatedCompanyHealth.websiteHealthScore,
-                                                                websiteHealthLabel: data.updatedCompanyHealth.websiteHealthLabel,
-                                                                websiteHealthError: data.updatedCompanyHealth.websiteHealthError,
-                                                                websiteHealthScannedAt: data.updatedCompanyHealth.websiteHealthScannedAt,
-                                                                // Also update legacy fields for backward compat
-                                                                stalenessScore: data.updatedCompanyHealth.websiteHealthScore,
-                                                                lastAnalysedAt: data.updatedCompanyHealth.websiteHealthScannedAt
-                                                            };
-                                                        });
-
-                                                        // Update list
-                                                        setResults(prev => prev.map(p =>
-                                                            p.id === viewWebsiteHealth.id
-                                                                ? { ...p, ...data.updatedCompanyHealth }
-                                                                : p
-                                                        ));
-
-                                                        alert('Refresh complete!');
-                                                    }
-                                                } else {
-                                                    alert('Refresh failed: ' + res.statusText);
+                                                if (viewWebsiteHealth.scoreReasons) {
+                                                    signals = JSON.parse(viewWebsiteHealth.scoreReasons);
                                                 }
-                                            } catch (e: any) {
-                                                console.error('Refresh error:', e);
-                                                alert('Refresh failed: ' + e.message);
-                                            } finally {
-                                                if (buttonEl) buttonEl.disabled = false;
+                                            } catch (e) { }
+
+                                            if (!Array.isArray(signals) || signals.length === 0) {
+                                                return <p className="text-sm text-gray-400 italic">No detailed signals recorded</p>;
                                             }
-                                        }}
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
-                                        <span>Refresh Analysis</span>
-                                    </button>
+
+                                            // Categorize signals
+                                            const contentSignals = signals.filter(s => s.match(/blog|content|copyright|update/i));
+                                            const techSignals = signals.filter(s => s.match(/sitemap|generator|https|ssl|viewport/i));
+                                            const designSignals = signals.filter(s => s.match(/mobile|responsive|design|ui/i));
+                                            const otherSignals = signals.filter(s => !s.match(/blog|content|copyright|update|sitemap|generator|https|ssl|viewport|mobile|responsive|design|ui/i));
+
+                                            return (
+                                                <div className="space-y-3">
+                                                    {contentSignals.length > 0 && (
+                                                        <div>
+                                                            <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Content Freshness</div>
+                                                            {contentSignals.map((s, i) => (
+                                                                <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-green-400 pl-2 mb-1">
+                                                                    <span className="text-gray-600">{s}</span>
+                                                                    <span className="text-green-600 font-medium">+{10 + i * 5}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {techSignals.length > 0 && (
+                                                        <div>
+                                                            <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Technical</div>
+                                                            {techSignals.map((s, i) => (
+                                                                <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-blue-400 pl-2 mb-1">
+                                                                    <span className="text-gray-600">{s}</span>
+                                                                    <span className="text-blue-600 font-medium">+{5 + i * 5}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {designSignals.length > 0 && (
+                                                        <div>
+                                                            <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Design</div>
+                                                            {designSignals.map((s, i) => (
+                                                                <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-purple-400 pl-2 mb-1">
+                                                                    <span className="text-gray-600">{s}</span>
+                                                                    <span className="text-purple-600 font-medium">+{10 + i * 5}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {otherSignals.length > 0 && (
+                                                        <div>
+                                                            <div className="text-[10px] font-medium text-gray-400 uppercase mb-1">Other</div>
+                                                            {otherSignals.map((s, i) => (
+                                                                <div key={i} className="flex items-center justify-between text-xs py-1 border-l-2 border-gray-300 pl-2 mb-1">
+                                                                    <span className="text-gray-600">{s}</span>
+                                                                    <span className="text-gray-500 font-medium">+5</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Explanation */}
+                                    <div className="text-xs text-gray-400 pt-3 border-t border-gray-100">
+                                        Website Health measures how outdated a company&apos;s website appears.
+                                        <br />Higher scores indicate more opportunity for redesign services.
+                                    </div>
+
+                                    {/* Refresh Button - Bottom Right */}
+                                    <div className="flex justify-end pt-4 border-t border-gray-100 mt-4">
+                                        <button
+                                            onClick={async () => {
+                                                if (!viewWebsiteHealth?.id) return;
+
+                                                const buttonEl = document.activeElement as HTMLButtonElement;
+                                                if (buttonEl) buttonEl.disabled = true;
+
+                                                try {
+                                                    const res = await fetch('/api/scan/website', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            companyId: viewWebsiteHealth.id,
+                                                            surface: 'search',
+                                                            force: true
+                                                        })
+                                                    });
+
+                                                    if (res.ok) {
+                                                        const data = await res.json();
+                                                        console.log('Refresh response:', data);
+
+                                                        if (data.updatedCompanyHealth) {
+                                                            // Update modal data with canonical fields
+                                                            setViewWebsiteHealth(prev => {
+                                                                if (!prev) return null;
+                                                                return {
+                                                                    ...prev,
+                                                                    websiteHealthStatus: data.updatedCompanyHealth.websiteHealthStatus,
+                                                                    websiteHealthScore: data.updatedCompanyHealth.websiteHealthScore,
+                                                                    websiteHealthLabel: data.updatedCompanyHealth.websiteHealthLabel,
+                                                                    websiteHealthError: data.updatedCompanyHealth.websiteHealthError,
+                                                                    websiteHealthScannedAt: data.updatedCompanyHealth.websiteHealthScannedAt,
+                                                                    // Also update legacy fields for backward compat
+                                                                    stalenessScore: data.updatedCompanyHealth.websiteHealthScore,
+                                                                    lastAnalysedAt: data.updatedCompanyHealth.websiteHealthScannedAt
+                                                                };
+                                                            });
+
+                                                            // Update list
+                                                            setResults(prev => prev.map(p =>
+                                                                p.id === viewWebsiteHealth.id
+                                                                    ? { ...p, ...data.updatedCompanyHealth }
+                                                                    : p
+                                                            ));
+
+                                                            alert('Refresh complete!');
+                                                        }
+                                                    } else {
+                                                        alert('Refresh failed: ' + res.statusText);
+                                                    }
+                                                } catch (e: any) {
+                                                    console.error('Refresh error:', e);
+                                                    alert('Refresh failed: ' + e.message);
+                                                } finally {
+                                                    if (buttonEl) buttonEl.disabled = false;
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                            <span>Refresh Analysis</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Warning / Confirmation Modal */}
             {
@@ -1927,36 +1935,40 @@ export default function ProspectSearch() {
             }
 
             {/* --- Unified Composer Modal (with AI features) --- */}
-            {viewDraft && (
-                <MessageThreadComposerModal
-                    prospectId={viewDraft.prospect?.id}
-                    initialData={{
-                        companyName: viewDraft.prospect?.companyName || viewDraft.prospect?.brandNameOverride || viewDraft.prospect?.websiteBrandName,
-                        contactEmail: viewDraft.toEmail,
-                        lead: {
-                            id: viewDraft.leadId,
-                            companyProspectId: viewDraft.prospect?.id,
-                            emailDraft: viewDraft.draft?.body,
-                            emailDraftHtml: viewDraft.draft?.body,
-                            subjectLine1: viewDraft.draft?.subject
-                        },
-                        prospect: viewDraft.prospect
-                    }}
-                    defaultTab="compose"
-                    onClose={() => setViewDraft(null)}
-                    onSuccess={() => {
-                        setViewDraft(null);
-                    }}
-                />
-            )}
+            {
+                viewDraft && (
+                    <MessageThreadComposerModal
+                        prospectId={viewDraft.prospect?.id}
+                        initialData={{
+                            companyName: viewDraft.prospect?.companyName || viewDraft.prospect?.brandNameOverride || viewDraft.prospect?.websiteBrandName,
+                            contactEmail: viewDraft.toEmail,
+                            lead: {
+                                id: viewDraft.leadId,
+                                companyProspectId: viewDraft.prospect?.id,
+                                emailDraft: viewDraft.draft?.body,
+                                emailDraftHtml: viewDraft.draft?.body,
+                                subjectLine1: viewDraft.draft?.subject
+                            },
+                            prospect: viewDraft.prospect
+                        }}
+                        defaultTab="compose"
+                        onClose={() => setViewDraft(null)}
+                        onSuccess={() => {
+                            setViewDraft(null);
+                        }}
+                    />
+                )
+            }
 
             {/* Diagnostics Snapshot Modal */}
-            {snapshotCompanyId && (
-                <HealthSnapshotModal
-                    companyId={snapshotCompanyId}
-                    onClose={() => setSnapshotCompanyId(null)}
-                />
-            )}
-        </div>
+            {
+                snapshotCompanyId && (
+                    <HealthSnapshotModal
+                        companyId={snapshotCompanyId}
+                        onClose={() => setSnapshotCompanyId(null)}
+                    />
+                )
+            }
+        </div >
     );
 }

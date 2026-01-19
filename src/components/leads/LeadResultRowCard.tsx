@@ -5,6 +5,7 @@ import { CompanyNameLink } from '@/components/company/CompanyNameLink';
 import MetricTile from '@/components/prospects/MetricTile';
 import { getWebsiteHealthDisplay } from '@/lib/scoring/websiteHealthUtils';
 import WebsiteHealthTruthPanel from '@/components/debug/WebsiteHealthTruthPanel';
+import WebHealthCardContainer from '@/components/ui/WebHealthCardContainer';
 
 // Format relative time for last scanned
 function formatRelativeTime(dateStr: string | Date): string {
@@ -281,28 +282,47 @@ export default function LeadResultRowCard({
                     </div>
 
                     {/* Web Health */}
-                    <div className="flex flex-col gap-1">
-                        {hasWebData ? (
-                            <MetricTile
-                                label="Web Health"
-                                value={staleLabel}
-                                score={staleScore}
-                                scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
-                                onDetails={onViewWebHealth}
-                            />
-                        ) : (
-                            <div className="flex flex-col gap-2 p-3 rounded-lg h-full justify-center" style={{ background: healthCtaStyles.web.cardBg, border: `1px solid ${healthCtaStyles.web.cardBorder}` }}>
-                                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Web Health</span>
-                                <HealthCardCTA
-                                    variant="web"
-                                    label="Scan Website"
-                                    loadingLabel="Scanning..."
-                                    isLoading={scanningWeb}
-                                    onClick={handleWebScan}
-                                    size="full"
+                    <div className="flex flex-col gap-1 relative">
+                        <WebHealthCardContainer
+                            companyId={lead.companyProspectId || lead.id}
+                            surface="lead_board"
+                            className="h-full"
+                        >
+                            {hasWebData ? (
+                                <MetricTile
+                                    label="Web Health"
+                                    value={staleLabel}
+                                    score={staleScore}
+                                    scoreColor={(staleScore ?? 0) >= 60 ? 'red' : 'green'}
+                                    // No onClick needed here as Container handles it, 
+                                    // BUT MetricTile might preventDefault? 
+                                    // Let's ensure MetricTile doesn't block clicks or passes them through. 
+                                    // Actually MetricTile usually has its own onClick. 
+                                    // We should probably rely on Container's click and pass undefined to onDetails if possible?
+                                    // Or keep onDetails but let it bubble?
+                                    // Container captures click. MetricTile is just UI.
+                                    onDetails={() => { }} // No-op, let container handle it
                                 />
-                            </div>
-                        )}
+                            ) : (
+                                <div
+                                    className="flex flex-col gap-2 p-3 rounded-lg h-full justify-center hover:opacity-95 transition-opacity"
+                                    style={{ background: healthCtaStyles.web.cardBg, border: `1px solid ${healthCtaStyles.web.cardBorder}` }}
+                                >
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Web Health</span>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-medium text-gray-500">Not Scanned</span>
+                                        <HealthCardCTA
+                                            variant="web"
+                                            label="Scan"
+                                            loadingLabel="Scanning..."
+                                            isLoading={scanningWeb}
+                                            onClick={handleWebScan}
+                                            size="small"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </WebHealthCardContainer>
                         {/* Truth Panel (Debug) */}
                         <WebsiteHealthTruthPanel
                             companyId={lead.companyProspectId || lead.id}

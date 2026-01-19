@@ -19,6 +19,7 @@ import WebsiteReviewModal from '@/components/modals/WebsiteReviewModal';
 import FinancialReportModal from '@/components/modals/FinancialReportModal';
 import { MessageThreadComposerModal } from '@/components/messaging/MessageThreadComposerModal';
 import { getWebsiteHealthLabel } from '@/lib/scoring/websiteHealth';
+import WebHealthCardContainer from '@/components/ui/WebHealthCardContainer';
 
 // --- Score Card Component (V2 Style) ---
 function ScoreCard({
@@ -81,7 +82,14 @@ function ScoreCard({
 
     return (
         <div
-            className="relative overflow-hidden transition-all duration-200 group"
+            className={`relative overflow-hidden transition-all duration-200 group ${onWhy ? 'cursor-pointer hover:scale-[1.01]' : ''}`}
+            onClick={(e) => {
+                // If main card clicked, trigger onWhy (View Details)
+                if (onWhy) {
+                    e.stopPropagation();
+                    onWhy();
+                }
+            }}
             style={{
                 background: 'var(--bg-card)',
                 borderRadius: 'var(--radius-xl)',
@@ -142,13 +150,37 @@ function ScoreCard({
             {/* CTA Button - Always Visible */}
             {(onWhy || onScan) && (
                 <button
+                    className="relative z-[1000]" // Force above ClickShield
                     onClick={(e) => {
                         e.stopPropagation();
+                        // Priority: Scan if not scanned, otherwise View
                         if (notScanned && onScan) {
                             onScan();
                         } else if (onWhy) {
                             onWhy();
                         }
+                    }}
+                    style={{
+                        // ... existing styles if any, or just rely on class
+                        marginTop: '12px',
+                        width: '100%',
+                        padding: '8px 12px',
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border-soft)',
+                        borderRadius: 'var(--radius-md)',
+                        color: 'var(--text-secondary)',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--bg-hover)';
+                        e.currentTarget.style.color = 'var(--text-primary)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = notScanned ? 'var(--brand)' : 'var(--bg-card-muted)';
+                        e.currentTarget.style.color = notScanned ? 'white' : 'var(--text-secondary)';
                     }}
                     disabled={isScanning}
                     className="absolute bottom-4 right-4 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
@@ -170,8 +202,9 @@ function ScoreCard({
                         </>
                     )}
                 </button>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }
 
@@ -591,19 +624,27 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                 accent="lilac"
                                 icon={Target}
                             />
-                            <ScoreCard
-                                label="Website Health"
-                                score={kpis.websiteScore}
-                                band={getWebsiteHealthLabel(kpis.websiteScore).label}
-                                accent={getScoreAccent(kpis.websiteScore)}
-                                icon={Monitor}
-                                onWhy={() => setIsWebsiteModalOpen(true)}
-                                onScan={handleWebsiteScan}
-                                isScanning={isWebScanning}
-                                ctaLabel="View"
-                                notScanned={kpis.websiteScore === null || kpis.websiteScore === undefined}
-                                notScannedCtaLabel="Scan website"
-                            />
+                            <WebHealthCardContainer
+                                companyId={data.companyProspectId || prospectId}
+                                surface="company_overview_modal"
+                                className="rounded-[var(--radius-xl)] overflow-hidden" // Match ScoreCard radius
+                            >
+                                <ScoreCard
+                                    label="Website Health"
+                                    score={kpis.websiteScore}
+                                    band={getWebsiteHealthLabel(kpis.websiteScore).label}
+                                    accent={getScoreAccent(kpis.websiteScore)}
+                                    icon={Monitor}
+                                    // Remove onWhy passed to ScoreCard since Container handles it
+                                    // onWhy={() => setIsWebsiteModalOpen(true)}
+                                    // Keep onScan for the specific button
+                                    onScan={handleWebsiteScan}
+                                    isScanning={isWebScanning}
+                                    ctaLabel="View"
+                                    notScanned={kpis.websiteScore === null || kpis.websiteScore === undefined}
+                                    notScannedCtaLabel="Scan website"
+                                />
+                            </WebHealthCardContainer>
                             <ScoreCard
                                 label="Financial Health"
                                 score={kpis.financialScore}

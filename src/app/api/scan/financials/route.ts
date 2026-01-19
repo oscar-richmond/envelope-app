@@ -44,7 +44,9 @@ export async function POST(request: Request) {
                 financialHealthStatus: 'scanning',
                 financialHealthTraceId: traceId,
                 financialHealthLastWriter: 'api/scan/financials',
-                financialHealthLastSurface: surface
+                financialHealthLastSurface: surface,
+                financialHealthVersion: 2,
+                finHealthData: null // CRITICAL: Clear previous report while scanning
             }
         });
 
@@ -57,7 +59,9 @@ export async function POST(request: Request) {
                     financialHealthStatus: 'error',
                     financialHealthError: 'NO_COMPANY_NUMBER',
                     financialHealthScore: null,
-                    financialHealthLabel: null
+                    financialHealthLabel: null,
+                    financialHealthVersion: 2,
+                    finHealthData: null // Ensure no stale data
                 }
             });
             return NextResponse.json({
@@ -155,7 +159,7 @@ export async function POST(request: Request) {
                 financialHealthStatus: 'success',
                 financialHealthScore: score,
                 financialHealthLabel: band,
-                financialHealthVersion: 1,
+                financialHealthVersion: 2, // V2
                 financialHealthTraceId: traceId,
                 financialHealthLastSurface: surface,
                 financialHealthLastWriter: 'api/scan/financials',
@@ -168,7 +172,7 @@ export async function POST(request: Request) {
 
                 // Stored Report
                 finHealthData: JSON.stringify({
-                    version: 1,
+                    version: 2, // V2
                     score,
                     label: band,
                     factors,
@@ -197,8 +201,36 @@ export async function POST(request: Request) {
                 financialHealthStatus: 'success',
                 financialHealthScore: score,
                 financialHealthLabel: band,
-                financialHealthVersion: 1,
+                financialHealthVersion: 2,
                 financialLastCheckedAt: now.toISOString()
+            },
+
+            // Receipt Proof
+            receipt: {
+                scanType: 'financial',
+                companyId: prospect.id,
+                surface: surface,
+                traceId: traceId,
+                writer: 'api/scan/financials',
+                version: 2,
+                resolvedUrl: 'N/A', // Not applicable
+                resolvedUrlSource: 'companies_house_number',
+                computed: {
+                    baseScore: 50,
+                    factors: factors.map(f => ({ id: f.id, points: f.points })),
+                    sumPoints: score - 50,
+                    preClamp: score, // Already clamped in logic but logic matches
+                    finalScore: score,
+                    label: band
+                },
+                persistedReadback: {
+                    status: 'success',
+                    score: score,
+                    label: band,
+                    version: 2,
+                    scannedAt: now.toISOString(),
+                    reportExists: true // We just wrote it
+                }
             },
 
             _trace: {

@@ -31,6 +31,27 @@ export interface ScanTraceResponse {
         webHealthDataExists: boolean;
     };
 
+    // Proof Receipt
+    receipt?: {
+        scanType: string;
+        companyId: number;
+        surface: string;
+        traceId: string;
+        writer: string;
+        version: number;
+        resolvedUrl: string;
+        resolvedUrlSource: string;
+        computed: any;
+        persistedReadback: {
+            status: string;
+            score: number | null;
+            label: string | null;
+            version: number | null;
+            scannedAt: string;
+            reportExists: boolean;
+        };
+    };
+
     // Status
     status: 'success' | 'error';
     error?: string;
@@ -72,9 +93,11 @@ export async function runWebsiteHealthScan({
                 websiteHealthScore: null,
                 websiteHealthLabel: null,
                 websiteHealthError: null,
+                websiteHealthVersion: 2, // Always V2
                 websiteHealthTraceId: requestId,
                 websiteHealthLastWriter: 'runWebsiteHealthScan',
-                websiteHealthLastSurface: initiatedFrom
+                websiteHealthLastSurface: initiatedFrom,
+                webHealthData: null // CRITICAL: Clear previous report while scanning
             }
         });
 
@@ -96,7 +119,8 @@ export async function runWebsiteHealthScan({
                     websiteHealthVersion: 2,
                     websiteHealthTraceId: requestId,
                     websiteHealthLastWriter: 'runWebsiteHealthScan',
-                    websiteHealthLastSurface: initiatedFrom
+                    websiteHealthLastSurface: initiatedFrom,
+                    webHealthData: null // Ensure no stale data
                 }
             });
 
@@ -156,12 +180,14 @@ export async function runWebsiteHealthScan({
             );
         }
 
-        // 6. Perform scan (simple reachability check)
+        // 6. Perform scan (reachability + infra signals)
         let isReachable = true;
         let isHttps = urlResolution.url.startsWith('https');
         let httpStatus = 200;
+        let hasSitemap = false; // Default safe
 
         try {
+            // Check homepage
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 10000);
 
@@ -178,8 +204,24 @@ export async function runWebsiteHealthScan({
                 isHttps = true;
                 httpStatus = response.status;
             } else {
-                isReachable = false;
+                // Fallback to HTTP if HTTPS fails
+                const httpRes = await fetch(`http://${domain}`, { method: 'HEAD', headers: { 'User-Agent': 'EnvelopeBot/1.0' } }).catch(() => null);
+                if (httpRes) {
+                    isReachable = true;
+                    isHttps = false;
+                    httpStatus = httpRes.status;
+                } else {
+                    isReachable = false;
+                }
             }
+
+            // Check sitemap (parallel-ish logic but sequential here for simplicity)
+            if (isReachable) {
+                const { detectSitemap } = await import('./scanHelpers');
+                const sitemap = await detectSitemap(domain, isHttps);
+                hasSitemap = sitemap.exists;
+            }
+
         } catch (e) {
             isReachable = false;
         }
@@ -191,7 +233,7 @@ export async function runWebsiteHealthScan({
             isHttps,
             httpStatus,
             daysSinceVerified,
-            hasSitemap: false // TODO: Add sitemap detection
+            hasSitemap
         });
 
         // 8. ENFORCE V2 CONTRACT
@@ -219,7 +261,13 @@ export async function runWebsiteHealthScan({
             );
         }
 
-        // 11. Persist to DB
+        // 11. INVARIANT CHECK BEFORE PERSISTENCE
+        // We refuse to partially apply updates. Either full V2 success or error.
+        if (!report || typeof report.score !== 'number') {
+            throw new Error(`Sanity check failed: V2 report invalid before write. Score: ${report?.score}`);
+        }
+
+        // 12. Persist to DB
         const persistedAt = new Date();
         await prisma.companyProspect.update({
             where: { id: companyId },
@@ -228,7 +276,7 @@ export async function runWebsiteHealthScan({
 
                 // Canonical fields (V2)
                 websiteHealthStatus: 'success',
-                websiteHealthScore: report.score, // NEVER 0 unless report proves it (which is fine)
+                websiteHealthScore: report.score,
                 websiteHealthLabel: report.label,
                 websiteHealthVersion: 2,
                 websiteHealthScannedAt: persistedAt,
@@ -247,6 +295,13 @@ export async function runWebsiteHealthScan({
             }
         });
 
+        // INVARIANT ENFORCEMENT:
+        // Ensure that we didn't just write a 'success' status without a valid report in the payload.
+        // (The above 'data' construction guarantees it, but we add an explicit check for safety).
+        if (!report || typeof report.score !== 'number') {
+            throw new Error("Invariant violation: Attempting to write success without valid report");
+        }
+
         // 9. POST-WRITE READBACK VERIFICATION
         const readback = await prisma.companyProspect.findUnique({
             where: { id: companyId },
@@ -258,8 +313,37 @@ export async function runWebsiteHealthScan({
             }
         });
 
-        // 10. Build trace response
+        // 10. Build trace response and Receipt
+        const receipt = {
+            scanType: 'website',
+            companyId,
+            surface: initiatedFrom,
+            traceId: report.traceId,
+            writer: 'runWebsiteHealthScanV2',
+            version: 2,
+            resolvedUrl: urlResolution.url || 'None',
+            resolvedUrlSource: urlResolution.source || 'known_missing',
+            computed: {
+                baseScore: report.baseScore,
+                factors: report.factors.map(f => ({ id: f.id, points: f.points })),
+                sumPoints,
+                preClamp: preClampScore,
+                finalScore: report.score,
+                label: report.label
+            },
+            persistedReadback: {
+                status: 'success',
+                score: readback?.websiteHealthScore ?? null,
+                label: readback?.websiteHealthLabel ?? null,
+                version: readback?.websiteHealthVersion ?? null,
+                scannedAt: persistedAt.toISOString(),
+                reportExists: !!readback?.webHealthData
+            }
+        };
+
         const traceResponse: ScanTraceResponse = {
+            receipt, // NEW: Full proof
+
             traceId: report.traceId,
             scorerVersion: 2,
             baseScoreUsed: 50,
@@ -312,7 +396,8 @@ export async function runWebsiteHealthScan({
                     websiteHealthScore: null,
                     websiteHealthLabel: null,
                     websiteHealthError: errorMsg,
-                    websiteHealthVersion: 2
+                    websiteHealthVersion: 2,
+                    webHealthData: null // Ensure no stale data
                 }
             });
         } catch (e) {

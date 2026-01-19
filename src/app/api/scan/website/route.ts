@@ -130,7 +130,10 @@ export async function POST(request: Request) {
             },
 
             // Full trace (for debugging)
-            _trace: trace
+            _trace: trace,
+
+            // Proof Receipt
+            receipt: trace.receipt
         });
 
     } catch (error: any) {

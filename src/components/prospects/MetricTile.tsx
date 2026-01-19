@@ -7,9 +7,10 @@ interface MetricTileProps {
     scoreColor?: 'green' | 'amber' | 'red' | 'gray' | 'purple' | 'blue' | 'mint' | 'lilac';
     subtext?: string | null;
     onDetails?: () => void;
-    className?: string;
+    topRightAction?: ReactNode;
     action?: ReactNode;
     href?: string;
+    interactive?: boolean;
 }
 
 export default function MetricTile({
@@ -21,7 +22,9 @@ export default function MetricTile({
     onDetails,
     className = '',
     action,
-    href
+    topRightAction,
+    href,
+    interactive
 }: MetricTileProps) {
 
     // Score chip colors - keep as-is per requirements
@@ -36,22 +39,8 @@ export default function MetricTile({
         lilac: 'bg-[var(--accent-lilac-bg)] text-[var(--accent-lilac-text)]'
     };
 
-    // 1. Custom Action State (e.g. "Find Website") - Not clickable container
-    if (action) {
-        return (
-            <div
-                className={`flex flex-col h-full justify-between p-3 rounded-[var(--radius-lg)] bg-[var(--bg-card-muted)] border border-[var(--border-soft)] min-w-0 ${className}`}
-            >
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider truncate">{label}</span>
-                </div>
-                <div className="mt-auto">{action}</div>
-            </div>
-        )
-    }
-
-    // 2. Interactive Card State
-    const isInteractive = !!href || !!onDetails;
+    // 1. Interactive Logic
+    const isInteractive = interactive || !!href || !!onDetails;
     const Component = href ? 'a' : (onDetails ? 'button' : 'div') as any;
 
     const interactionProps = href ? {
@@ -72,21 +61,26 @@ export default function MetricTile({
                 ${isInteractive ? 'hover:bg-[var(--bg-card)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-card)] cursor-pointer transition-all group/tile focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:ring-offset-1' : ''}
             `}
         >
-            {/* Header row with label and View button */}
+            {/* Header row with label and Actions */}
             <div className="flex items-center justify-between gap-2 mb-1.5 w-full">
                 <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider truncate flex-1">{label}</span>
-                {isInteractive && (
-                    <span
-                        className="
-                            px-2 py-0.5 rounded-full text-[10px] font-semibold 
-                            transition-all duration-150 flex-shrink-0
-                            bg-[rgba(84,130,237,0.08)] text-[var(--brand)] border border-[rgba(84,130,237,0.25)]
-                            group-hover/tile:bg-[rgba(84,130,237,0.15)] group-hover/tile:border-[rgba(84,130,237,0.4)]
-                        "
-                    >
-                        View
-                    </span>
-                )}
+                <div className="flex items-center gap-1">
+                    {topRightAction && (
+                        <div onClick={e => e.stopPropagation()}>{topRightAction}</div>
+                    )}
+                    {isInteractive && !topRightAction && (
+                        <span
+                            className="
+                                px-2 py-0.5 rounded-full text-[10px] font-semibold 
+                                transition-all duration-150 flex-shrink-0
+                                bg-[rgba(84,130,237,0.08)] text-[var(--brand)] border border-[rgba(84,130,237,0.25)]
+                                group-hover/tile:bg-[rgba(84,130,237,0.15)] group-hover/tile:border-[rgba(84,130,237,0.4)]
+                            "
+                        >
+                            View
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* Value row with score chip */}
@@ -108,6 +102,13 @@ export default function MetricTile({
             {subtext && (
                 <div className="text-[10px] text-[var(--text-muted)] truncate w-full mt-auto" title={subtext}>
                     {subtext}
+                </div>
+            )}
+
+            {/* Bottom Action Area (Now inside interactive wrapper) */}
+            {action && (
+                <div className="mt-3 w-full" onClick={e => e.stopPropagation()}>
+                    {action}
                 </div>
             )}
         </Component>

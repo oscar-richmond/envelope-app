@@ -132,8 +132,8 @@ export async function POST(request: Request) {
                             const calcResults = db.contactPriorityBand
                                 ? { score: db.contactPriorityScore, band: db.contactPriorityBand, evidence: [] }
                                 : priorityCalculator.calculate({
-                                    stalenessScore: db.stalenessScore || 0,
-                                    financialScore: db.financialActivityScore || 0,
+                                    stalenessScore: db.stalenessScore,
+                                    financialScore: db.financialActivityScore,
                                     financialActivityBand: db.financialActivityBand,
                                     websiteConfidence: db.websiteConfidence || 'LOW',
                                     websiteUrl: db.websiteUrl || r.websiteUrl,

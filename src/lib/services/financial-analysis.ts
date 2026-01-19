@@ -38,9 +38,25 @@ export class FinancialAnalysisService {
 
         if (!profile) {
             return {
+                score: 0, // Will trigger error in scanner if we enforce null, but let's keep 0 here and handle in scanner? 
+                // Wait, request said "score cannot be returned without report". Here we return a report saying "unavailable".
+                // Better: 
                 score: 0,
                 band: 'Low',
                 signals: { ...signals, breakdown: [{ label: 'Data Availability', points: 0, text: 'Company data unavailable' }] }
+            };
+        }
+
+        // Data Sufficiency Check preventing 70-score clumping
+        // If we don't know status AND don't know accountsType, it's a ghost record.
+        const isGhost = (!profile.company_status || profile.company_status === 'unknown') &&
+            (!profile.accounts?.last_accounts?.type);
+
+        if (isGhost) {
+            return {
+                score: 0,
+                band: 'Low',
+                signals: { ...signals, breakdown: [{ label: 'Data Sufficiency', points: 0, text: 'Insufficient public data' }] }
             };
         }
 

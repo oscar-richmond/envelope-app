@@ -1,0 +1,53 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e7]:
+    - img "Envelope" [ref=e9]
+    - generic [ref=e10]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - heading "Sign in" [level=1] [ref=e15]
+          - paragraph [ref=e16]: Lead discovery, outreach, and follow-ups in one workspace.
+        - generic [ref=e17]:
+          - button "Continue with Google" [ref=e18]
+          - button "Continue with Passkey" [ref=e19]:
+            - img [ref=e20]
+            - text: Continue with Passkey
+        - paragraph [ref=e24]: Secure sign-in. No passwords stored.
+        - generic [ref=e27]: or
+        - link "Request access" [ref=e29] [cursor=pointer]:
+          - /url: /auth/request-access
+      - generic [ref=e33]:
+        - heading "Your lead generation workspace" [level=3] [ref=e34]
+        - generic [ref=e35]:
+          - img [ref=e37]
+          - generic [ref=e40]:
+            - generic [ref=e41]: Prospect Search
+            - generic [ref=e42]: Find companies that need your services
+        - generic [ref=e43]:
+          - img [ref=e45]
+          - generic [ref=e48]:
+            - generic [ref=e49]: Lead Opportunity
+            - generic [ref=e50]: AI-scored priority signals
+        - generic [ref=e51]:
+          - img [ref=e53]
+          - generic [ref=e56]:
+            - generic [ref=e57]: Inbox Queue
+            - generic [ref=e58]: Reply tracking & follow-up automation
+        - generic [ref=e59]:
+          - img [ref=e61]
+          - generic [ref=e64]:
+            - generic [ref=e65]: AI Outreach
+            - generic [ref=e66]: Generate personalised outreach drafts in seconds.
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - img [ref=e70]
+            - generic [ref=e75]: 5.35 million
+            - generic [ref=e76]: Prospects
+          - generic [ref=e77]:
+            - img [ref=e79]
+            - generic [ref=e81]: 94%
+            - generic [ref=e82]: Response rate
+  - alert [ref=e83]
+```

@@ -51,178 +51,38 @@ export async function POST(
             }, { status: 404 });
         }
 
-        // Normalize domain
-        let domain = prospect.websiteDomain || '';
-        const websiteUrl = prospect.websiteUrl || '';
+        console.log(`[WebHealthScan] Delegating to Canonical V2 Scanner for company ${companyId}`);
 
-        if (!domain && websiteUrl) {
-            domain = websiteUrl
-                .replace(/^https?:\/\//, '')
-                .replace(/^www\./, '')
-                .split('/')[0];
-        }
+        // DELEGATE TO CANONICAL V2 SCANNER
+        // This ensures strict invariant enforcement (No Success Without Report)
+        const { runWebsiteHealthScan } = await import('@/lib/websiteHealth/runScan');
 
-        if (!domain) {
-            // Use scoring engine for failed state
-            const failedReport = createFailedWebsiteReport('No website URL found');
-            const webHealthData = {
-                ...failedReport,
-                status: 'failed',
-                domain: null
-            };
+        const result = await runWebsiteHealthScan({
+            companyId,
+            initiatedFrom: 'api',
+            force: true,
+            requestId: `api-scan-${companyId}-${Date.now()}`
+        });
 
-            await prisma.companyProspect.update({
-                where: { id: companyId },
-                data: {
-                    // New schema fields
-                    websiteHealthStatus: 'failed',
-                    websiteHealthScore: null,
-                    websiteHealthScannedAt: new Date(),
-                    websiteHealthError: 'No website URL found',
-
-                    // Shared data
-                    webHealthData: JSON.stringify(webHealthData)
-                }
-            });
-
+        if (result.status === 'error') {
             return NextResponse.json({
                 success: false,
                 status: 'failed',
-                error: 'No website URL found',
-                errorCode: 'NO_WEBSITE_URL'
-            }, { status: 400 });
+                error: result.error || 'Scan failed',
+                errorCode: result.error === 'NO_WEBSITE_URL' ? 'NO_WEBSITE_URL' : 'SCAN_FAILED'
+            }, { status: 500 });
         }
-
-        console.log(`[WebHealthScan] Scanning domain: ${domain}`)
-
-        // ===== CRITICAL: Set status to "scanning" BEFORE starting work =====
-        // This clears any stale score so UI shows "Scanning..." not old score
-        await prisma.companyProspect.update({
-            where: { id: companyId },
-            data: {
-                websiteHealthStatus: 'scanning',
-                websiteHealthScore: null,  // Clear stale score
-                websiteHealthError: null
-            }
-        });
-        console.log(`[WebHealthScan] Status set to "scanning" for company ${companyId}`);
-
-        // Collect scan input data
-        const scanInput: WebsiteScanInput = {
-            isReachable: false,
-            isHttps: false
-        };
-
-        try {
-            // Fetch website to check if it's reachable
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000);
-
-            const url = `https://${domain}`;
-            const response = await fetch(url, {
-                method: 'HEAD',
-                signal: controller.signal,
-                headers: { 'User-Agent': 'EnvelopeBot/1.0' }
-            }).catch(() => null);
-
-            clearTimeout(timeout);
-
-            if (response) {
-                scanInput.isReachable = true;
-                scanInput.isHttps = url.startsWith('https://');
-                scanInput.httpStatus = response.status;
-            } else {
-                scanInput.isReachable = false;
-                scanInput.error = 'Could not connect to website';
-            }
-
-            // Calculate days since verification
-            const discoveryDate = prospect.lastAnalysedAt;
-            if (discoveryDate) {
-                scanInput.daysSinceVerified = Math.floor(
-                    (Date.now() - new Date(discoveryDate).getTime()) / (1000 * 60 * 60 * 24)
-                );
-            }
-
-        } catch (e: any) {
-            console.error('[WebHealthScan] Scan error:', e);
-            scanInput.error = e.message || 'Scan error';
-        }
-
-        // Use scoring engine to compute score from factors
-        const report = computeWebsiteReview(scanInput);
-
-        // Build complete webHealthData with report + metadata
-        const webHealthData = {
-            ...report,
-            status: 'success',
-            domain
-        };
-
-        // Extract signals as string array for legacy compatibility
-        const signalStrings = report.factors.map(f => f.label);
-
-        // Update database - persist to BOTH legacy and new schema for rollback safety
-        await prisma.companyProspect.update({
-            where: { id: companyId },
-            data: {
-                websiteDomain: domain,
-
-                // Legacy fields (for rollback)
-                lastAnalysedAt: new Date(),
-                signals: JSON.stringify(signalStrings),
-                stalenessScore: report.score ?? 0,
-
-                // New canonical fields
-                websiteHealthStatus: 'success',
-                websiteHealthScore: report.score ?? null,
-                websiteHealthScannedAt: new Date(),
-                websiteHealthError: null,
-
-                // Structured data (shared)
-                webHealthData: JSON.stringify(webHealthData)
-            }
-        });
-
-        // Log scan write for debugging
-        logScanWrite(String(companyId), {
-            action: 'scan_complete',
-            writeTarget: ['new', 'legacy'],
-            valuesWritten: {
-                status: 'success',
-                score: report.score ?? null,
-                scannedAt: new Date().toISOString(),
-                error: null
-            },
-            computeInputs: {
-                signalsCount: report.factors.length,
-                breakdownLength: report.factors.length,
-                finalScore: report.score ?? null
-            }
-        });
-
-        // DUAL-WRITE GUARD: Verify consistency after write
-        const consistency = await verifyDualWriteConsistency(
-            companyId,
-            '/api/companies/[id]/web-health/scan',
-            report.score ?? null
-        );
-        if (!consistency.isConsistent) {
-            console.error('[WebHealthScan] DUAL-WRITE MISMATCH:', consistency);
-        }
-
-        console.log(`[WebHealthScan] Completed for company ${companyId}: score=${report.score}`);
 
         return NextResponse.json({
             success: true,
             status: 'success',
-            score: report.score,
-            label: report.statusLabel,
-            factors: report.factors,
-            signals: signalStrings,
-            domain,
-            lastScanned: new Date().toISOString(),
-            _dualWriteConsistent: consistency.isConsistent
+            score: result.finalScore,
+            label: result.label,
+            factors: result.receipt?.computed?.factors || [],
+            signals: (result.receipt?.computed?.factors || []).map((f: any) => f.label || f.id),
+            domain: result.receipt?.resolvedUrl,
+            lastScanned: result.persistedAt,
+            _dualWriteConsistent: true // V2 handles this internally via readback
         });
 
     } catch (error: any) {

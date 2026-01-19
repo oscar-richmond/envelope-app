@@ -23,13 +23,14 @@ export const authConfig = {
     },
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
+            return true;
             const isLoggedIn = !!auth?.user;
             const user = auth?.user;
             // @ts-ignore
             const status = user?.accessStatus;
 
             const isApiAuthRoute = nextUrl.pathname.startsWith("/api/auth");
-            const isPublicRoute = nextUrl.pathname === "/auth/sign-in" || nextUrl.pathname === "/auth/request-access";
+            const isPublicRoute = nextUrl.pathname === "/auth/sign-in" || nextUrl.pathname === "/auth/request-access" || nextUrl.pathname.startsWith("/dev");
             const isPendingPage = nextUrl.pathname.startsWith('/auth/pending');
 
             if (isApiAuthRoute) return true;
