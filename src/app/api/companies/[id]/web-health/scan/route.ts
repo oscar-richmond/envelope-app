@@ -137,8 +137,16 @@ export async function GET(
             select: {
                 websiteDomain: true,
                 websiteUrl: true,
+                // V2 Canonical fields
+                websiteHealthStatus: true,
+                websiteHealthScore: true,
+                websiteHealthLabel: true,
+                websiteHealthVersion: true,
+                websiteHealthScannedAt: true,
+                websiteHealthError: true,
+                webHealthData: true,
+                // Legacy fields
                 lastAnalysedAt: true,
-                webHealthData: true, // This contains the full report with factors
                 stalenessScore: true
             }
         });
