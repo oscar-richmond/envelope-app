@@ -98,15 +98,6 @@ export default function WebHealthCardContainer({
                 {/* Actually, it's better to rely on children 'topRightAction' prop for layout safety, 
                     but if we want to FORCE it: */}
             </div>
-
-            {isOpen && (
-                <WebsiteHealthModal
-                    companyId={companyId}
-                    isOpen={isOpen}
-                    onClose={() => setIsOpen(false)}
-                    initialTab="snapshot"
-                />
-            )}
         </>
     );
 }

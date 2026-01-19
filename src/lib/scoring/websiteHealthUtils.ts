@@ -51,23 +51,21 @@ export interface WebsiteHealthDisplay {
  * Determine if a company has been scanned for website health
  * 
  * With new schema: Check websiteHealthStatus === 'success'
- * With old schema: Check if stalenessScore exists OR lastAnalysedAt exists
+ * With old schema: REQUIRE timestamp (lastAnalysedAt) to be present
  * 
- * FIXED: Legacy mode now treats stalenessScore presence as scanned,
- * not just lastAnalysedAt. This prevents score=0 from showing "Not Scanned".
+ * CRITICAL: Score of 0 WITHOUT a timestamp is NOT a valid scan.
+ * It's corrupted data from old database defaults. A real scan always
+ * writes lastAnalysedAt. Only show as "scanned" if timestamp exists.
  */
 export function isWebsiteScanned(data: WebsiteHealthInput): boolean {
     if (FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
         return data.websiteHealthStatus === 'success';
     }
 
-    // Legacy: Check if score exists (even if 0) OR timestamp exists
-    // This fixes the bug where score=0 with no timestamp showed "Not Scanned"
-    const hasScore = data.stalenessScore !== null && data.stalenessScore !== undefined;
+    // Legacy: REQUIRE timestamp. Score alone is not enough (could be DB default).
+    // A real historical scan would have written lastAnalysedAt.
     const analysedAt = data.lastAnalysedAt || data.lastAnalyzedAt;
-    const hasTimestamp = analysedAt !== null && analysedAt !== undefined;
-
-    return hasScore || hasTimestamp;
+    return analysedAt !== null && analysedAt !== undefined;
 }
 
 /**
