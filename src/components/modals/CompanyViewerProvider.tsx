@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import CompanyOverviewModal from './CompanyOverviewModal';
 import WebsiteReviewModal from './WebsiteReviewModal';
 import FinancialReportModal from './FinancialReportModal';
@@ -55,6 +56,8 @@ interface CompanyViewerContextType {
 const CompanyViewerContext = createContext<CompanyViewerContextType | undefined>(undefined);
 
 export function CompanyViewerProvider({ children }: { children: ReactNode }) {
+    const router = useRouter();
+
     // Company Overview state (legacy)
     const [viewerMode, setViewerMode] = useState<ViewerMode>('closed');
     const [activeLeadId, setActiveLeadId] = useState<number | null>(null);
