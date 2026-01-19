@@ -16,10 +16,13 @@ export const FEATURE_FLAGS = {
      * When true: Use new canonical fields (websiteHealthStatus, websiteHealthScore)
      * When false: Use legacy fields (stalenessScore, lastAnalysedAt)
      * 
-     * Set to 'true' after backfill is complete and verified.
-     * Can be instantly rolled back by setting to 'false'.
+     * DEFAULTS TO TRUE - backfill is complete and verified.
+     * Can be rolled back by explicitly setting FF_NEW_WEBSITE_HEALTH=false in Vercel.
+     * 
+     * Supports both server (FF_NEW_WEBSITE_HEALTH) and client (NEXT_PUBLIC_FF_NEW_WEBSITE_HEALTH) env vars.
      */
-    USE_NEW_WEBSITE_HEALTH_SCHEMA: process.env.FF_NEW_WEBSITE_HEALTH === 'true',
+    USE_NEW_WEBSITE_HEALTH_SCHEMA: process.env.FF_NEW_WEBSITE_HEALTH !== 'false' &&
+        (typeof window === 'undefined' || process.env.NEXT_PUBLIC_FF_NEW_WEBSITE_HEALTH !== 'false'),
 } as const;
 
 /**

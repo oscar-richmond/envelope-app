@@ -69,7 +69,18 @@ export async function POST(
                 success: false,
                 status: 'failed',
                 error: result.error || 'Scan failed',
-                errorCode: result.error === 'NO_WEBSITE_URL' ? 'NO_WEBSITE_URL' : 'SCAN_FAILED'
+                errorCode: result.error === 'NO_WEBSITE_URL' ? 'NO_WEBSITE_URL' : 'SCAN_FAILED',
+
+                // Include DB readback for state sync
+                updatedCompanyHealth: {
+                    companyId,
+                    websiteHealthStatus: 'error',
+                    websiteHealthScore: null,
+                    websiteHealthLabel: null,
+                    websiteHealthError: result.error,
+                    websiteHealthScannedAt: result.persistedAt,
+                    websiteHealthVersion: 2
+                }
             }, { status: 500 });
         }
 
@@ -82,7 +93,18 @@ export async function POST(
             signals: (result.receipt?.computed?.factors || []).map((f: any) => f.label || f.id),
             domain: result.receipt?.resolvedUrl,
             lastScanned: result.persistedAt,
-            _dualWriteConsistent: true // V2 handles this internally via readback
+            _dualWriteConsistent: true, // V2 handles this internally via readback
+
+            // CRITICAL: Include full DB readback for state synchronization
+            updatedCompanyHealth: {
+                companyId,
+                websiteHealthStatus: 'success',
+                websiteHealthScore: result.dbReadback.websiteHealthScore,
+                websiteHealthLabel: result.dbReadback.websiteHealthLabel,
+                websiteHealthScannedAt: result.persistedAt,
+                websiteHealthVersion: result.dbReadback.websiteHealthVersion,
+                websiteHealthError: null
+            }
         });
 
     } catch (error: any) {

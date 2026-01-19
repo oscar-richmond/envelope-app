@@ -135,6 +135,36 @@ export function CompanyViewerProvider({ children }: { children: ReactNode }) {
     const closeOverlay = () => {
         setActiveOverlay('none');
         setActiveCompanyRef(null);
+
+        // Check if we need to refresh the list after modal close
+        if (sessionStorage.getItem('pendingListRefresh') === 'true') {
+            sessionStorage.removeItem('pendingListRefresh');
+            console.log('[CompanyViewerProvider] Reloading page to sync list state');
+            window.location.reload();
+        }
+    };
+
+    // Listen for OPEN_WEB_HEALTH_MODAL events
+    useEffect(() => {
+        const handleOpenWebHealthModal = (e: CustomEvent) => {
+            const { companyId, surface } = e.detail;
+            if (typeof companyId === 'number' && !isNaN(companyId)) {
+                console.log('[CompanyViewerProvider] OPEN_WEB_HEALTH_MODAL received:', { companyId, surface });
+                openWebsiteReport(companyId);
+            }
+        };
+
+        window.addEventListener('OPEN_WEB_HEALTH_MODAL', handleOpenWebHealthModal as EventListener);
+        return () => {
+            window.removeEventListener('OPEN_WEB_HEALTH_MODAL', handleOpenWebHealthModal as EventListener);
+        };
+    }, []);
+
+    // Callback for when data is updated in modal - triggers page reload to sync parent list
+    const handleDataUpdated = () => {
+        console.log('[CompanyViewerProvider] Data updated - will refresh page after modal closes');
+        // Set a flag that we'll check on modal close
+        sessionStorage.setItem('pendingListRefresh', 'true');
     };
 
     return (
@@ -168,6 +198,7 @@ export function CompanyViewerProvider({ children }: { children: ReactNode }) {
                     companyId={activeCompanyRef.companyId}
                     companyName={activeCompanyRef.companyName}
                     websiteUrl={activeCompanyRef.websiteUrl}
+                    onDataUpdated={handleDataUpdated}
                 />
             )}
 
