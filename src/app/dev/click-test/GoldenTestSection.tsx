@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { scanWebsiteHealth } from '@/lib/websiteHealth/scanClient';
 import { saveScanReceipt } from '@/lib/ui/webHealthActions';
 

@@ -376,7 +376,7 @@ function EmailRow({
                     </div>
                     <div className="min-w-0">
                         <CompanyNameLink
-                            leadId={email.leadId}
+                            leadId={email.lead.id}
                             name={companyName}
                             className="font-semibold text-gray-900 text-sm truncate max-w-[160px] block"
                         />

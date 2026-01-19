@@ -88,7 +88,7 @@ const fullConfig = {
     ],
     session: { strategy: "jwt" }, // Ensure consistency
     events: {
-        async createUser({ user }) {
+        async createUser({ user }: { user: any }) {
             const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
             if (adminEmail && user.email === adminEmail) {
                 await prisma.user.update({
@@ -102,7 +102,7 @@ const fullConfig = {
                 });
             }
         },
-        async signIn({ user }) {
+        async signIn({ user }: { user: any }) {
             // Log successful sign-in
             logServerAuthEvent({
                 type: 'session_set_success',
@@ -139,7 +139,7 @@ const fullConfig = {
         // Actually auth.ts is not Edge.
         // But session() callback in auth.config runs on Edge in Middleware.
 
-        async jwt({ token, user, trigger, session }) {
+        async jwt({ token, user, trigger, session }: { token: any; user?: any; trigger?: any; session?: any }) {
             if (user) {
                 token.id = user.id;
                 // @ts-ignore

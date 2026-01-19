@@ -3,6 +3,7 @@ import { CompanyName } from '@/components/company/CompanyName';
 import MetricTile from './MetricTile';
 import { getWebsiteHealthDisplay } from '@/lib/scoring/websiteHealthUtils';
 import WebsiteHealthTruthPanel from '@/components/debug/WebsiteHealthTruthPanel';
+import WebHealthCardContainer from '@/components/ui/WebHealthCardContainer';
 
 interface ProspectResultRowCardProps {
     company: any;
@@ -235,8 +236,7 @@ export default function ProspectResultRowCard({
                             value={c.websiteUrl ? staleLabel : '-'}
                             score={staleScore ?? undefined}
                             scoreColor={staleColor}
-                            subtext={staleScore !== undefined ? (staleScore >= 60 ? 'Needs Update' : 'Active') : null}
-                            subtext={staleScore !== undefined ? (staleScore >= 60 ? 'Needs Update' : 'Active') : null}
+                            subtext={staleScore !== null && staleScore !== undefined ? (staleScore >= 60 ? 'Needs Update' : 'Active') : null}
                             interactive={true} // Visual hover state only, click handled by container
                             topRightAction={
                                 <button

@@ -11,6 +11,7 @@ interface MetricTileProps {
     action?: ReactNode;
     href?: string;
     interactive?: boolean;
+    className?: string;
 }
 
 export default function MetricTile({

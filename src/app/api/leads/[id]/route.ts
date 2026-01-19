@@ -94,7 +94,6 @@ export async function GET(
             emailDraft: lead.emailDraft,
             emailDraftHtml: lead.emailDraftHtml,
             subjectLine1: lead.subjectLine1,
-            status: lead.status,
             createdAt: lead.createdAt,
             contacts: contacts.slice(0, 10), // Limit for modal
             prospect: prospect ? {

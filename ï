@@ -1,0 +1,27 @@
+[31mFailed to compile.
+[39m
+[31mFailed to compile.
+[39m
+[36m./src/app/(app)/prospects/page.tsx[39m:[33m1808[39m:[33m82[39m
+[31m[1mType error[22m[39m: Parameter 'prev' implicitly has an 'any' type.
+
+[0m [90m 1806 |[39m                                                         [36mif[39m (data[33m.[39mupdatedCompanyHealth) {
+ [90m 1807 |[39m                                                             [90m// Update modal data with canonical fields[39m
+[31m[1m>[22m[39m[90m 1808 |[39m                                                             setViewWebsiteHealth(prev [33m=>[39m {
+ [90m      |[39m                                                                                  [31m[1m^[22m[39m
+ [90m 1809 |[39m                                                                 [36mif[39m ([33m![39mprev) [36mreturn[39m [36mnull[39m[33m;[39m
+ [90m 1810 |[39m                                                                 [36mreturn[39m {
+ [90m 1811 |[39m                                                                     [33m...[39mprev[33m,[39m[0m
+[36m./src/app/(app)/prospects/page.tsx[39m:[33m1808[39m:[33m82[39m
+[31m[1mType error[22m[39m: Parameter 'prev' implicitly has an 'any' type.
+
+[0m [90m 1806 |[39m                                                         [36mif[39m (data[33m.[39mupdatedCompanyHealth) {
+ [90m 1807 |[39m                                                             [90m// Update modal data with canonical fields[39m
+[31m[1m>[22m[39m[90m 1808 |[39m                                                             setViewWebsiteHealth(prev [33m=>[39m {
+ [90m      |[39m                                                                                  [31m[1m^[22m[39m
+ [90m 1809 |[39m                                                                 [36mif[39m ([33m![39mprev) [36mreturn[39m [36mnull[39m[33m;[39m
+ [90m 1810 |[39m                                                                 [36mreturn[39m {
+ [90m 1811 |[39m                                                                     [33m...[39mprev[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null
+Next.js build worker exited with code: 1 and signal: null
+[?25h[?25h

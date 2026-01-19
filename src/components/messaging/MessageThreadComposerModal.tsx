@@ -301,8 +301,7 @@ export function MessageThreadComposerModal({
                 },
                 messages: [],
                 threadId: null,
-                lead,
-                contacts
+                lead
             });
 
             setToEmail(firstContact.email || initialData?.contactEmail || '');

@@ -164,7 +164,6 @@ export async function GET(request: Request) {
                         companyName: company.companyName || 'Company',
                         companyProspectId: companyIdNum,
                         websiteUrl: company.websiteUrl,
-                        status: 'NEW'
                     }
                 });
 

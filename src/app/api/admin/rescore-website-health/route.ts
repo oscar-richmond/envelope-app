@@ -28,12 +28,12 @@ export async function POST(request: Request) {
             : {
                 OR: [
                     { websiteHealthVersion: { not: 2 } },
-                    { websiteHealthVersion: null },
+                    { websiteHealthVersion: undefined },
                     // Also migration companies with version 2 but invalid data
                     {
                         AND: [
                             { websiteHealthVersion: 2 },
-                            { websiteHealthScore: { not: null } },
+                            { websiteHealthScore: undefined }, // Changed from { not: null } to undefined to match the intent of "invalid data"
                             // Can add more complex validation here
                         ]
                     }

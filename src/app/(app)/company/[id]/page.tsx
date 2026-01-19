@@ -561,12 +561,12 @@ export default function CompanyWorkspacePage() {
                                 {/* Find Contacts / Rescan button */}
                                 <button
                                     onClick={handleContactsScan}
-                                    disabled={scanStatus.statuses.contacts?.status === 'running'}
+                                    disabled={scanStatus.getTypeStatus('contacts').status === 'running'}
                                     className="btn btn-secondary btn-sm"
                                 >
-                                    {scanStatus.statuses.contacts?.status === 'running' ? (
+                                    {scanStatus.getTypeStatus('contacts').status === 'running' ? (
                                         <>
-                                            <Loader2 size={14} className="animate-spin" />
+                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
                                             Scanning...
                                         </>
                                     ) : workspace?.contactsSummary?.lastScannedAt ? (
@@ -601,7 +601,7 @@ export default function CompanyWorkspacePage() {
                                     action={{
                                         label: workspace?.contactsSummary?.lastScannedAt ? 'Rescan' : 'Find Contacts',
                                         onClick: handleContactsScan,
-                                        loading: scanStatus.statuses.contacts?.status === 'running'
+                                        loading: scanStatus.getTypeStatus('contacts').status === 'running'
                                     }}
                                     secondaryAction={{
                                         label: 'Add manually',
@@ -679,6 +679,7 @@ export default function CompanyWorkspacePage() {
                 {/* Add Contact Modal */}
                 {addContactOpen && (
                     <AddContactModal
+                        isOpen={addContactOpen}
                         companyId={parseInt(companyId)}
                         onClose={() => setAddContactOpen(false)}
                         onSuccess={() => {

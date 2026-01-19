@@ -51,16 +51,8 @@ export async function POST(req: Request) {
         const newLead = await prisma.lead.create({
             data: {
                 companyName: company.name,
-                websiteUrl: company.websiteUrl || '', // Schema says @unique, might fail if empty strings aren't treated as unique or if allowed. 
-                // Wait, schema `websiteUrl String @unique`. Empty strings will conflict.
-                // We should handle this. If no website, maybe we generate a fake placeholder? 
-                // OR we update schema? 
-                // For now, if no websiteUrl is provided, we might have an issue if multiple manual leads have no website.
-                // Let's assume for V1 the user might skip it. If schema requires unique string, we effectively require unique website.
-                // If website is optional in UI, we should probably set it to `manual-{timestamp}` or change schema. 
-                // Let's stick to using a timestamp-based fallback if empty to pass unique constraint.
-                // websiteUrl: company.websiteUrl || `manual-entry-${Date.now()}`,
-
+                // Schema requires unique websiteUrl. Empty strings would conflict.
+                // If no website, generate fallback placeholder
                 // Correction: Using a fallback strategy
                 websiteUrl: company.websiteUrl || `manual-${Date.now()}-${Math.floor(Math.random() * 1000)}.local`,
 

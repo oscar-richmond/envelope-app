@@ -27,9 +27,11 @@ export async function GET(
             return NextResponse.json({ error: 'Prospect not found' }, { status: 404 });
         }
 
-        // Auto-refresh Places if stale
+        // Auto-refresh Places if stale (don't reassign since prospect has includes)
         if (prospect.placeId && placesDetailsService.shouldRefresh(prospect)) {
-            prospect = await placesDetailsService.fetchAndUpdate(prospectId) || prospect;
+            await placesDetailsService.fetchAndUpdate(prospectId).catch(err => {
+                console.error(`Places refresh failed for ${prospectId}:`, err);
+            });
         }
 
         // Update display name if missing

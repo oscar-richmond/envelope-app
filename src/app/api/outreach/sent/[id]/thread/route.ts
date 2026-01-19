@@ -43,7 +43,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     // Build base response (always available)
     const prospect = sentEmail.lead.companyProspect;
-    const companyName = prospect?.name || sentEmail.lead.companyName;
+    const companyName = prospect?.companyName || sentEmail.lead.companyName;
     const contactEmail = sentEmail.formattedTo.match(/<(.+)>/)?.[1] || sentEmail.formattedTo;
     const contactName = sentEmail.formattedTo.match(/^([^<]+)/)?.[1]?.trim() || contactEmail.split('@')[0];
 
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         },
         company: {
             name: companyName,
-            domain: prospect?.domain
+            domain: prospect?.websiteDomain
         },
         contact: {
             name: contactName,

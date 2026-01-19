@@ -79,6 +79,10 @@ export async function POST(request: Request) {
         };
 
         try {
+            if (!company.websiteUrl) {
+                return NextResponse.json({ error: 'No website URL found' }, { status: 400 });
+            }
+
             const url = new URL(company.websiteUrl.startsWith('http')
                 ? company.websiteUrl
                 : `https://${company.websiteUrl}`

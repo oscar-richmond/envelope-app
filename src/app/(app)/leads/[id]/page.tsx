@@ -66,31 +66,22 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
     }
 
     // Fallbacks: try websiteSignals field, then scoreReasons
-    if (websiteSignals.length === 0) {
-        if (websiteScore === null) {
-            websiteScore = lead.companyProspect?.stalenessScore ?? null;
-        }
-        // Try websiteSignals field
-        if (lead.companyProspect?.websiteSignals) {
-            try {
-                const parsed = JSON.parse(lead.companyProspect.websiteSignals);
-                if (Array.isArray(parsed)) websiteSignals = parsed;
-            } catch (e) { /* ignore */ }
-        }
-        // Try scoreReasons field
-        if (websiteSignals.length === 0 && lead.companyProspect?.scoreReasons) {
-            try {
-                const parsed = JSON.parse(lead.companyProspect.scoreReasons);
-                if (Array.isArray(parsed)) websiteSignals = parsed;
-            } catch (e) { /* ignore */ }
-        }
-        // Try legacy signals field
-        if (websiteSignals.length === 0 && lead.companyProspect?.signals) {
-            try {
-                const parsed = JSON.parse(lead.companyProspect.signals);
-                if (Array.isArray(parsed)) websiteSignals = parsed;
-            } catch (e) { /* ignore */ }
-        }
+    if (websiteScore === null) {
+        websiteScore = lead.companyProspect?.stalenessScore ?? null;
+    }
+    // Try scoreReasons field
+    if (websiteSignals.length === 0 && lead.companyProspect?.scoreReasons) {
+        try {
+            const parsed = JSON.parse(lead.companyProspect.scoreReasons);
+            if (Array.isArray(parsed)) websiteSignals = parsed;
+        } catch (e) { /* ignore */ }
+    }
+    // Try legacy signals field
+    if (websiteSignals.length === 0 && lead.companyProspect?.signals) {
+        try {
+            const parsed = JSON.parse(lead.companyProspect.signals);
+            if (Array.isArray(parsed)) websiteSignals = parsed;
+        } catch (e) { /* ignore */ }
     }
 
     // Parse finHealthData JSON for score, band and factors
@@ -150,17 +141,19 @@ export default async function LeadDetail({ params }: { params: Promise<{ id: str
     const outreachStatus = lead.emailStatus;
 
     // Industry with proper fallback (NOT status)
-    const industry = lead.industry || lead.companyProspect?.industry || lead.companyProspect?.sicDescription || 'Industry not set';
+    const industry = lead.industry || lead.companyProspect?.industry || 'Industry not set';
 
-    // Prepare contacts for components
-    const contactsData = (lead.contacts || []).map(c => ({
-        id: c.id,
-        firstName: c.firstName,
-        lastName: c.lastName,
-        title: c.title,
-        email: c.email,
-        confidence: c.confidence
-    }));
+    // Prepare contacts for components (filter out null emails)
+    const contactsData = (lead.contacts || [])
+        .filter(c => c.email !== null)
+        .map(c => ({
+            id: c.id,
+            firstName: c.firstName,
+            lastName: c.lastName,
+            title: c.title,
+            email: c.email!,
+            confidence: c.confidence
+        }));
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8">

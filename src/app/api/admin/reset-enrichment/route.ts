@@ -77,36 +77,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             where: prospectWhere,
             data: {
                 // Website Health
-                stalenessScore: null,
-                stalenessConfidence: null,
-                scoreReasons: null,
-                signals: null,
-                lastAnalysedAt: null,
-                webHealthData: null,
+                stalenessScore: undefined,
+                stalenessConfidence: undefined,
+                scoreReasons: undefined,
+                signals: undefined,
+                lastAnalysedAt: undefined,
+                webHealthData: undefined,
 
                 // Financial Health
-                financialActivityScore: null,
-                financialActivityBand: null,
-                financialSignals: null,
-                financialLastCheckedAt: null,
-                finHealthData: null,
+                financialActivityScore: undefined,
+                financialActivityBand: undefined,
+                financialSignals: undefined,
+                financialLastCheckedAt: undefined,
+                finHealthData: undefined,
 
                 // Website matching (optional)
                 ...(includeDerivedWebsiteUrl ? {
-                    websiteUrl: null,
-                    websiteDomain: null,
-                    websiteConfidence: null,
-                    websiteMatchEvidence: null,
-                    websiteLastMatchedAt: null,
-                    websiteMatchStatus: null,
-                    websiteMatchFailureReason: null,
+                    websiteUrl: undefined,
+                    websiteDomain: undefined,
+                    websiteConfidence: undefined,
+                    websiteMatchEvidence: undefined,
+                    websiteLastMatchedAt: undefined,
+                    websiteMatchStatus: undefined,
+                    websiteMatchFailureReason: undefined,
                     websiteDiscoveryMethod: null
                 } : {}),
 
                 // Priority scores
-                contactPriorityScore: null,
-                contactPriorityBand: null,
-                contactPriorityEvidence: null
+                contactPriorityScore: undefined,
+                contactPriorityBand: null
             }
         });
         result.prospectsAffected = prospectUpdate.count;
@@ -118,14 +117,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 // Website Health
                 stalenessScore: 0, // Lead uses non-nullable Int, so reset to 0
                 scoreConfidence: 'LOW',
-                scoreReasons: null,
-                lastAnalyzedAt: null,
+                scoreReasons: undefined,
+                lastAnalyzedAt: undefined,
 
                 // Analysis signals
-                copyrightYear: null,
+                copyrightYear: undefined,
                 hasSitemap: false,
-                sitemapLastMod: null,
-                blogLastPost: null,
+                sitemapLastMod: undefined,
+                blogLastPost: undefined,
                 metaViewport: false,
                 generatorTag: null
             }

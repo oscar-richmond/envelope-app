@@ -54,7 +54,7 @@ export default function WebsiteHealthTruthPanel({
     companyName,
     rawData,
     displayResult,
-    surface = 'unknown'
+    surface = 'popup'
 }: TruthPanelProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [copied, setCopied] = useState(false);

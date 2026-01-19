@@ -52,7 +52,7 @@ export async function PATCH(
                 firstName: updated.firstName,
                 lastName: updated.lastName,
                 email: updated.email,
-                role: updated.role,
+                linkedInUrl: updated.linkedInUrl,
                 roleTitle: updated.title
             }
         });

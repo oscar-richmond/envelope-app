@@ -183,12 +183,6 @@ function ScoreCard({
                         e.currentTarget.style.color = notScanned ? 'white' : 'var(--text-secondary)';
                     }}
                     disabled={isScanning}
-                    className="absolute bottom-4 right-4 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
-                    style={{
-                        background: notScanned ? 'var(--brand)' : 'var(--bg-card-muted)',
-                        color: notScanned ? 'white' : 'var(--text-secondary)',
-                        border: notScanned ? 'none' : '1px solid var(--border-soft)'
-                    }}
                 >
                     {isScanning ? (
                         <>
@@ -332,10 +326,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
 
             if (res.ok && result.success) {
                 // Update financial evidence locally for immediate UI feedback
-                setFinancialEvidence({
-                    breakdown: result.breakdown || [],
-                    details: result.details || []
-                });
+                // Note: financialEvidence is derived from data.companyProspect.finHealthData, not separate state
                 // Refetch all data to ensure consistency
                 await refetchData();
             } else {
@@ -528,7 +519,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                             <CompanyLogo
                                 name={data.companyName}
                                 domain={domain}
-                                logoUrl={data.logoUrl}
+
                                 size="lg"
                                 className="shadow-lg"
                             />
@@ -815,7 +806,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                                     companyId={data?.companyProspectId || prospectId}
                                     prospectId={data?.companyProspectId || prospectId}
                                     leadId={resolvedLeadId || leadId}
-                                    companyName={data?.companyName || brand}
+                                    companyName={data?.companyName}
                                     contacts={contacts}
                                 />
                             </div>
@@ -915,8 +906,7 @@ export default function CompanyOverviewModal({ leadId, prospectId, onClose }: Co
                 evidence={financialEvidence}
                 companyName={data.companyName}
                 companyId={data.companyProspectId || prospectId}
-                lastChecked={data.companyProspect?.financialLastCheckedAt}
-                onRefresh={refetchData}
+
             />
 
             {/* Compose Modal - only render if we have at least one ID */}

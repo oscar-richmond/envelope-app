@@ -337,14 +337,14 @@ function extractNearbyPersonData(html: string, email: string): {
     return null;
 }
 
-function findRoleInContext(context: string): string | null {
+function findRoleInContext(context: string): string | undefined {
     const lower = context.toLowerCase();
     for (const [keyword, _] of Object.entries(SENIORITY_SCORES)) {
         if (lower.includes(keyword)) {
             return keyword.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         }
     }
-    return null;
+    return undefined;
 }
 
 function parseJsonLdPeople(html: string, domain: string, sourceUrl: string): { person: Person; email?: ContactEmail }[] {

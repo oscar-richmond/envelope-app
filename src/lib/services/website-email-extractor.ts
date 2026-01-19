@@ -342,7 +342,7 @@ function extractAttributeEmails(
 /**
  * Determine which region an element is in
  */
-function getRegion($: cheerio.CheerioAPI, el: cheerio.Element): 'footer' | 'header' | 'body' {
+function getRegion($: cheerio.CheerioAPI, el: any): 'footer' | 'header' | 'body' {
     const $el = $(el);
 
     if ($el.closest('footer, [class*="footer"], [id*="footer"]').length > 0) {

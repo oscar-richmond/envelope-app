@@ -1805,7 +1805,7 @@ export default function ProspectSearch() {
 
                                                         if (data.updatedCompanyHealth) {
                                                             // Update modal data with canonical fields
-                                                            setViewWebsiteHealth(prev => {
+                                                            setViewWebsiteHealth((prev: typeof viewWebsiteHealth) => {
                                                                 if (!prev) return null;
                                                                 return {
                                                                     ...prev,

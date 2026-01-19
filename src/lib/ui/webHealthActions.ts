@@ -7,20 +7,11 @@
  * Usage:
  * openWebHealthModal(123);
  */
-export function openWebHealthModal(companyId: number, context?: { surface?: string }) {
-    if (!companyId) {
-        console.warn('[openWebHealthModal] No companyId provided');
-        return;
-    }
+export function openWebHealthModal(companyId: number, surface?: string) {
+    if (typeof window === 'undefined') return; // SSR safety
 
-    console.log(`[webHealthActions] Opening modal for company ${companyId}`, context);
-
-    // Dispatch event for the ModalProvider to catch
     const event = new CustomEvent('OPEN_WEB_HEALTH_MODAL', {
-        detail: {
-            companyId,
-            ...context
-        }
+        detail: { companyId, surface }
     });
     window.dispatchEvent(event);
 }
@@ -33,8 +24,12 @@ declare global {
     }
 }
 
+/**
+ * Save a scan receipt to the in-memory store for diagnostics
+ * Receipts include: computed score, persisted readback, and metadata
+ */
 export function saveScanReceipt(companyId: number, receipt: any) {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return; // SSR safety
 
     if (!window.__SCAN_RECEIPTS__) {
         window.__SCAN_RECEIPTS__ = {};
@@ -42,15 +37,13 @@ export function saveScanReceipt(companyId: number, receipt: any) {
 
     window.__SCAN_RECEIPTS__[companyId] = receipt;
 
-    // Dispatch update event for UI to react
+    // Dispatch event for diagnostics UI
     window.dispatchEvent(new CustomEvent('SCAN_RECEIPT_UPDATED', {
         detail: { companyId, receipt }
     }));
-
-    console.log('[ReceiptStore] Saved receipt for', companyId, receipt);
 }
 
-export function getScanReceipt(companyId: number) {
-    if (typeof window === 'undefined') return null;
+export function getScanReceipt(companyId: number): any {
+    if (typeof window === 'undefined') return null; // SSR safety
     return window.__SCAN_RECEIPTS__?.[companyId] || null;
 }

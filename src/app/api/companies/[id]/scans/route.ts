@@ -238,7 +238,7 @@ async function runScanWorkerAsync(jobId: string, scanType: string, companyId: nu
                 // CANONICAL DELEGATION
                 const scanResult = await runWebsiteHealthScan({
                     companyId,
-                    initiatedFrom: 'scan_job',
+                    initiatedFrom: 'api',
                     requestId: jobId,
                     force: true
                 });

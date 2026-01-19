@@ -49,7 +49,7 @@ export function SignInForm() {
                 authenticatorAttachment: asseResp.authenticatorAttachment
             });
 
-            if (result?.error) {
+            if ((result as any)?.error) {
                 throw new Error("Invalid passkey");
             }
         } catch (e: any) {

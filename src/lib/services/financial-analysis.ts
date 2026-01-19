@@ -41,7 +41,6 @@ export class FinancialAnalysisService {
                 score: 0, // Will trigger error in scanner if we enforce null, but let's keep 0 here and handle in scanner? 
                 // Wait, request said "score cannot be returned without report". Here we return a report saying "unavailable".
                 // Better: 
-                score: 0,
                 band: 'Low',
                 signals: { ...signals, breakdown: [{ label: 'Data Availability', points: 0, text: 'Company data unavailable' }] }
             };

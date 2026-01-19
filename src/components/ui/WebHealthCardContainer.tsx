@@ -44,7 +44,7 @@ export default function WebHealthCardContainer({
 
         // 3. Open Modal
         if (companyId) {
-            openWebHealthModal(companyId, { surface });
+            openWebHealthModal(companyId, surface);
         } else {
             console.warn('[WebHealthCard] Click ignored: No companyId');
         }
@@ -54,7 +54,7 @@ export default function WebHealthCardContainer({
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             e.stopPropagation();
-            if (companyId) openWebHealthModal(companyId, { surface });
+            if (companyId) openWebHealthModal(companyId, surface);
         }
     };
 

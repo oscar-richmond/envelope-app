@@ -215,5 +215,3 @@ export function OverviewCardGrid({
     );
 }
 
-// Re-export types
-export type { OverviewCardProps, OverviewCardAccent };

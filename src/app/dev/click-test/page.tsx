@@ -4,6 +4,9 @@ import WebHealthCardContainer from '@/components/ui/WebHealthCardContainer';
 import { useState } from 'react';
 import GoldenTestSection from './GoldenTestSection';
 
+// Disable static generation for this dev/test page
+export const dynamic = 'force-dynamic';
+
 export default function ClickTestPage() {
     return (
         <div className="p-10 space-y-10">

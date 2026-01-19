@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { inferEmailPattern, generateSuggestedEmails, PatternKey } from '@/lib/services/email-pattern';
 
@@ -9,10 +9,11 @@ import { inferEmailPattern, generateSuggestedEmails, PatternKey } from '@/lib/se
  */
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const companyId = parseInt(params.id);
+        const { id } = await params;
+        const companyId = parseInt(id);
         if (isNaN(companyId)) {
             return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
         }
@@ -27,8 +28,7 @@ export async function POST(
                 websiteDomain: true,
                 websiteUrl: true,
                 manualContacts: true,
-                enrichmentData: true,
-                emailPattern: true
+                enrichmentData: true
             }
         });
 
@@ -129,7 +129,6 @@ export async function POST(
             await prisma.companyProspect.update({
                 where: { id: companyId },
                 data: {
-                    emailPattern: JSON.stringify(patternData),
                     websiteDomain: result.domain || undefined
                 }
             });
@@ -168,11 +167,12 @@ export async function POST(
  * Get current email pattern
  */
 export async function GET(
-    request: Request,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const companyId = parseInt(params.id);
+        const { id } = await params;
+        const companyId = parseInt(id, 10);
         if (isNaN(companyId)) {
             return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
         }
@@ -180,7 +180,6 @@ export async function GET(
         const prospect = await prisma.companyProspect.findUnique({
             where: { id: companyId },
             select: {
-                emailPattern: true,
                 websiteDomain: true
             }
         });
@@ -189,21 +188,9 @@ export async function GET(
             return NextResponse.json({ error: 'Company not found' }, { status: 404 });
         }
 
-        // Parse pattern
-        let pattern = null;
-        try {
-            if (prospect.emailPattern) {
-                pattern = typeof prospect.emailPattern === 'string'
-                    ? JSON.parse(prospect.emailPattern)
-                    : prospect.emailPattern;
-            }
-        } catch (e) {
-            // Ignore
-        }
-
         return NextResponse.json({
-            hasPattern: !!pattern,
-            pattern,
+            hasPattern: false,
+            pattern: null,
             domain: prospect.websiteDomain
         });
 

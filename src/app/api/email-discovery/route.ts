@@ -219,7 +219,7 @@ function extractEmails(text: string, domain: string): string[] {
 // NAME/ROLE EXTRACTION
 // ============================================
 
-function findNearbyNameRole($: cheerio.CheerioAPI, element: cheerio.Element): { name: string | null; role: string | null } {
+function findNearbyNameRole($: cheerio.CheerioAPI, element: any): { name: string | null; role: string | null } {
     let name: string | null = null;
     let role: string | null = null;
 

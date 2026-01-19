@@ -664,7 +664,7 @@ export class EnhancedEmailExtractor {
             const rawText = decoder.decode(bytes);
 
             // Extract text between stream/endstream, BT/ET
-            const streamMatches = rawText.match(/stream[\r\n]+(.+?)[\r\n]+endstream/gs) || [];
+            const streamMatches = rawText.match(/stream[\r\n]+([\s\S]+?)[\r\n]+endstream/g) || [];
             for (const match of streamMatches) {
                 // Try to decode text content
                 const content = match.replace(/stream[\r\n]+|[\r\n]+endstream/g, '');
@@ -688,7 +688,7 @@ export class EnhancedEmailExtractor {
         }
     }
 
-    private findNearbyNameRole($: cheerio.CheerioAPI, el: cheerio.Element): { name: string | null; role: string | null } {
+    private findNearbyNameRole($: cheerio.CheerioAPI, el: any): { name: string | null; role: string | null } {
         let name: string | null = null;
         let role: string | null = null;
 

@@ -20,8 +20,8 @@ export default function CompanyInspector() {
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'Overview' | 'Contacts' | 'Thread'>('Overview');
-
-    // ... (Modal State)
+    const [isWebsiteModalOpen, setIsWebsiteModalOpen] = useState(false);
+    const [isFinancialModalOpen, setIsFinancialModalOpen] = useState(false);
 
     // ... (Resizing Logic)
 
@@ -37,10 +37,6 @@ export default function CompanyInspector() {
             {/* Resize Handle */}
             <div
                 className="absolute left-0 top-0 bottom-0 w-1 hover:bg-indigo-500 cursor-ew-resize z-50 group flex items-center justify-center -ml-0.5"
-                onMouseDown={() => {
-                    isResizing.current = true;
-                    document.body.style.cursor = 'ew-resize';
-                }}
             >
                 <div className="h-8 w-1 rounded-full bg-gray-300 group-hover:bg-indigo-400" />
             </div>
@@ -145,11 +141,11 @@ export default function CompanyInspector() {
                                 <FinancialReportModal
                                     isOpen={isFinancialModalOpen}
                                     onClose={() => setIsFinancialModalOpen(false)}
+                                    companyId={data.companyProspectId}
                                     score={data.kpis.financialScore}
                                     band={data.kpis.financialBand}
                                     evidence={data.financialSignals}
                                     companyName={data.companyName}
-                                    lastChecked={data.companyProspect?.financialLastCheckedAt}
                                 />
                             </div>
                         )}

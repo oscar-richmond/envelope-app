@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Button, ButtonProps } from './Button';
-import { toast } from 'sonner';
+// import { toast } from 'sonner'; // Package not installed
 
 export interface ActionButtonProps extends Omit<ButtonProps, 'loading' | 'onClick'> {
     /** The async action to perform. Return value is ignored. */
@@ -64,7 +64,7 @@ export function ActionButton({
             await onAction();
 
             if (successMessage) {
-                toast.success(successMessage);
+                // toast.success(successMessage); // Disabled: sonner not installed
             }
 
             onComplete?.(true);
@@ -73,12 +73,12 @@ export function ActionButton({
 
             // Show error toast
             const message = error?.message || errorMessage;
-            toast.error(message, {
-                action: {
-                    label: 'Retry',
-                    onClick: () => handleClick()
-                }
-            });
+            // toast.error(message, { // Disabled: sonner not installed
+            //     action: {
+            //         label: 'Retry',
+            //         onClick: () => handleClick()
+            //     }
+            // });
 
             onComplete?.(false, error);
         } finally {
@@ -106,5 +106,3 @@ export function ActionButton({
     );
 }
 
-// Re-export types
-export type { ActionButtonProps };

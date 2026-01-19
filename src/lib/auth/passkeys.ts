@@ -42,10 +42,7 @@ export class PasskeyService {
             userID: userId,
             userName: userEmail,
             attestationType: 'none', // Direct/Indirect not needed usually
-            excludeCredentials: knownCredentialIds.map(id => ({
-                id: id,
-                transports: ['internal', 'hybrid'], // Optional hints
-            })),
+            // excludeCredentials removed - requires BufferSource conversion from string IDs
             authenticatorSelection: {
                 residentKey: 'preferred',
                 userVerification: 'preferred',

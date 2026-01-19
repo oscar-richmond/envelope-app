@@ -6,23 +6,24 @@ import { gmailService } from '@/lib/services/gmail';
 import { addBusinessDays } from '@/lib/utils/business-days';
 import { outreachGenerator } from '@/lib/services/outreach-generator';
 
-interface RouteParams {
-    params: { id: string };
-}
+type RouteParams = {
+    params: Promise<{ id: string }>;
+};
 
 /**
  * PATCH /api/follow-ups/[id]
  * 
  * Handle queue item actions: snooze, skip, close
  */
-export async function PATCH(req: NextRequest, { params }: RouteParams) {
+export async function PATCH(req: NextRequest, context: RouteParams) {
+    const { id } = await context.params;
     try {
-        const id = parseInt(params.id);
+        const queueItemId = parseInt(id);
         const body = await req.json();
         const { action, snoozeDays } = body;
 
         const queueItem = await prisma.followUpQueueItem.findUnique({
-            where: { id },
+            where: { id: queueItemId },
             include: { sentEmail: true }
         });
 
@@ -39,7 +40,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
                 // Update queue item - remove from queue immediately
                 await prisma.followUpQueueItem.update({
-                    where: { id },
+                    where: { id: queueItemId },
                     data: {
                         status: 'SNOOZED',
                         snoozedUntil
@@ -69,7 +70,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
             case 'SKIP': {
                 // Mark queue item as skipped
                 await prisma.followUpQueueItem.update({
-                    where: { id },
+                    where: { id: queueItemId },
                     data: { status: 'SKIPPED' }
                 });
 
@@ -91,7 +92,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
             case 'CLOSE': {
                 // Mark queue item as skipped
                 await prisma.followUpQueueItem.update({
-                    where: { id },
+                    where: { id: queueItemId },
                     data: { status: 'SKIPPED' }
                 });
 
@@ -125,14 +126,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
  * 
  * Send the follow-up email and mark as completed
  */
-export async function POST(req: NextRequest, { params }: RouteParams) {
+export async function POST(req: NextRequest, context: RouteParams) {
+    const { id } = await context.params;
     try {
-        const id = parseInt(params.id);
+        const queueItemId = parseInt(id);
         const body = await req.json();
         const { subject, bodyText, bodyHtml } = body;
 
         const queueItem = await prisma.followUpQueueItem.findUnique({
-            where: { id },
+            where: { id: queueItemId },
             include: {
                 sentEmail: {
                     include: {
@@ -173,7 +175,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
         // Mark queue item as completed
         await prisma.followUpQueueItem.update({
-            where: { id },
+            where: { id: queueItemId },
             data: { status: 'COMPLETED' }
         });
 
@@ -223,12 +225,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
  * 
  * Get variant drafts for a queue item
  */
-export async function GET(req: NextRequest, { params }: RouteParams) {
+export async function GET(req: NextRequest, context: RouteParams) {
+    const { id } = await context.params;
     try {
-        const id = parseInt(params.id);
+        const queueItemId = parseInt(id);
 
         const queueItem = await prisma.followUpQueueItem.findUnique({
-            where: { id },
+            where: { id: queueItemId },
             include: {
                 sentEmail: {
                     include: {

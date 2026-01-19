@@ -15,8 +15,8 @@ export { HeroSurface } from './HeroSurface';
 export { PageHeader } from './PageHeader';
 export { SearchInput } from './SearchInput';
 export { StatsCard, StatsGrid } from './StatsCard';
-export { Modal, SlidePanel, ModalHeader, ModalBody, ModalFooter } from './Modal';
-export { ResultsListContainer, ResultsListHeader, ResultsListRow, ResultsListEmptyState } from './ResultsList';
+export { default as Modal, ModalHeader, ModalBody, ModalFooter } from './Modal';
+export { ResultsListContainer, ResultsListHeader } from './ResultsList';
 export { Input } from './Input';
 export { DateRangeSelect } from './DateRangeSelect';
 

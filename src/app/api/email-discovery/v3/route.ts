@@ -567,14 +567,7 @@ export async function POST(request: Request) {
                 pagesCrawled,
                 publicResultsFetched,
                 pdfsParsed,
-                hunterResultsCount,
-                hunterPagesScanned,
                 durationMs: Date.now() - startTime
-            },
-            meta: {
-                totalFound: allContacts.length,
-                totalReturned: Math.min(allContacts.length, 50),
-                hunterPattern: hunterPattern ? formatPattern(hunterPattern, domain) : null,
             },
             warnings
         };

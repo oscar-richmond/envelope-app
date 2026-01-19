@@ -35,10 +35,7 @@ export async function GET(req: NextRequest) {
                     include: {
                         companyProspect: {
                             select: {
-                                name: true,
-                                domain: true,
-                                leadOpportunity: true,
-                                financialHealth: true
+                                companyName: true
                             }
                         }
                     }
@@ -90,8 +87,8 @@ export async function GET(req: NextRequest) {
                 id: conv.id,
                 leadId: conv.leadId,
                 company: {
-                    name: prospect?.name || conv.lead.companyName,
-                    domain: prospect?.domain
+                    name: prospect?.companyName || conv.lead.companyName,
+                    domain: null  // domain field doesn't exist
                 },
                 contact: {
                     name: extractContactName(conv.formattedTo),
@@ -99,10 +96,7 @@ export async function GET(req: NextRequest) {
                 },
                 lastActivity: formatTimeAgo(daysSince),
                 daysSinceActivity: daysSince,
-                badges: {
-                    opportunity: prospect?.leadOpportunity || null,
-                    financialHealth: prospect?.financialHealth || null
-                },
+                badges: {},  // leadOpportunity and financialHealth fields don't exist
                 outcome: conv.conversationOutcome,
                 column,
                 hasNotes: !!(conv as any).notesText && (conv as any).notesText.length > 0

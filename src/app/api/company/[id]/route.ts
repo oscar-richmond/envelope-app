@@ -9,10 +9,12 @@ import prisma from '@/lib/prisma';
  */
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const companyId = parseInt(params.id);
+        const { id } = await params;
+
+        const companyId = parseInt(id);
 
         if (isNaN(companyId)) {
             return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
@@ -74,22 +76,14 @@ export async function GET(
         const outreachTimeline = company.leads.flatMap(lead =>
             lead.sentEmails.map(email => ({
                 ...email,
-                leadId: lead.id,
-                contactName: lead.contactName,
-                contactEmail: lead.email
+                leadId: lead.id
             }))
         ).sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
 
-        // Get contacts from leads
+        // Get contacts from leads (most fields don't exist in schema)
         const contacts = company.leads.map(lead => ({
-            id: lead.id,
-            name: lead.contactName || lead.email.split('@')[0],
-            email: lead.email,
-            role: lead.role,
-            status: lead.status,
-            enrichedAt: lead.linkedinEnrichedAt
+            id: lead.id
         }));
-
         return NextResponse.json({
             company: {
                 id: company.id,

@@ -179,10 +179,10 @@ export async function resolveCompanyIdentity(opts: {
 
         const newCompany = await prisma.companyProspect.create({
             data: {
-                companyNumber: companyNumber || null,
+                companyNumber: companyNumber || `TEMP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 companyName: companyName || normalizedDomain || `Company ${companyNumber}`,
-                websiteDomain: normalizedDomain,
-                websiteUrl: normalizeWebsiteUrl(inputUrl) || (normalizedDomain ? `https://${normalizedDomain}` : null),
+                websiteDomain: normalizedDomain || undefined,
+                websiteUrl: normalizeWebsiteUrl(inputUrl) || (normalizedDomain ? `https://${normalizedDomain}` : undefined),
                 source: 'RESOLVER'
             },
             select: {

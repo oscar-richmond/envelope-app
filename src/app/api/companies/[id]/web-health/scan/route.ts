@@ -179,7 +179,7 @@ export async function GET(
             domain: prospect.websiteDomain,
             url: prospect.websiteUrl,
             score: report?.score ?? prospect.stalenessScore ?? null,
-            statusLabel: report?.statusLabel ?? prospect.stalenessLabel ?? 'Not scanned',
+            statusLabel: report?.statusLabel ?? 'Not scanned',
             factors,
             signals: factors.map((f: any) => f.label),
             confidence: report?.confidence ?? (factors.length > 2 ? 'medium' : 'low'),

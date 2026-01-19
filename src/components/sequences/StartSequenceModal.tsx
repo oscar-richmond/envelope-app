@@ -117,7 +117,7 @@ export function StartSequenceModal({
     const selectedSeq = sequences.find(s => s.id === selectedSequence);
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} size="md">
+        <Modal isOpen={isOpen} onClose={onClose}>
             <ModalHeader>
                 <h2 className="text-lg font-bold">Start Sequence</h2>
                 <p className="text-sm text-slate-500">{companyName}</p>
@@ -163,8 +163,8 @@ export function StartSequenceModal({
                                 <label
                                     key={contact.id}
                                     className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${selectedContact === contact.id
-                                            ? 'border-blue-500 bg-blue-50'
-                                            : 'border-slate-200 hover:bg-slate-50'
+                                        ? 'border-blue-500 bg-blue-50'
+                                        : 'border-slate-200 hover:bg-slate-50'
                                         }`}
                                 >
                                     <input

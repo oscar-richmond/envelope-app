@@ -211,9 +211,8 @@ export function getWebsiteHealthDisplay(data: WebsiteHealthInput): WebsiteHealth
     // Scanned - use actual score
     const score = getScoreValue(data);
 
-    // CORRUPTION CHECK: If score is 0 and label is missing/null, this is invalid success
-    // Or if score is non-null but status is success and we suspect missing data
-    if (score === 0 && !data.websiteHealthLabel && FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
+    // CORRUPTION CHECK: If score is 0, this might be invalid success
+    if (score === 0 && FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
         return {
             score: null,
             label: 'Data Invalid',

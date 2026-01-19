@@ -17,7 +17,7 @@ export async function GET(
         const sentEmail = await prisma.sentEmail.findFirst({
             where: { leadId },
             orderBy: { sentAt: 'desc' },
-            select: { id: true, gmailThreadId: true }
+            select: { id: true, sentThreadId: true }  // Using sentThreadId instead of gmailThreadId
         });
 
         if (!sentEmail) {
@@ -30,7 +30,7 @@ export async function GET(
 
         return NextResponse.json({
             emailId: sentEmail.id,
-            threadId: sentEmail.gmailThreadId,
+            threadId: sentEmail.sentThreadId,
             hasThread: true
         });
     } catch (e) {

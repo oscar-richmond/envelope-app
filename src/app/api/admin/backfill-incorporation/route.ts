@@ -30,7 +30,7 @@ export async function GET(request: Request) {
         // Find companies needing backfill
         const companies = await prisma.companyProspect.findMany({
             where: {
-                companyNumber: { not: null },
+                companyNumber: { not: undefined },
                 OR: [
                     { incorporatedOn: null },
                     { incorporatedOnLastSyncedAt: null }

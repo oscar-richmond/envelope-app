@@ -10,9 +10,11 @@ import prisma from '@/lib/prisma';
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const leadId = parseInt(params.id);
+    const { id } = await params;
+
+    const leadId = parseInt(id);
 
     if (isNaN(leadId)) {
         return NextResponse.json({ error: 'Invalid lead ID' }, { status: 400 });
@@ -50,7 +52,7 @@ export async function POST(
                 // DELEGATE TO CANONICAL
                 const webResult = await runWebsiteHealthScan({
                     companyId: lead.companyProspect.id,
-                    initiatedFrom: 'lead_scan_api',
+                    initiatedFrom: 'api',
                     force: true
                 });
 

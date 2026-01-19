@@ -402,7 +402,7 @@ async function extractFromPdf(
         // Dynamic import pdf-parse
         let pdfParse: any;
         try {
-            pdfParse = (await import('pdf-parse')).default;
+            pdfParse = await import('pdf-parse');
         } catch {
             // Fallback: basic text extraction
             return extractFromPdfBasic(buffer, url, title, domain);

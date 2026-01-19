@@ -99,7 +99,7 @@ export function HealthSnapshotModal({ companyId, onClose }: Props) {
                                     const json = await res.json();
                                     setData(json);
                                 } catch (e) {
-                                    alert('Scan failed: ' + e.message);
+                                    alert('Scan failed: ' + (e as any).message);
                                 } finally {
                                     setLoading(false);
                                 }

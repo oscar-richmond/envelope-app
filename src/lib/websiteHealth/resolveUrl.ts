@@ -27,8 +27,7 @@ export async function resolveWebsiteUrl(companyId: number): Promise<{ url: strin
     if (!company) {
         return {
             url: null,
-            source: 'none',
-            error: 'COMPANY_NOT_FOUND'
+            source: 'none'
         };
     }
 
@@ -53,7 +52,6 @@ export async function resolveWebsiteUrl(companyId: number): Promise<{ url: strin
     // No URL found
     return {
         url: null,
-        source: 'none',
-        error: 'NO_WEBSITE_URL'
+        source: 'none'
     };
 }

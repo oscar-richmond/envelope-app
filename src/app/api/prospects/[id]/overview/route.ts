@@ -64,8 +64,8 @@ export async function GET(
             companyNumber: prospect.companyNumber,
             websiteUrl: prospect.websiteUrl,
             industry: prospect.sicCodes?.[0] || null,
-            location: prospect.location,
-            companyStatus: prospect.companyStatus,
+            location: prospect.registeredLocation,
+            companyStatus: prospect.status,
             companyProspect: prospect,
             sentEmails: [], // No emails for prospects
             contacts: [], // Will fetch separately if needed

@@ -495,7 +495,7 @@ export async function discoverContacts(
                     role: email.position,
                     phone: email.phone,
                     linkedin: email.linkedin,
-                    type: email.type,
+                    type: email.type === 'personal' ? 'person' : email.type as 'generic' | 'person',
                     confidence: email.confidence,
                     verification: {
                         status: mapHunterVerification(email.verification.status),

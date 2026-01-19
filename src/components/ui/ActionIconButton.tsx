@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { IconButton, IconButtonProps } from './IconButton';
-import { toast } from 'sonner';
+// import { toast } from 'sonner'; // Package not installed
 
 export interface ActionIconButtonProps extends Omit<IconButtonProps, 'loading' | 'onClick'> {
     /** The async action to perform */
@@ -62,7 +62,7 @@ export function ActionIconButton({
             await onAction();
 
             if (successMessage) {
-                toast.success(successMessage);
+                // toast.success(successMessage); // Disabled: sonner not installed
             }
 
             onComplete?.(true);
@@ -70,12 +70,12 @@ export function ActionIconButton({
             console.error(`[ActionIconButton] ${actionName || 'Action'} failed:`, error);
 
             const message = error?.message || errorMessage;
-            toast.error(message, {
-                action: {
-                    label: 'Retry',
-                    onClick: () => handleClick()
-                }
-            });
+            // toast.error(message, { // Disabled: sonner not installed
+            //     action: {
+            //         label: 'Retry',
+            //         onClick: () => handleClick()
+            //     }
+            // });
 
             onComplete?.(false, error);
         } finally {
@@ -101,5 +101,3 @@ export function ActionIconButton({
     );
 }
 
-// Re-export types
-export type { ActionIconButtonProps };

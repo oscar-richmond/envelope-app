@@ -49,7 +49,7 @@ export class OutreachGeneratorService {
         const greeting = recipientFirstName ? `Hi ${recipientFirstName},` : 'Hi there,';
 
         // 4. Generate Email Components
-        const subjectOptions = this.generateSubjectLines(companyName, recipientFirstName);
+        const subjectOptions = this.generateSubjectLines(companyName, recipientFirstName || undefined);
         const paragraph1 = this.generateProofOfReview(companyName);
         const paragraph2 = this.generatePainAndInsight();
         const paragraph3 = this.generateOutcomeValue();

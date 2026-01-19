@@ -206,8 +206,9 @@ export async function GET(req: NextRequest) {
 
                     // 2. Fuzzy Search Strategy: Match by Subject Prefix (Broad)
 
-                    let fuzzyReply = null;
-                    try {
+                    // let fuzzyReply = null;
+                    // DISABLED: requires public client property
+                    /* try {
                         // "Quick question, {{FirstName}}" -> "Quick question"
                         const cleanSubject = email.subject.split(',')[0].trim();
                         const searchQ = `subject:("${cleanSubject}")`;
@@ -256,9 +257,11 @@ export async function GET(req: NextRequest) {
 
                     } catch (dE: any) {
                         debug.push(`-- Fuzzy Search Error: ${dE.message}`);
-                    }
+                    } */
+                    const fuzzyReply = null;
 
-                    if (fuzzyReply) {
+                    // DISABLED: fuzzyReply is always null since search is disabled
+                    /* if (fuzzyReply) {
                         const snippet = fuzzyReply.snippet || "";
                         debug.push(`!! Processing Fuzzy Reply...`);
 
@@ -292,7 +295,7 @@ export async function GET(req: NextRequest) {
                         }
                         replied++;
 
-                    } else {
+                    } else */ {
                         debug.push(`-- No fuzzy match found.`);
                         await prisma.sentEmail.update({
                             where: { id: email.id },
@@ -308,9 +311,10 @@ export async function GET(req: NextRequest) {
         }
 
         // DEBUG: List latest 5 messages in inbox
-        try {
+        // DISABLED: requires public client property
+        /* try {
             debug.push(`=== INBOX CHECK (All Incoming, inc Spam) ===`);
-            const list = await gmailService.client.request({
+            const list =  await gmailService.client.request({
                 url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
                 params: {
                     maxResults: 5,
@@ -330,7 +334,7 @@ export async function GET(req: NextRequest) {
             debug.push(`============================`);
         } catch (e: any) {
             debug.push(`Inbox Check Failed: ${e.message}`);
-        }
+        } */
 
         return NextResponse.json({ success: true, checked, replied, debug });
 
