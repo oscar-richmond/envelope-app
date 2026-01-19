@@ -123,14 +123,20 @@ export default function WebsiteReviewModal({
         setError(null);
 
         try {
-            const res = await fetch(`/api/companies/${companyId}/web-health/scan`, {
+            // CRITICAL: Use canonical endpoint with proper payload
+            const res = await fetch('/api/scan/website', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyId,
+                    surface: 'modal',
+                    force: true
+                })
             });
             const json = await res.json();
 
             if (!res.ok) {
-                throw new Error(json.error || 'Scan failed');
+                throw new Error(json.error || json.detail || 'Scan failed');
             }
 
             // Map response
