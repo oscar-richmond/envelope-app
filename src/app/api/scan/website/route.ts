@@ -82,30 +82,89 @@ export async function POST(request: Request) {
         });
         console.log(`[ScanWebsite] Scan completed. Status: ${trace.status}`);
 
-        // Build write receipt
+        // CRITICAL: Read back from DB AFTER scan to prove persistence
+        const dbAfter = await prisma.companyProspect.findUnique({
+            where: { id: targetCompanyId },
+            select: {
+                id: true,
+                websiteHealthVersion: true,
+                websiteHealthStatus: true,
+                websiteHealthScore: true,
+                websiteHealthLabel: true,
+                websiteHealthScannedAt: true,
+                websiteHealthError: true,
+                websiteHealthTraceId: true,
+                websiteHealthLastWriter: true,
+                websiteHealthLastSurface: true,
+                webHealthData: true
+            }
+        });
+
+        if (!dbAfter) {
+            console.error(`[ScanWebsite] CRITICAL: Record vanished after scan! companyId=${targetCompanyId}`);
+            return NextResponse.json({
+                code: 'RECORD_VANISHED',
+                detail: 'Record not found after scan - this should never happen',
+                traceId
+            }, { status: 500 });
+        }
+
+        console.log(`[ScanWebsite] dbAfter snapshot (VERIFIED FROM DB):`, {
+            id: dbAfter.id,
+            version: dbAfter.websiteHealthVersion,
+            status: dbAfter.websiteHealthStatus,
+            score: dbAfter.websiteHealthScore,
+            label: dbAfter.websiteHealthLabel,
+            hasReport: !!dbAfter.webHealthData,
+            traceId: dbAfter.websiteHealthTraceId,
+            lastWriter: dbAfter.websiteHealthLastWriter
+        });
+
+        // Build write receipt with VERIFIED dbAfter from database
         const writeReceipt = {
             traceId: trace.traceId || traceId,
             input: {
                 companyId: targetCompanyId,
+                companyProspectId: companyProspectId || null,
+                resolvedTo: targetCompanyId,
                 surface,
                 force
             },
+            recordId: {
+                queriedWith: 'findUnique({ where: { id: ' + targetCompanyId + ' } })',
+                resolvedTo: dbAfter.id,
+                proofOfPersistence: 'dbAfter queried immediately after scan completion'
+            },
             dbBefore: {
+                id: dbBefore.id,
                 websiteHealthVersion: dbBefore.websiteHealthVersion,
                 websiteHealthStatus: dbBefore.websiteHealthStatus,
                 websiteHealthScore: dbBefore.websiteHealthScore,
                 websiteHealthLabel: dbBefore.websiteHealthLabel,
-                websiteHealthScannedAt: dbBefore.websiteHealthScannedAt?.toISOString() || null
+                websiteHealthScannedAt: dbBefore.websiteHealthScannedAt?.toISOString() || null,
+                websiteHealthError: dbBefore.websiteHealthError,
+                hasReport: !!dbBefore.webHealthData
             },
             dbAfter: {
-                websiteHealthVersion: trace.dbReadback?.websiteHealthVersion || null,
-                websiteHealthStatus: trace.status,
-                websiteHealthScore: trace.dbReadback?.websiteHealthScore ?? null,
-                websiteHealthLabel: trace.dbReadback?.websiteHealthLabel ?? null,
-                websiteHealthScannedAt: trace.persistedAt,
-                websiteHealthError: trace.error || null
+                id: dbAfter.id,
+                websiteHealthVersion: dbAfter.websiteHealthVersion,
+                websiteHealthStatus: dbAfter.websiteHealthStatus,
+                websiteHealthScore: dbAfter.websiteHealthScore,
+                websiteHealthLabel: dbAfter.websiteHealthLabel,
+                websiteHealthScannedAt: dbAfter.websiteHealthScannedAt?.toISOString() || null,
+                websiteHealthError: dbAfter.websiteHealthError,
+                websiteHealthTraceId: dbAfter.websiteHealthTraceId,
+                websiteHealthLastWriter: dbAfter.websiteHealthLastWriter,
+                websiteHealthLastSurface: dbAfter.websiteHealthLastSurface,
+                hasReport: !!dbAfter.webHealthData
             },
-            reportPersisted: trace.dbReadback?.webHealthDataExists || false,
+            persistenceProof: {
+                reportPersisted: !!dbAfter.webHealthData,
+                versionIncremented: (dbAfter.websiteHealthVersion || 0) > (dbBefore.websiteHealthVersion || 0),
+                statusChanged: dbAfter.websiteHealthStatus !== dbBefore.websiteHealthStatus,
+                traceIdWritten: !!dbAfter.websiteHealthTraceId,
+                writerRecorded: !!dbAfter.websiteHealthLastWriter
+            },
             writer: 'runWebsiteHealthScan',
             surface
         };
