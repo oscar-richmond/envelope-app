@@ -159,16 +159,10 @@ export default function WebsiteReviewModal({
                 scanStatus: 'complete'
             });
 
-            // CRITICAL: Dispatch event to update parent list state
-            if (typeof window !== 'undefined' && json.updatedCompanyHealth) {
-                const event = new CustomEvent('COMPANY_HEALTH_UPDATED', {
-                    detail: {
-                        companyId,
-                        updatedCompanyHealth: json.updatedCompanyHealth
-                    }
-                });
-                window.dispatchEvent(event);
-                console.log('[WebsiteReviewModal] Dispatched COMPANY_HEALTH_UPDATED event', json.updatedCompanyHealth);
+            // CRITICAL: Apply UI patch immediately using canonical function
+            if (json.updatedCompanyHealth) {
+                const { applyWebsiteHealthPatch } = await import('@/lib/ui/webHealthPatch');
+                applyWebsiteHealthPatch(json.updatedCompanyHealth);
             }
 
             onDataUpdated?.();

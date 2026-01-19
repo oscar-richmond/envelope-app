@@ -111,6 +111,38 @@ export default function ProspectSearch() {
         return { missingCount, staleCount };
     }, [results]);
 
+    // CRITICAL: Listen for COMPANY_HEALTH_UPDATED events and patch state immediately
+    useEffect(() => {
+        const handleHealthUpdate = (e: CustomEvent) => {
+            const { companyId, updatedCompanyHealth } = e.detail;
+
+            console.log('[ProspectSearch] COMPANY_HEALTH_UPDATED received:', { companyId, updatedCompanyHealth });
+
+            // Patch the results list immediately
+            setResults(prev => prev.map(company => {
+                if (company.id === companyId) {
+                    return {
+                        ...company,
+                        websiteHealthStatus: updatedCompanyHealth.websiteHealthStatus,
+                        websiteHealthScore: updatedCompanyHealth.websiteHealthScore,
+                        websiteHealthLabel: updatedCompanyHealth.websiteHealthLabel,
+                        websiteHealthScannedAt: updatedCompanyHealth.websiteHealthScannedAt,
+                        websiteHealthVersion: updatedCompanyHealth.websiteHealthVersion,
+                        // Sync legacy field to prevent mismatch
+                        stalenessScore: updatedCompanyHealth.websiteHealthScore
+                    };
+                }
+                return company;
+            }));
+        };
+
+        window.addEventListener('COMPANY_HEALTH_UPDATED', handleHealthUpdate as EventListener);
+
+        return () => {
+            window.removeEventListener('COMPANY_HEALTH_UPDATED', handleHealthUpdate as EventListener);
+        };
+    }, []);
+
     // --- Email Discovery State (Moved from bottom) ---
     const [viewEmails, setViewEmails] = useState<any | null>(null);
     const [emailResults, setEmailResults] = useState<any[]>([]);
