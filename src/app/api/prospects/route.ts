@@ -167,9 +167,8 @@ export async function POST(request: Request) {
 
                                 // Website Health (New canonical)
                                 websiteHealthStatus: db.websiteHealthStatus,
-                                websiteHealthScore: db.websiteHealthStatus === 'success'
-                                    ? (db.websiteHealthScore ?? null)
-                                    : null, // Guard: null if not success
+                                websiteHealthScore: db.websiteHealthScore,
+                                websiteHealthLabel: db.websiteHealthLabel,
                                 websiteHealthScannedAt: db.websiteHealthScannedAt,
                                 websiteHealthError: db.websiteHealthError,
                                 websiteHealthVersion: db.websiteHealthVersion,
