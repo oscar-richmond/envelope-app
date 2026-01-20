@@ -60,12 +60,15 @@ export interface WebsiteHealthDisplay {
  * writes lastAnalysedAt. Only show as "scanned" if timestamp exists.
  */
 export function isWebsiteScanned(data: WebsiteHealthInput): boolean {
-    if (FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
+    // Data-driven v2 detection: if version>=2 OR status field exists, use v2 logic
+    const isV2 = (data.websiteHealthVersion && data.websiteHealthVersion >= 2) ||
+        (data.websiteHealthStatus !== null && data.websiteHealthStatus !== undefined);
+
+    if (isV2) {
         return data.websiteHealthStatus === 'success';
     }
 
     // Legacy: REQUIRE timestamp. Score alone is not enough (could be DB default).
-    // A real historical scan would have written lastAnalysedAt.
     const analysedAt = data.lastAnalysedAt || data.lastAnalyzedAt;
     return analysedAt !== null && analysedAt !== undefined;
 }
@@ -95,8 +98,12 @@ export function isWebHealthInteractive(companyId?: number | null): boolean {
  * - Only fall back to legacy when the flag is false
  */
 export function getWebsiteHealthStatus(data: WebsiteHealthInput): WebsiteHealthStatus {
-    if (FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
-        // AUTHORITY: New schema is always authoritative when FF=true
+    // Data-driven v2 detection: if version>=2 OR status field exists, use v2 logic
+    const isV2 = (data.websiteHealthVersion && data.websiteHealthVersion >= 2) ||
+        (data.websiteHealthStatus !== null && data.websiteHealthStatus !== undefined);
+
+    if (isV2) {
+        // Use v2 schema: status field is authoritative
         const newStatus = data.websiteHealthStatus;
         const version = data.websiteHealthVersion;
         const hasReport = !!data.webHealthData;
@@ -116,11 +123,10 @@ export function getWebsiteHealthStatus(data: WebsiteHealthInput): WebsiteHealthS
         }
 
         // If status is 'idle' or null/undefined, treat as idle
-        // NEVER fall back to legacy - new schema is authoritative
         return 'idle';
     }
 
-    // Legacy mode (FF=false): infer from lastAnalysedAt
+    // Legacy mode: infer from lastAnalysedAt
     if (isWebsiteScanned(data)) {
         return 'success';
     }
@@ -134,7 +140,11 @@ export function getWebsiteHealthStatus(data: WebsiteHealthInput): WebsiteHealthS
  * With old schema: Use stalenessScore only if scanned
  */
 function getScoreValue(data: WebsiteHealthInput): number | null {
-    if (FEATURE_FLAGS.USE_NEW_WEBSITE_HEALTH_SCHEMA) {
+    // Data-driven v2 detection
+    const isV2 = (data.websiteHealthVersion && data.websiteHealthVersion >= 2) ||
+        (data.websiteHealthStatus !== null && data.websiteHealthStatus !== undefined);
+
+    if (isV2) {
         return data.websiteHealthScore ?? null;
     }
 
