@@ -161,8 +161,16 @@ export default function WebsiteReviewModal({
 
             // CRITICAL: Apply UI patch immediately using canonical function
             if (json.updatedCompanyHealth) {
+                console.log('[WebsiteReviewModal] PATCH DISPATCH:', {
+                    companyId: json.updatedCompanyHealth.companyId,
+                    score: json.updatedCompanyHealth.websiteHealthScore,
+                    label: json.updatedCompanyHealth.websiteHealthLabel,
+                    status: json.updatedCompanyHealth.websiteHealthStatus
+                });
                 const { applyWebsiteHealthPatch } = await import('@/lib/ui/webHealthPatch');
                 applyWebsiteHealthPatch(json.updatedCompanyHealth);
+            } else {
+                console.warn('[WebsiteReviewModal] No updatedCompanyHealth in scan response:', json);
             }
 
             onDataUpdated?.();

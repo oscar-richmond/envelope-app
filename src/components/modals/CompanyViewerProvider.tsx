@@ -138,13 +138,7 @@ export function CompanyViewerProvider({ children }: { children: ReactNode }) {
     const closeOverlay = () => {
         setActiveOverlay('none');
         setActiveCompanyRef(null);
-
-        // Check if we need to refresh the list after modal close
-        if (sessionStorage.getItem('pendingListRefresh') === 'true') {
-            sessionStorage.removeItem('pendingListRefresh');
-            console.log('[CompanyViewerProvider] Reloading page to sync list state');
-            window.location.reload();
-        }
+        // Removed forced reload - event-driven patching handles UI updates
     };
 
     // Listen for OPEN_WEB_HEALTH_MODAL events
@@ -163,12 +157,7 @@ export function CompanyViewerProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    // Callback for when data is updated in modal - triggers page reload to sync parent list
-    const handleDataUpdated = () => {
-        console.log('[CompanyViewerProvider] Data updated - will refresh page after modal closes');
-        // Set a flag that we'll check on modal close
-        sessionStorage.setItem('pendingListRefresh', 'true');
-    };
+    // Data updates now handled via COMPANY_HEALTH_UPDATED events - no reload needed
 
     return (
         <CompanyViewerContext.Provider value={{
@@ -201,7 +190,6 @@ export function CompanyViewerProvider({ children }: { children: ReactNode }) {
                     companyId={activeCompanyRef.companyId}
                     companyName={activeCompanyRef.companyName}
                     websiteUrl={activeCompanyRef.websiteUrl}
-                    onDataUpdated={handleDataUpdated}
                 />
             )}
 
