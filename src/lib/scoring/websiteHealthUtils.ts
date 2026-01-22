@@ -60,9 +60,20 @@ export interface WebsiteHealthDisplay {
  * writes lastAnalysedAt. Only show as "scanned" if timestamp exists.
  */
 export function isWebsiteScanned(data: WebsiteHealthInput): boolean {
-    // Data-driven v2 detection: if version>=2 OR status field exists, use v2 logic
-    const isV2 = (data.websiteHealthVersion && data.websiteHealthVersion >= 2) ||
-        (data.websiteHealthStatus !== null && data.websiteHealthStatus !== undefined);
+    // Data-driven v2 detection: check if v2 fields exist as properties (not their values)
+    // This correctly handles not-scanned state where fields are null but schema is v2
+    const isV2 = 'websiteHealthStatus' in data || 'websiteHealthVersion' in data;
+
+    // Temporary debug logging
+    if (typeof window !== 'undefined' && sessionStorage.getItem('DEBUG_SCHEMA_DETECTION')) {
+        console.log('[isWebsiteScanned] Schema detection:', {
+            isV2,
+            hasStatusField: 'websiteHealthStatus' in data,
+            hasVersionField: 'websiteHealthVersion' in data,
+            statusValue: data.websiteHealthStatus,
+            versionValue: data.websiteHealthVersion
+        });
+    }
 
     if (isV2) {
         return data.websiteHealthStatus === 'success';
@@ -98,9 +109,9 @@ export function isWebHealthInteractive(companyId?: number | null): boolean {
  * - Only fall back to legacy when the flag is false
  */
 export function getWebsiteHealthStatus(data: WebsiteHealthInput): WebsiteHealthStatus {
-    // Data-driven v2 detection: if version>=2 OR status field exists, use v2 logic
-    const isV2 = (data.websiteHealthVersion && data.websiteHealthVersion >= 2) ||
-        (data.websiteHealthStatus !== null && data.websiteHealthStatus !== undefined);
+    // Data-driven v2 detection: check if v2 fields exist as properties (not their values)
+    // This correctly handles not-scanned state where fields are null but schema is v2
+    const isV2 = 'websiteHealthStatus' in data || 'websiteHealthVersion' in data;
 
     if (isV2) {
         // Use v2 schema: status field is authoritative
@@ -140,9 +151,9 @@ export function getWebsiteHealthStatus(data: WebsiteHealthInput): WebsiteHealthS
  * With old schema: Use stalenessScore only if scanned
  */
 function getScoreValue(data: WebsiteHealthInput): number | null {
-    // Data-driven v2 detection
-    const isV2 = (data.websiteHealthVersion && data.websiteHealthVersion >= 2) ||
-        (data.websiteHealthStatus !== null && data.websiteHealthStatus !== undefined);
+    // Data-driven v2 detection: check if v2 fields exist as properties (not their values)
+    // This correctly handles not-scanned state where fields are null but schema is v2
+    const isV2 = 'websiteHealthStatus' in data || 'websiteHealthVersion' in data;
 
     if (isV2) {
         return data.websiteHealthScore ?? null;
