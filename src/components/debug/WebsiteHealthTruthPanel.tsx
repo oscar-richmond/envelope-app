@@ -74,7 +74,11 @@ export default function WebsiteHealthTruthPanel({
         if (selectedSource === 'new') {
             parts.push('FF=true → new fields');
             parts.push(`status=${rawData.websiteHealthStatus ?? 'null'}`);
-            if (displayResult.status !== 'success') {
+
+            // Heal-on-read case: status null but scannedAt + legacy score exist
+            if (!rawData.websiteHealthStatus && rawData.websiteHealthScannedAt && rawData.stalenessScore != null) {
+                parts.push('→ heal-on-read: using legacy score');
+            } else if (displayResult.status !== 'success') {
                 parts.push('→ score hidden');
             }
         } else {

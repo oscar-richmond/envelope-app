@@ -117,20 +117,26 @@ export function getWebsiteHealthStatus(data: WebsiteHealthInput): WebsiteHealthS
         // Use v2 schema: status field is authoritative
         const newStatus = data.websiteHealthStatus;
         const version = data.websiteHealthVersion;
-        const hasReport = !!data.webHealthData;
 
-        // CRITICAL: Only version=2 + stored report can be success
         if (newStatus === 'success') {
-            // Validate V2 compliance
-            if (version !== 2 || !hasReport) {
-                console.warn(`[WebsiteHealth] Invalid success record detected: version=${version}, reportExists=${hasReport}. Treating as idle.`);
-                return 'idle';
+            // Bug 1 fix: webHealthData is not returned by /api/prospects (only used in modal),
+            // so we cannot gate success on hasReport. Log unexpected versions but still display.
+            if (version !== null && version !== undefined && version !== 2) {
+                console.warn(`[WebsiteHealth] Unexpected version=${version} for success record. Displaying anyway.`);
             }
             return 'success';
         }
 
         if (newStatus === 'scanning' || newStatus === 'failed') {
             return newStatus as WebsiteHealthStatus;
+        }
+
+        // Bug 2 fix: heal-on-read for pre-v2 migration records.
+        // If websiteHealthStatus is null but a scan timestamp + legacy score exist,
+        // this is a record where the old scan wrote the timestamp but not the status field.
+        // Fall back to legacy score for display.
+        if (!newStatus && data.websiteHealthScannedAt && data.stalenessScore != null) {
+            return 'success';
         }
 
         // If status is 'idle' or null/undefined, treat as idle
@@ -156,7 +162,10 @@ function getScoreValue(data: WebsiteHealthInput): number | null {
     const isV2 = 'websiteHealthStatus' in data || 'websiteHealthVersion' in data;
 
     if (isV2) {
-        return data.websiteHealthScore ?? null;
+        if (data.websiteHealthScore != null) return data.websiteHealthScore;
+        // Bug 2 fix: heal-on-read — if scannedAt exists but score is null, use legacy score
+        if (data.websiteHealthScannedAt && data.stalenessScore != null) return data.stalenessScore;
+        return null;
     }
 
     // Legacy: only return score if actually scanned
